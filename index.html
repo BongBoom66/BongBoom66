@@ -236,12 +236,16 @@
   @page{ size:A5 portrait; margin:5mm; }
   @media print{
     html, body{ background:#fff !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
-    body *{visibility:hidden;}
-    #printArea, #printArea *{visibility:visible; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important;}
-    #printArea{display:block !important;position:absolute;top:0;left:0;width:100%;background:#fff !important;}
-    #barcodeLabelPrintArea, #barcodeLabelPrintArea *{visibility:visible;}
-    #barcodeLabelPrintArea{display:block !important;position:absolute;top:0;left:0;width:100%;background:#fff !important;}
-    #viewModalOverlay, #markPaidModalOverlay, #cameraScanOverlay{display:none !important;}
+    /* Hide every other top-level element with display:none (not visibility:hidden) so it
+       is fully removed from layout — otherwise the invisible-but-still-laid-out app content
+       (POS cart, product list, nav, etc.) keeps its full height and the browser prints that
+       empty space as extra blank pages after the real invoice. */
+    body > *{display:none !important;}
+    #printArea, #barcodeLabelPrintArea{
+      display:block !important;position:static !important;width:100%;background:#fff !important;
+      -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important;
+    }
+    #printArea *, #barcodeLabelPrintArea *{visibility:visible; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important;}
   }
   .inv-page{width:136mm;min-height:198mm;box-sizing:border-box;padding:2mm 0 0;margin:0 auto;background:#fff;font-family:'Siemreap','Khmer OS Siemreap','Khmer OS','Noto Sans Khmer',sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative;font-size:10pt;display:flex;flex-direction:column;page-break-after:always;}
   .inv-page:last-of-type{page-break-after:auto;}
