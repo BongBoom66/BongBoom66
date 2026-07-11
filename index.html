@@ -614,6 +614,8 @@ function subscribeRealtime(){
 /* ================= POS ================= */
 let cart = []; // {product_id, name, unit, price, qty}
 let loadedFromSourceDocId = null;
+let loadedFromSourceDocType = null;
+let nextDocNoPreview = '';
 let docType = 'invoice';
 let selectedCustomer = null; // {id, name, phone, location} or null for walk-in typed
 let custPickerSearch = '';
@@ -699,10 +701,15 @@ function addLocationRow(){
 function removeLocationRow(idx){
   const loc = locationsCache[idx];
   if(!loc) return;
+  if(loc.id && locationsCache.filter(l=>l.id).length<=1){
+    alert('មិនអាចលុបទីតាំងចុងក្រោយបានទេ — ត្រូវការទីតាំងយ៉ាងតិចមួយជានិច្ច');
+    return;
+  }
   if(loc.id){
     if(!confirm(`លុបទីតាំង "${loc.name}"? (ស្តុកទំនិញនៅទីតាំងនេះនឹងបាត់ផងដែរ)`)) return;
-    sb.from('locations').delete().eq('id', loc.id).then(()=>{
+    sb.from('locations').delete().eq('id', loc.id).then(async ()=>{
       locationsCache.splice(idx,1);
+      await loadLocations();
       renderSettings(document.getElementById('content'));
     });
   } else {
@@ -748,10 +755,13 @@ async function saveLocations(){
 }
 
 async function upsertStock(productId, locId, qty){
-  await sb.from('product_stock').upsert({product_id:productId, location_id:locId, qty:qty}, {onConflict:'product_id,location_id'});
+  const {error} = await sb.from('product_stock').upsert({product_id:productId, location_id:locId, qty:qty}, {onConflict:'product_id,location_id'});
+  if(error){ alert('បញ្ហាកត់ត្រាស្តុក៖ '+error.message); }
+  return {error};
 }
 async function adjustStock(productId, locId, delta){
-  const {data} = await sb.from('product_stock').select('qty').eq('product_id',productId).eq('location_id',locId).maybeSingle();
+  const {data, error: readErr} = await sb.from('product_stock').select('qty').eq('product_id',productId).eq('location_id',locId).maybeSingle();
+  if(readErr){ alert('បញ្ហាអានស្តុក៖ '+readErr.message); return null; }
   const cur = data ? Number(data.qty) : 0;
   const next = Math.max(0, cur + delta);
   await upsertStock(productId, locId, next);
@@ -1050,7 +1060,7 @@ async function renderPOS(c){
   const showPrice = docType !== 'delivery';
   const showDeposit = docType === 'invoice';
 
-  let nextDocNoPreview = '';
+  nextDocNoPreview = '';
   if(!editingDocId){
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -1064,6 +1074,7 @@ async function renderPOS(c){
   c.innerHTML = `
     <h2 class="page-title">ការលក់ — បង្កើតឯកសារ</h2>
     <p class="page-sub">ជ្រើសរើសប្រភេទឯកសារ បន្ថែមអតិថិជន និងទំនិញ រួចរក្សាទុក/បោះពុម្ព</p>
+    ${locationSwitcherHTML()}
 
     ${editingDocId ? `
     <div class="card" style="border-color:var(--danger);background:#fff5f6;margin-bottom:14px;">
@@ -1285,6 +1296,11 @@ function addToCart(pid){
   const p = productsCache.find(x=>x.id===pid);
   if(!p) return;
   const existing = cart.find(c=>c.product_id===pid);
+  const wantQty = (existing ? existing.qty : 0) + 1;
+  if(docType==='invoice' && wantQty > getStockFor(pid)){
+    alert(`ស្តុកមិនគ្រប់គ្រាន់! "${p.name}" នៅសល់ត្រឹម ${getStockFor(pid)} ${p.unit||''} ប៉ុណ្ណោះ`);
+    return;
+  }
   if(existing){ existing.qty += 1; }
   else{ cart.push({product_id:p.id, name:p.name, unit:p.unit, price:Number(p.price), qty:1}); }
   renderPOS(document.getElementById('content'));
@@ -1363,8 +1379,9 @@ async function loadFromSourceDoc(){
     product_id: it.product_id, name: it.item_name, unit: it.unit,
     price: Number(it.unit_price), qty: Number(it.qty)
   }));
-  loadedFromSourceDocId = (docType==='invoice' && srcDoc.doc_type==='quotation') ? srcDoc.id : null;
-  if(loadedFromSourceDocId){
+  loadedFromSourceDocId = srcDoc.id;
+  loadedFromSourceDocType = srcDoc.doc_type;
+  if(loadedFromSourceDocType==='quotation'){
     await sb.from('documents').update({status:'processing'}).eq('id', loadedFromSourceDocId);
   }
 
@@ -1391,24 +1408,31 @@ function addManualItem(){
   customItemsCache[name] = {unit, unit_price:price};
   renderPOS(document.getElementById('content'));
 }
-function updateQty(i, val){ cart[i].qty = parseFloat(val)||0; renderPOS(document.getElementById('content')); }
+function updateQty(i, val){
+  const it = cart[i];
+  const newQty = parseFloat(val)||0;
+  if(!editingDocId && docType==='invoice' && it.product_id && newQty > getStockFor(it.product_id)){
+    alert(`ស្តុកមិនគ្រប់គ្រាន់! "${it.name}" នៅសល់ត្រឹម ${getStockFor(it.product_id)} ${it.unit||''} ប៉ុណ្ណោះ`);
+    renderPOS(document.getElementById('content'));
+    return;
+  }
+  it.qty = newQty;
+  renderPOS(document.getElementById('content'));
+}
 function updatePrice(i, val){ cart[i].price = parseFloat(val)||0; renderPOS(document.getElementById('content')); }
-function editCartItemInline(i){
+async function editCartItemInline(i){
   const it = cart[i];
   if(!it) return;
   cart.splice(i,1);
-  renderPOS(document.getElementById('content'));
-  setTimeout(()=>{
-    const nameEl = document.getElementById('manName');
-    const qtyEl = document.getElementById('manQty');
-    const priceEl = document.getElementById('manPrice');
-    const unitEl = document.getElementById('manUnit');
-    if(nameEl) nameEl.value = it.name;
-    if(qtyEl) qtyEl.value = it.qty;
-    if(priceEl) priceEl.value = it.price;
-    if(unitEl) unitEl.value = it.unit || '';
-    if(nameEl) nameEl.focus();
-  }, 50);
+  await renderPOS(document.getElementById('content'));
+  const nameEl = document.getElementById('manName');
+  const qtyEl = document.getElementById('manQty');
+  const priceEl = document.getElementById('manPrice');
+  if(nameEl) nameEl.value = it.name;
+  if(qtyEl) qtyEl.value = it.qty;
+  if(priceEl) priceEl.value = it.price;
+  setUnitSelectValue('manUnit', it.unit || '');
+  if(nameEl) nameEl.focus();
 }
 function removeItem(i){ cart.splice(i,1); renderPOS(document.getElementById('content')); }
 function moveCartItem(i, dir){
@@ -1418,10 +1442,10 @@ function moveCartItem(i, dir){
   renderPOS(document.getElementById('content'));
 }
 async function clearCart(){
-  if(loadedFromSourceDocId){
+  if(loadedFromSourceDocId && loadedFromSourceDocType==='quotation'){
     await sb.from('documents').update({status:'active'}).eq('id', loadedFromSourceDocId);
   }
-  cart=[]; depositVal=0; loadedFromSourceDocId=null;
+  cart=[]; depositVal=0; loadedFromSourceDocId=null; loadedFromSourceDocType=null;
   renderPOS(document.getElementById('content'));
 }
 function subtotal(){ return cart.reduce((s,it)=>s+it.qty*it.price,0); }
@@ -1506,10 +1530,28 @@ async function saveDocument(shouldPrint){
   if(bankSelect) bankName = bankSelect.value;
   if(paymentMethod !== 'bank') bankName = '';
 
+  if(docType==='invoice' && !currentLocationId){
+    alert('សូមបង្កើតទីតាំង (ហាង/ឃ្លាំង) ជាមុនសិន ក្នុង "ការកំណត់" មុននឹងធ្វើវិក្កយបត្រ');
+    return;
+  }
+
   if(editingDocId){
     // ---- UPDATE existing document ----
     const {data: oldItems} = await sb.from('document_items').select('*').eq('document_id', editingDocId);
+
     if(docType==='invoice'){
+      const oldQtyByProduct = {};
+      (oldItems||[]).forEach(it=>{
+        if(it.product_id) oldQtyByProduct[it.product_id] = (oldQtyByProduct[it.product_id]||0) + Number(it.qty);
+      });
+      for(const it of cart){
+        if(!it.product_id) continue;
+        const available = getStockFor(it.product_id) + (oldQtyByProduct[it.product_id]||0);
+        if(Number(it.qty) > available){
+          alert(`ស្តុកមិនគ្រប់គ្រាន់សម្រាប់ "${it.name}"! អាចលក់បានត្រឹម ${available} ${it.unit||''} ប៉ុណ្ណោះ`);
+          return;
+        }
+      }
       for(const it of (oldItems||[])){
         if(it.product_id){
           await adjustStock(it.product_id, currentLocationId, Number(it.qty));
@@ -1531,7 +1573,11 @@ async function saveDocument(shouldPrint){
       document_id: editingDocId, product_id: it.product_id, item_name: it.name,
       qty: it.qty, unit: it.unit, unit_price: it.price, total_price: it.qty*it.price, sort_order: i
     }));
-    await sb.from('document_items').insert(items);
+    const {error: itemsErr} = await sb.from('document_items').insert(items);
+    if(itemsErr){
+      alert('បញ្ហាធ្ងន់ធ្ងរ៖ ក្បាលឯកសារបានកែប្រែរួច ប៉ុន្តែធាតុទំនិញរក្សាទុកមិនបានទេ៖ '+itemsErr.message+' — សូមចូលកែឯកសារនេះឡើងវិញភ្លាមៗ ដើម្បីបញ្ចូលទំនិញឡើងវិញ');
+      return;
+    }
 
     if(docType==='invoice'){
       for(const it of cart){
@@ -1550,6 +1596,17 @@ async function saveDocument(shouldPrint){
   }
 
   // ---- CREATE new document ----
+  if(docType==='invoice'){
+    for(const it of cart){
+      if(!it.product_id) continue;
+      const available = getStockFor(it.product_id);
+      if(Number(it.qty) > available){
+        alert(`ស្តុកមិនគ្រប់គ្រាន់សម្រាប់ "${it.name}"! អាចលក់បានត្រឹម ${available} ${it.unit||''} ប៉ុណ្ណោះ`);
+        return;
+      }
+    }
+  }
+
   const customDocNoVal = document.getElementById('customDocNo')?.value.trim();
   let doc_no;
   if(customDocNoVal){
@@ -1581,7 +1638,11 @@ async function saveDocument(shouldPrint){
     document_id: doc.id, product_id: it.product_id, item_name: it.name,
     qty: it.qty, unit: it.unit, unit_price: it.price, total_price: it.qty*it.price, sort_order: i
   }));
-  await sb.from('document_items').insert(items);
+  const {error: itemsErr} = await sb.from('document_items').insert(items);
+  if(itemsErr){
+    alert('បញ្ហាធ្ងន់ធ្ងរ៖ ឯកសារលេខ '+doc.doc_no+' បានរក្សាទុករួច ប៉ុន្តែធាតុទំនិញរក្សាទុកមិនបានទេ៖ '+itemsErr.message+' — សូមចូលកែឯកសារនេះឡើងវិញភ្លាមៗ ដើម្បីបញ្ចូលទំនិញឡើងវិញ');
+    return;
+  }
 
   if(docType==='invoice'){
     for(const it of cart){
@@ -1592,8 +1653,10 @@ async function saveDocument(shouldPrint){
   }
 
   if(loadedFromSourceDocId){
-    await sb.from('documents').update({status:'converted'}).eq('id', loadedFromSourceDocId);
-    loadedFromSourceDocId = null;
+    if(loadedFromSourceDocType==='quotation'){
+      await sb.from('documents').update({status:'converted'}).eq('id', loadedFromSourceDocId);
+    }
+    loadedFromSourceDocId = null; loadedFromSourceDocType = null;
   }
 
   lastSavedDoc = doc; lastSavedItems = cart;
@@ -1620,7 +1683,7 @@ function previewCurrentDocument(){
   const dep = docType==='invoice' ? depositVal : 0;
   const bal = docType==='invoice' ? (sub-dep) : 0;
   const previewDoc = {
-    doc_no: editingDocId ? editingDocNo : (typeof nextDocNoPreview!=='undefined' && nextDocNoPreview ? nextDocNoPreview : '(មិនទាន់រក្សាទុក)'),
+    doc_no: editingDocId ? editingDocNo : (nextDocNoPreview || '(មិនទាន់រក្សាទុក)'),
     doc_type: docType,
     customer_name: selectedCustomer?.name || '',
     customer_phone: selectedCustomer?.phone || '',
@@ -2018,6 +2081,8 @@ async function addProduct(){
   }
   if(productId && currentLocationId){
     await upsertStock(productId, currentLocationId, qty);
+  } else if(productId && qty>0 && !currentLocationId){
+    alert('ចំណាំ៖ ផលិតផលបានរក្សាទុករួច ប៉ុន្តែចំនួនស្តុកមិនត្រូវបានកត់ត្រាទេ ព្រោះមិនទាន់មានទីតាំង (ហាង/ឃ្លាំង)។ សូមបង្កើតទីតាំងក្នុង "ការកំណត់" រួចដាក់ស្តុកម្តងទៀត');
   }
   renderStock(document.getElementById('content'));
 }
@@ -2170,7 +2235,7 @@ async function importExcelProducts(){
     for(const r of parsed){
       const match = (r.code && existingByCode[r.code.toLowerCase()]) || existingByName[r.name.toLowerCase()];
       if(match){
-        toUpdate.push({id: match.id, code: r.code || match.code, category: r.category || match.category, unit: r.unit || match.unit, price: r.price, stock_qty: r.stock_qty});
+        toUpdate.push({id: match.id, code: r.code || match.code, name: r.name || match.name, category: r.category || match.category, unit: r.unit || match.unit, price: r.price, stock_qty: r.stock_qty});
       } else {
         toInsert.push(r);
         if(r.code) existingByCode[r.code.toLowerCase()] = {id:null};
@@ -2186,7 +2251,7 @@ async function importExcelProducts(){
       }
     }
     for(const u of toUpdate){
-      await sb.from('products').update({code:u.code, category:u.category, unit:u.unit, price:u.price}).eq('id', u.id);
+      await sb.from('products').update({code:u.code, name:u.name, category:u.category, unit:u.unit, price:u.price}).eq('id', u.id);
       if(currentLocationId) await upsertStock(u.id, currentLocationId, u.stock_qty);
     }
 
@@ -2847,7 +2912,11 @@ async function savePO(){
       qty: it.qty, unit: it.unit, unit_cost: unitCost, total_cost: it.qty*unitCost, sort_order: i
     };
   });
-  await sb.from('purchase_order_items').insert(items);
+  const {error: itemsErr} = await sb.from('purchase_order_items').insert(items);
+  if(itemsErr){
+    alert('បញ្ហាធ្ងន់ធ្ងរ៖ បញ្ជាទិញលេខ '+po.po_no+' បានរក្សាទុករួច ប៉ុន្តែធាតុទំនិញរក្សាទុកមិនបានទេ៖ '+itemsErr.message+' — សូមចូលកែបញ្ជាទិញនេះឡើងវិញ');
+    return;
+  }
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
   poCart=[]; selectedSupplier=null; poShippingTotal=0;
@@ -2855,14 +2924,20 @@ async function savePO(){
 }
 
 async function receivePO(poId){
+  if(!currentLocationId){ alert('សូមបង្កើតទីតាំង (ហាង/ឃ្លាំង) ជាមុនសិន ក្នុង "ការកំណត់"'); return; }
   if(!confirm('សម្គាល់ថាបានទទួលទំនិញនេះចូលស្តុក? (ចូលទីតាំង៖ '+((locationsCache.find(l=>l.id===currentLocationId)||{}).name||'')+')')) return;
-  const {data: items} = await sb.from('purchase_order_items').select('*').eq('po_id', poId);
+  const {data: items, error: itemsErr} = await sb.from('purchase_order_items').select('*').eq('po_id', poId);
+  if(itemsErr){ alert('មិនអាចទាញយកទំនិញក្នុងបញ្ជាទិញបានទេ៖ '+itemsErr.message); return; }
   for(const it of (items||[])){
     if(it.product_id){
       await adjustStock(it.product_id, currentLocationId, Number(it.qty));
     }
   }
-  await sb.from('purchase_orders').update({status:'received'}).eq('id', poId);
+  const {error: updErr} = await sb.from('purchase_orders').update({status:'received'}).eq('id', poId);
+  if(updErr){
+    alert('ស្តុកបានបន្ថែមចូលរួច ប៉ុន្តែមិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពបញ្ជាទិញបានទេ៖ '+updErr.message+' — សូមកុំចុច "ទទួលចូលស្តុក" ម្តងទៀត ដើម្បីជៀសវាងបន្ថែមស្តុកស្ទួន');
+    return;
+  }
   renderPurchase(document.getElementById('content'));
 }
 function setPOFilter(f){ poHistoryFilter = f; renderPurchase(document.getElementById('content')); }
@@ -3090,7 +3165,9 @@ async function confirmMarkPaid(method, bank){
 }
 async function unmarkInvoicePaid(docId){
   if(!confirm('ដកសម្គាល់ការទូទាត់ (ត្រឡប់ទៅជា "ខ្វះ" វិញ)?')) return;
-  const {error} = await sb.from('documents').update({deposit: 0, balance: (await sb.from('documents').select('subtotal').eq('id',docId).single()).data.subtotal, payment_method: null, bank_name: null}).eq('id', docId);
+  const {data: docRow, error: fetchErr} = await sb.from('documents').select('subtotal').eq('id',docId).single();
+  if(fetchErr || !docRow){ alert('មិនអាចទាញយកព័ត៌មានឯកសារបានទេ៖ '+(fetchErr?.message||'')); return; }
+  const {error} = await sb.from('documents').update({deposit: 0, balance: docRow.subtotal, payment_method: null, bank_name: null}).eq('id', docId);
   if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
   renderHistory(document.getElementById('content'));
 }
@@ -4305,16 +4382,19 @@ async function downloadBackup(){
   const statusEl = document.getElementById('backupStatus');
   statusEl.textContent = 'កំពុងទាញយកទិន្នន័យ...';
   try{
-    const [prods, custs, docs, items, sups, pos, poItems] = await Promise.all([
+    const [prods, custs, docs, items, sups, pos, poItems, locs, stock, transfers] = await Promise.all([
       sb.from('products').select('*'),
       sb.from('customers').select('*'),
       sb.from('documents').select('*'),
       sb.from('document_items').select('*'),
       sb.from('suppliers').select('*'),
       sb.from('purchase_orders').select('*'),
-      sb.from('purchase_order_items').select('*')
+      sb.from('purchase_order_items').select('*'),
+      sb.from('locations').select('*'),
+      sb.from('product_stock').select('*'),
+      sb.from('stock_transfers').select('*')
     ]);
-    const errs = [prods,custs,docs,items,sups,pos,poItems].map(r=>r.error).filter(Boolean);
+    const errs = [prods,custs,docs,items,sups,pos,poItems,locs,stock,transfers].map(r=>r.error).filter(Boolean);
     if(errs.length>0){
       statusEl.textContent = 'មានបញ្ហាទាញយកខ្លះ៖ '+errs.map(e=>e.message).join(' | ');
       console.error('Backup errors:', errs);
@@ -4327,10 +4407,13 @@ async function downloadBackup(){
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sups.data||[]), 'Suppliers');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pos.data||[]), 'PurchaseOrders');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(poItems.data||[]), 'PurchaseOrderItems');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(locs.data||[]), 'Locations');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stock.data||[]), 'ProductStock');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transfers.data||[]), 'StockTransfers');
     const dateStr = new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, `KimSreang_Backup_${dateStr}.xlsx`);
     if(errs.length===0){
-      statusEl.textContent = `ទាញយកជោគជ័យ! (Products:${(prods.data||[]).length}, Customers:${(custs.data||[]).length}, Documents:${(docs.data||[]).length}, DocumentItems:${(items.data||[]).length}, Suppliers:${(sups.data||[]).length}, PurchaseOrders:${(pos.data||[]).length}, PurchaseOrderItems:${(poItems.data||[]).length})`;
+      statusEl.textContent = `ទាញយកជោគជ័យ! (Products:${(prods.data||[]).length}, Customers:${(custs.data||[]).length}, Documents:${(docs.data||[]).length}, DocumentItems:${(items.data||[]).length}, Suppliers:${(sups.data||[]).length}, PurchaseOrders:${(pos.data||[]).length}, PurchaseOrderItems:${(poItems.data||[]).length}, Locations:${(locs.data||[]).length}, ProductStock:${(stock.data||[]).length}, StockTransfers:${(transfers.data||[]).length})`;
     }
   }catch(e){
     statusEl.textContent = 'មានបញ្ហា៖ '+e.message;
