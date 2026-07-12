@@ -441,6 +441,19 @@
   </div>
 </div>
 
+<div id="sharedRevNoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:210;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <b style="font-size:16px;display:block;margin-bottom:4px;">សម្គាល់ថាបានត្រួតពិនិត្យ</b>
+    <p style="font-size:12.5px;color:#6b6f76;margin:0 0 12px;">អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ</p>
+    <label style="font-size:12.5px;color:#6b6f76;">កំណត់ចំណាំ</label>
+    <textarea class="inp" id="sharedRevNoteInput" rows="3" placeholder="ឧ. បានពិនិត្យត្រឹមត្រូវ / ត្រូវសួរម្ចាស់ពី..." style="width:100%;margin:4px 0 12px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeSharedRevNoteModal()">✕ បិទ</button>
+      <button class="btn accent" style="flex:1;" onclick="confirmSharedRevNote()">សម្គាល់ថាបានត្រួតពិនិត្យ</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ================= SUPABASE INIT ================= */
 let sb = null;
@@ -3913,12 +3926,12 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}</td>
+              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:#8a8d94;" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
                 ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
                   ? `<button class="btn small" onclick="setSharedRevReviewed('${m.doc.id}', false)">ដកសម្គាល់</button>`
-                  : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="setSharedRevReviewed('${m.doc.id}', true)">ត្រួតពិនិត្យ</button>`) : ''}
+                  : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="openSharedRevNoteModal('${m.doc.id}')">ត្រួតពិនិត្យ</button>`) : ''}
               </td>
             </tr>`).join('')}
         </tbody>
@@ -3928,10 +3941,30 @@ async function renderSharedRevenue(c){
 }
 function setSharedRevOwnerFilter(v){ sharedRevOwnerFilter = v; renderSharedRevenue(document.getElementById('content')); }
 function setSharedRevReviewFilter(v){ sharedRevReviewFilter = v; renderSharedRevenue(document.getElementById('content')); }
-async function setSharedRevReviewed(docId, val){
-  const {error} = await sb.from('documents').update({shared_revenue_reviewed: val}).eq('id', docId);
+async function setSharedRevReviewed(docId, val, note){
+  const update = {shared_revenue_reviewed: val};
+  if(!val) update.shared_revenue_note = null;
+  else if(note!==undefined) update.shared_revenue_note = note || null;
+  const {error} = await sb.from('documents').update(update).eq('id', docId);
   if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
   renderSharedRevenue(document.getElementById('content'));
+}
+let pendingSharedRevNoteDocId = null;
+function openSharedRevNoteModal(docId){
+  pendingSharedRevNoteDocId = docId;
+  const doc = (window._sharedRevInvoices||[]).find(m=>m.doc.id===docId)?.doc;
+  document.getElementById('sharedRevNoteInput').value = doc?.shared_revenue_note || '';
+  document.getElementById('sharedRevNoteModalOverlay').style.display = 'flex';
+}
+function closeSharedRevNoteModal(){
+  document.getElementById('sharedRevNoteModalOverlay').style.display = 'none';
+  pendingSharedRevNoteDocId = null;
+}
+async function confirmSharedRevNote(){
+  if(!pendingSharedRevNoteDocId) return;
+  const note = document.getElementById('sharedRevNoteInput').value.trim();
+  await setSharedRevReviewed(pendingSharedRevNoteDocId, true, note);
+  closeSharedRevNoteModal();
 }
 function setSharedRevRange(r){ sharedRevRange = r; renderSharedRevenue(document.getElementById('content')); }
 function exportSharedRevenueExcel(){
@@ -3947,7 +3980,9 @@ function exportSharedRevenueExcel(){
         'ឈ្មោះទំនិញ': '',
         'ម្ចាស់': '',
         'ចំនួន': '',
-        'តម្លៃសរុប ($)': 0
+        'តម្លៃសរុប ($)': 0,
+        'ស្ថានភាព': m.doc.shared_revenue_reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
+        'កំណត់ចំណាំ': m.doc.shared_revenue_note || ''
       });
     } else {
       m.items.forEach(it=>{
@@ -3958,7 +3993,9 @@ function exportSharedRevenueExcel(){
           'ឈ្មោះទំនិញ': it.name,
           'ម្ចាស់': it.owner,
           'ចំនួន': it.qty,
-          'តម្លៃសរុប ($)': it.total
+          'តម្លៃសរុប ($)': it.total,
+          'ស្ថានភាព': m.doc.shared_revenue_reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
+          'កំណត់ចំណាំ': m.doc.shared_revenue_note || ''
         });
       });
     }
