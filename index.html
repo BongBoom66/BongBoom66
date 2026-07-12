@@ -1235,10 +1235,16 @@ function applyCardArrange(containerEl, pageKey){
     if(resizeTarget){
       const rHandle = document.createElement('div');
       rHandle.textContent = '↕ អូសដើម្បីប្តូរទំហំ';
+      rHandle.setAttribute('draggable', 'false');
       rHandle.style.cssText = 'cursor:ns-resize;background:var(--paper-dim);color:#6b6f76;font-size:11px;text-align:center;padding:4px;border-radius:0 0 6px 6px;margin-top:6px;user-select:none;';
       resizeTarget.insertAdjacentElement('afterend', rHandle);
       rHandle.addEventListener('mousedown', (e)=>{
         e.preventDefault();
+        e.stopPropagation();
+        // The card itself is draggable="true" for reordering — a mousedown here
+        // would otherwise get hijacked by the native HTML5 drag system before our
+        // own mousemove/mouseup resize logic ever runs. Disable it for the drag.
+        el.setAttribute('draggable', 'false');
         const startY = e.clientY;
         const startH = resizeTarget.offsetHeight;
         function onMove(ev){
@@ -1248,6 +1254,7 @@ function applyCardArrange(containerEl, pageKey){
         function onUp(){
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          el.setAttribute('draggable', 'true');
           if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], heights:{}};
           if(!cardLayouts[pageKey].heights) cardLayouts[pageKey].heights = {};
           cardLayouts[pageKey].heights[key] = resizeTarget.offsetHeight;
