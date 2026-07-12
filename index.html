@@ -389,6 +389,10 @@
         <label style="font-size:12.5px;color:#6b6f76;">ធនាគារ</label>
         <select class="inp" id="markPaidBankSelect" style="width:100%;margin-top:4px;"></select>
       </div>
+      <div id="markPaidChequeRow" style="display:none;margin-bottom:14px;">
+        <label style="font-size:12.5px;color:#6b6f76;">លេខមូលបត្រ</label>
+        <input class="inp" id="markPaidChequeInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:100%;margin-top:4px;">
+      </div>
       <div style="margin-bottom:10px;">
         <label style="font-size:12.5px;color:#6b6f76;">រូបិយប័ណ្ណដែលទទួលបាន</label>
         <select class="inp" id="markPaidCurrencySelect" style="width:100%;margin-top:4px;" onchange="onMarkPaidCurrencyChange()">
@@ -656,6 +660,7 @@ function toggleLoadSourceBox(){
 let depositVal = 0;
 let paymentMethod = 'cash';
 let bankName = '';
+let chequeNumber = '';
 let paymentCurrency = 'usd';
 let paymentRielAmount = 0;
 let BANK_LIST = ['ABA Bank','ACLEDA Bank','Canadia Bank','Wing Bank','PPCBank','Vattanac Bank','Cambodia Post Bank','Prince Bank','Sathapana Bank','SBI LY HOUR Bank','ផ្សេងទៀត'];
@@ -1261,6 +1266,10 @@ async function renderPOS(c){
                 ${BANK_LIST.map(b=>`<option value="${escapeHtml(b)}" ${bankName===b?'selected':''}>${escapeHtml(b)}</option>`).join('')}
               </select>
             </div>`:''}
+            ${paymentMethod==='cheque'?`
+            <div class="line"><span>លេខមូលបត្រ</span>
+              <input class="inp" id="chequeNumberInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:150px;" value="${escapeHtml(chequeNumber)}">
+            </div>`:''}
             <div class="line"><span>រូបិយប័ណ្ណទទួល</span>
               <select class="inp" id="paymentCurrencySelect" style="width:150px;" onchange="paymentCurrency=this.value; if(paymentCurrency==='khr' && !paymentRielAmount) paymentRielAmount=rielAmountRaw(depositVal); renderPOS(document.getElementById('content'))">
                 <option value="usd" ${paymentCurrency==='usd'?'selected':''}>💵 ដុល្លា ($)</option>
@@ -1561,6 +1570,9 @@ async function saveDocument(shouldPrint){
   const bankSelect = document.getElementById('bankNameSelect');
   if(bankSelect) bankName = bankSelect.value;
   if(paymentMethod !== 'bank') bankName = '';
+  const chequeInput = document.getElementById('chequeNumberInput');
+  if(chequeInput) chequeNumber = chequeInput.value.trim();
+  if(paymentMethod !== 'cheque') chequeNumber = '';
   const currSelect = document.getElementById('paymentCurrencySelect');
   if(currSelect) paymentCurrency = currSelect.value;
   const rielInput = document.getElementById('paymentRielAmountInput');
@@ -1602,6 +1614,7 @@ async function saveDocument(shouldPrint){
       customer_phone: selectedCustomer?.phone || '',
       customer_location: selectedCustomer?.location || '',
       subtotal: sub, deposit: dep, balance: bal, payment_method: paymentMethod, bank_name: bankName || null,
+      cheque_number: chequeNumber || null,
       payment_currency: paymentCurrency, payment_riel_amount: rielAmountToSave
     }).eq('id', editingDocId).select().single();
     if(error){ alert('មិនអាចរក្សាទុកការកែប្រែ៖ '+error.message); return; }
@@ -1629,7 +1642,7 @@ async function saveDocument(shouldPrint){
     if(shouldPrint==='view') openViewModalDirect(doc, cart); else if(shouldPrint) printDocument(doc, cart);
     else alert('រក្សាទុកជោគជ័យ! លេខ: ' + doc.doc_no);
     editingDocId=null; editingDocNo=''; cart=[]; depositVal=0; selectedCustomer=null;
-    paymentCurrency='usd'; paymentRielAmount=0;
+    paymentCurrency='usd'; paymentRielAmount=0; chequeNumber='';
     renderPOS(document.getElementById('content'));
     return;
   }
@@ -1668,6 +1681,7 @@ async function saveDocument(shouldPrint){
     doc_date: new Date().toISOString().slice(0,10),
     subtotal: sub, deposit: dep, balance: bal,
     payment_method: paymentMethod, bank_name: bankName || null,
+    cheque_number: chequeNumber || null,
     payment_currency: paymentCurrency, payment_riel_amount: rielAmountToSave,
     created_by: currentProfile.id,
     source_doc_id: loadedFromSourceDocId || null
@@ -1703,7 +1717,7 @@ async function saveDocument(shouldPrint){
   if(shouldPrint==='view') openViewModalDirect(doc, cart); else if(shouldPrint) printDocument(doc, cart);
   else alert('រក្សាទុកជោគជ័យ! លេខ: ' + doc.doc_no);
   cart=[]; depositVal=0; selectedCustomer=null;
-  paymentCurrency='usd'; paymentRielAmount=0;
+  paymentCurrency='usd'; paymentRielAmount=0; chequeNumber='';
   renderPOS(document.getElementById('content'));
 }
 function printLastDocument(){
@@ -2470,7 +2484,7 @@ async function renderCustomerDetail(c, customerId){
                 <td>${DOC_LABELS[d.doc_type]?.short||d.doc_type}</td>
                 <td>${d.doc_date}</td>
                 <td>${d.doc_type==='delivery'?'—':'$'+Number(d.subtotal).toFixed(2)}</td>
-                <td>${d.doc_type==='invoice' ? (Number(d.balance)<=0.001?`<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount)}</span>`:''}`:`<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : (d.doc_type==='delivery'?(d.status==='delivered'?`<span class="badge ok">ដឹករួច</span>`:`<span class="badge low">រង់ចាំដឹក</span>`):'')}</td>
+                <td>${d.doc_type==='invoice' ? (Number(d.balance)<=0.001?`<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}`:`<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : (d.doc_type==='delivery'?(d.status==='delivered'?`<span class="badge ok">ដឹករួច</span>`:`<span class="badge low">រង់ចាំដឹក</span>`):'')}</td>
                 <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                   <button class="btn small" onclick="viewDocument('${d.id}')">មើល</button>
                   ${canAccess('history_edit') ? `<button class="btn small accent" onclick="editDocument('${d.id}')">កែសម្រួល</button>` : ''}
@@ -3095,7 +3109,7 @@ function renderHistoryRows(docs){
               <td>${d.doc_date}</td>
               <td>${d.doc_type==='delivery'?'—':'$'+Number(d.subtotal).toFixed(2)}</td>
               <td>
-                ${d.doc_type==='invoice' ? (Number(d.balance)<=0.001 ? `<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount)}</span>`:''}` : `<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : ''}
+                ${d.doc_type==='invoice' ? (Number(d.balance)<=0.001 ? `<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}` : `<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : ''}
                 ${d.doc_type==='delivery' ? (d.status==='delivered' ? `<span class="badge ok">ដឹករួច</span>` : `<span class="badge low">រង់ចាំដឹក</span>`) : ''}
                 ${d.doc_type==='quotation' ? (d.status==='converted' ? `<span class="badge ok">បញ្ជាក់ទិញរួច</span>` : d.status==='processing' ? `<span class="badge low">កំពុងធ្វើ Invoice</span>` : `<span class="badge low">រង់ចាំ</span>`) : ''}
                 ${d.doc_type==='invoice' && d.source_doc_id ? `<span class="badge ok">Quotation: ${escapeHtml((window._sourceQuoLookup||{})[d.source_doc_id] || '?')}</span>` : ''}
@@ -3157,7 +3171,7 @@ function exportHistoryExcel(){
     'កក់ ($)': Number(d.deposit),
     'ខ្វះ ($)': Number(d.balance),
     'ស្ថានភាព': d.doc_type==='invoice' ? (Number(d.balance)<=0.001?'បង់រួច':'ខ្វះ') : (d.doc_type==='delivery' ? (d.status==='delivered'?'ដឹករួច':'រង់ចាំដឹក') : ''),
-    'វិធីទូទាត់': d.doc_type==='invoice' && Number(d.balance)<=0.001 ? (d.payment_method==='bank'?'ធនាគារ'+(d.bank_name?` (${d.bank_name})`:''):d.payment_method==='cash'?'សាច់ប្រាក់':d.payment_method==='cheque'?'មូលបត្រ':'') : '',
+    'វិធីទូទាត់': d.doc_type==='invoice' && Number(d.balance)<=0.001 ? (d.payment_method==='bank'?'ធនាគារ'+(d.bank_name?` (${d.bank_name})`:''):d.payment_method==='cash'?'សាច់ប្រាក់':d.payment_method==='cheque'?'មូលបត្រ'+(d.cheque_number?` (លេខ: ${d.cheque_number})`:''):'') : '',
     'រូបិយប័ណ្ណទទួល': d.doc_type==='invoice' && Number(d.balance)<=0.001 ? (d.payment_currency==='khr' ? `៛ ${Number(d.payment_riel_amount||0).toLocaleString('en-US')}` : 'USD') : ''
   }));
   const wb = XLSX.utils.book_new();
@@ -3166,11 +3180,11 @@ function exportHistoryExcel(){
   XLSX.writeFile(wb, `ប្រវត្តិឯកសារ_${label}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
-function paymentMethodLabel(pm, bank, currency, rielAmount){
+function paymentMethodLabel(pm, bank, currency, rielAmount, chequeNo){
   let label = '';
   if(pm==='cash') label = '💵 សាច់ប្រាក់';
   else if(pm==='bank') label = '🏦 ធនាគារ' + (bank ? ` (${bank})` : '');
-  else if(pm==='cheque') label = '📄 មូលបត្រ';
+  else if(pm==='cheque') label = '📄 មូលបត្រ' + (chequeNo ? ` (លេខ: ${escapeHtml(chequeNo)})` : '');
   else return '';
   if(currency==='khr') label += ` — ទទួល ៛${Number(rielAmount||0).toLocaleString('en-US')}`;
   return label;
@@ -3195,14 +3209,20 @@ function showMarkPaidStep2(method){
   document.getElementById('markPaidStep1').style.display = 'none';
   document.getElementById('markPaidStep2').style.display = 'block';
   const bankRow = document.getElementById('markPaidBankRow');
+  const chequeRow = document.getElementById('markPaidChequeRow');
   const sub = document.getElementById('markPaidStep2Sub');
+  bankRow.style.display = 'none';
+  chequeRow.style.display = 'none';
   if(method==='bank'){
     bankRow.style.display = 'block';
     const sel = document.getElementById('markPaidBankSelect');
     sel.innerHTML = BANK_LIST.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
     sub.textContent = 'ជ្រើសរើសធនាគារ និងរូបិយប័ណ្ណដែលទទួលបាន';
+  } else if(method==='cheque'){
+    chequeRow.style.display = 'block';
+    document.getElementById('markPaidChequeInput').value = '';
+    sub.textContent = 'វាយលេខមូលបត្រ និងជ្រើសរើសរូបិយប័ណ្ណដែលទទួលបាន';
   } else {
-    bankRow.style.display = 'none';
     sub.textContent = 'ជ្រើសរើសរូបិយប័ណ្ណដែលទទួលបាន';
   }
   document.getElementById('markPaidCurrencySelect').value = 'usd';
@@ -3220,11 +3240,13 @@ function backToMarkPaidStep1(){
 async function confirmMarkPaidFinal(){
   if(!pendingMarkPaidDocId || !pendingMarkPaidMethod) return;
   const bank = pendingMarkPaidMethod==='bank' ? document.getElementById('markPaidBankSelect').value : null;
+  const cheque = pendingMarkPaidMethod==='cheque' ? document.getElementById('markPaidChequeInput').value.trim() : null;
   const currency = document.getElementById('markPaidCurrencySelect').value;
   const rielAmount = currency==='khr' ? (parseFloat(document.getElementById('markPaidRielInput').value)||0) : null;
   const {error} = await sb.from('documents').update({
     deposit: pendingMarkPaidSubtotal, balance: 0,
     payment_method: pendingMarkPaidMethod, bank_name: bank || null,
+    cheque_number: cheque || null,
     payment_currency: currency, payment_riel_amount: rielAmount
   }).eq('id', pendingMarkPaidDocId);
   closeMarkPaidModal();
@@ -3235,7 +3257,7 @@ async function unmarkInvoicePaid(docId){
   if(!confirm('ដកសម្គាល់ការទូទាត់ (ត្រឡប់ទៅជា "ខ្វះ" វិញ)?')) return;
   const {data: docRow, error: fetchErr} = await sb.from('documents').select('subtotal').eq('id',docId).single();
   if(fetchErr || !docRow){ alert('មិនអាចទាញយកព័ត៌មានឯកសារបានទេ៖ '+(fetchErr?.message||'')); return; }
-  const {error} = await sb.from('documents').update({deposit: 0, balance: docRow.subtotal, payment_method: null, bank_name: null, payment_currency: null, payment_riel_amount: null}).eq('id', docId);
+  const {error} = await sb.from('documents').update({deposit: 0, balance: docRow.subtotal, payment_method: null, bank_name: null, cheque_number: null, payment_currency: null, payment_riel_amount: null}).eq('id', docId);
   if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
   renderHistory(document.getElementById('content'));
 }
@@ -3259,6 +3281,7 @@ async function editDocument(docId){
   depositVal = Number(doc.deposit)||0;
   paymentMethod = doc.payment_method || 'cash';
   bankName = doc.bank_name || '';
+  chequeNumber = doc.cheque_number || '';
   paymentCurrency = doc.payment_currency || 'usd';
   paymentRielAmount = Number(doc.payment_riel_amount) || 0;
   selectedCustomer = doc.customer_id
