@@ -631,7 +631,7 @@ function renderNav(){
       <span class="dot"></span>${n.label}
     </button>`).join('');
 }
-function goNav(key){ activeNav = key; renderNav(); renderPage(); }
+function goNav(key){ activeNav = key; renderNav(); applyDashboardBgColor(); renderPage(); }
 
 function renderPage(){
   const c = document.getElementById('content');
@@ -1073,30 +1073,39 @@ async function toggleDarkMode(val){
   applyDarkMode();
   await sb.from('app_settings').upsert({key:'dark_mode', value: darkMode ? 'true' : 'false'});
 }
-let dashboardBgColor = '';
+const DASHBOARD_PAGES = [
+  {key:'pos', label:'ការលក់'},
+  {key:'stock', label:'ស្តុក'},
+  {key:'customers', label:'អតិថិជន'},
+  {key:'purchase', label:'បញ្ជាទិញ'},
+  {key:'history', label:'ប្រវត្តិឯកសារ'},
+  {key:'reports', label:'របាយការណ៍'},
+  {key:'shared_revenue', label:'ចំណូលរួម'},
+  {key:'settings', label:'ការកំណត់'}
+];
+let pageBgColors = {};
 async function loadDashboardBgColor(){
   try{
-    const {data} = await sb.from('app_settings').select('value').eq('key','dashboard_bg_color').single();
-    dashboardBgColor = data && data.value ? data.value : '';
-  }catch(e){ dashboardBgColor = ''; }
+    const {data} = await sb.from('app_settings').select('value').eq('key','page_bg_colors').single();
+    pageBgColors = data && data.value ? JSON.parse(data.value) : {};
+  }catch(e){ pageBgColors = {}; }
   applyDashboardBgColor();
 }
 function applyDashboardBgColor(){
-  if(dashboardBgColor){
-    document.documentElement.style.setProperty('--paper', dashboardBgColor);
-  } else {
-    document.documentElement.style.removeProperty('--paper');
-  }
+  const contentEl = document.getElementById('content');
+  if(!contentEl) return;
+  const color = pageBgColors[activeNav];
+  contentEl.style.background = color || '';
 }
-async function setDashboardBgColor(color){
-  dashboardBgColor = color;
+async function setPageBgColor(navKey, color){
+  pageBgColors[navKey] = color;
   applyDashboardBgColor();
-  await sb.from('app_settings').upsert({key:'dashboard_bg_color', value: dashboardBgColor});
+  await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
 }
-async function resetDashboardBgColor(){
-  dashboardBgColor = '';
+async function resetPageBgColor(navKey){
+  delete pageBgColors[navKey];
   applyDashboardBgColor();
-  await sb.from('app_settings').upsert({key:'dashboard_bg_color', value:''});
+  await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
   renderSettings(document.getElementById('content'));
 }
 async function loadExchangeRate(){
@@ -4205,11 +4214,17 @@ async function renderSettings(c){
       </div>
     </div>
     <div class="card">
-      <b>ពណ៌ផ្ទៃខាងក្រោយ (Dashboard Background)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួន (មិនប៉ះពាល់ Dark Mode)</p>
-      <div class="row-inline" style="margin-top:12px;">
-        <input type="color" id="dashboardBgColorInput" value="${dashboardBgColor || '#fdf6e8'}" style="width:60px;height:40px;padding:2px;border-radius:8px;border:1px solid var(--paper-dim);cursor:pointer;" onchange="setDashboardBgColor(this.value)">
-        <button class="btn small" onclick="resetDashboardBgColor()">↺ ត្រឡប់ទៅលំនាំដើម</button>
+      <b>ពណ៌ផ្ទៃខាងក្រោយ តាមទំព័រនីមួយៗ (Per-Page Background)</b>
+      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួនសម្រាប់ទំព័រនីមួយៗ (មិនប៉ះពាល់ Dark Mode)</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px;">
+        ${DASHBOARD_PAGES.map(pg=>`
+          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:10px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:8px;">${pg.label}</div>
+            <div class="row-inline">
+              <input type="color" value="${pageBgColors[pg.key] || '#fdf6e8'}" style="width:44px;height:34px;padding:2px;border-radius:6px;border:1px solid var(--paper-dim);cursor:pointer;" onchange="setPageBgColor('${pg.key}', this.value)">
+              <button class="btn small" onclick="resetPageBgColor('${pg.key}')">↺ លំនាំដើម</button>
+            </div>
+          </div>`).join('')}
       </div>
     </div>
     <div class="card">
