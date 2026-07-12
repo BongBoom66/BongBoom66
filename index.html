@@ -3364,9 +3364,14 @@ async function renderReports(c){
   const paidCount = invoices.filter(d=>Number(d.balance)<=0.001).length;
 
   const paymentMethodTotals = {};
+  let totalRielReceived = 0;
   invoices.forEach(d=>{
     if(Number(d.balance)<=0.001 && d.payment_method){
-      const label = d.payment_method==='bank' ? `🏦 ធនាគារ${d.bank_name?' ('+d.bank_name+')':''}` : d.payment_method==='cash' ? '💵 សាច់ប្រាក់' : d.payment_method==='cheque' ? '📄 មូលបត្រ' : d.payment_method;
+      let label = d.payment_method==='bank' ? `🏦 ធនាគារ${d.bank_name?' ('+d.bank_name+')':''}` : d.payment_method==='cash' ? '💵 សាច់ប្រាក់' : d.payment_method==='cheque' ? '📄 មូលបត្រ' : d.payment_method;
+      if(d.payment_currency==='khr'){
+        label += ' — ៛';
+        totalRielReceived += Number(d.payment_riel_amount||0);
+      }
       paymentMethodTotals[label] = (paymentMethodTotals[label]||0) + Number(d.deposit);
     }
   });
@@ -3572,6 +3577,10 @@ async function renderReports(c){
             </div>`).join('')}
         </div>
       </div>
+      ${totalRielReceived>0?`
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--paper-dim);font-size:13px;">
+        💴 ចំនួន ៛ ជាក់ស្តែងទទួលបានសរុប (គ្រប់វិធីទូទាត់)៖ <b>${Number(totalRielReceived).toLocaleString('en-US')} ៛</b>
+      </div>`:''}
     </div>`:''}
 
     ${topProducts.length>0?`
