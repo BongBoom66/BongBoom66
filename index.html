@@ -1207,17 +1207,24 @@ function applyCardArrange(containerEl, pageKey){
     }
     if(!arrangeMode) return;
 
-    el.setAttribute('draggable', 'true');
+    // Card is NOT draggable by default — only the grab handle below turns it on
+    // for the duration of a drag. This keeps the resize handle (and everything
+    // else in the card) fully independent of the native HTML5 drag system, since
+    // nothing in the card can accidentally start a drag except the handle itself.
+    el.setAttribute('draggable', 'false');
     const handle = document.createElement('div');
     handle.className = 'arrange-drag-handle';
     handle.textContent = '⠿⠿ អូសដើម្បីផ្លាស់ទីតាំង';
+    handle.setAttribute('draggable', 'true');
     handle.style.cssText = 'cursor:grab;background:var(--spark);color:#1a2f42;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;text-align:center;user-select:none;';
     el.insertBefore(handle, el.firstChild);
 
-    el.addEventListener('dragstart', (e)=>{
+    handle.addEventListener('mousedown', ()=>{ el.setAttribute('draggable', 'true'); });
+    handle.addEventListener('dragstart', (e)=>{
       e.dataTransfer.setData('text/plain', key);
       e.dataTransfer.effectAllowed = 'move';
     });
+    el.addEventListener('dragend', ()=>{ el.setAttribute('draggable', 'false'); });
     el.addEventListener('dragover', (e)=>{
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
@@ -1241,10 +1248,6 @@ function applyCardArrange(containerEl, pageKey){
       rHandle.addEventListener('mousedown', (e)=>{
         e.preventDefault();
         e.stopPropagation();
-        // The card itself is draggable="true" for reordering — a mousedown here
-        // would otherwise get hijacked by the native HTML5 drag system before our
-        // own mousemove/mouseup resize logic ever runs. Disable it for the drag.
-        el.setAttribute('draggable', 'false');
         const startY = e.clientY;
         const startH = resizeTarget.offsetHeight;
         function onMove(ev){
@@ -1254,7 +1257,6 @@ function applyCardArrange(containerEl, pageKey){
         function onUp(){
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
-          el.setAttribute('draggable', 'true');
           if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], heights:{}};
           if(!cardLayouts[pageKey].heights) cardLayouts[pageKey].heights = {};
           cardLayouts[pageKey].heights[key] = resizeTarget.offsetHeight;
