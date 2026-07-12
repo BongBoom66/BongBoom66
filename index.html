@@ -1252,21 +1252,6 @@ async function renderPOS(c){
           </div>
         </div>
 
-        <div class="card pos-big-50">
-          <div class="row-inline" style="margin-bottom:10px;">
-            <input class="inp" id="barcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handleBarcodeScan(this.value); this.value=''; }">
-            <button class="btn accent" onclick="openCameraScan()" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
-          </div>
-          <div class="row-inline" style="margin-bottom:10px;">
-            <input class="inp" style="flex:1;min-width:160px" id="prodSearch" placeholder="ស្វែងរកទំនិញ..." oninput="renderProdList()">
-            <select class="inp" id="prodCatFilter" style="flex:1;min-width:140px" onchange="renderProdList()">
-              <option value="">-- គ្រប់ប្រភេទ --</option>
-              ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
-            </select>
-          </div>
-          <div id="prodList" class="tbl-wrap" style="max-height:420px;overflow-y:auto;"></div>
-        </div>
-
         <div class="card pos-big-30" style="border-color:var(--spark);">
           <b>វាយបញ្ចូលទំនិញផ្ទាល់ (មិនចាំបាច់មានក្នុងស្តុក)</b>
           <p style="margin:4px 0 10px;font-size:12px;color:#8a8d94;">សម្រាប់ទំនិញ Custom តាមស្នាមអតិថិជន — វាយឈ្មោះ ចំនួន ឯកតា និងតម្លៃ រួចចុចបន្ថែម</p>
@@ -1280,6 +1265,21 @@ async function renderPOS(c){
             <input class="inp" id="manPrice" type="number" step="0.01" placeholder="តម្លៃរាយ $" style="flex:1;min-width:100px">
             <button class="btn accent small" onclick="addManualItem()">+ បន្ថែម</button>
           </div>
+        </div>
+
+        <div class="card pos-big-50">
+          <div class="row-inline" style="margin-bottom:10px;">
+            <input class="inp" id="barcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handleBarcodeScan(this.value); this.value=''; }">
+            <button class="btn accent" onclick="openCameraScan()" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
+          </div>
+          <div class="row-inline" style="margin-bottom:10px;">
+            <input class="inp" style="flex:1;min-width:160px" id="prodSearch" placeholder="ស្វែងរកទំនិញ..." oninput="renderProdList()">
+            <select class="inp" id="prodCatFilter" style="flex:1;min-width:140px" onchange="renderProdList()">
+              <option value="">-- គ្រប់ប្រភេទ --</option>
+              ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
+            </select>
+          </div>
+          <div id="prodList" class="tbl-wrap" style="max-height:420px;overflow-y:auto;"></div>
         </div>
       </div>
 
