@@ -394,6 +394,10 @@
         <input class="inp" id="markPaidChequeInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:100%;margin-top:4px;">
       </div>
       <div style="margin-bottom:10px;">
+        <label style="font-size:12.5px;color:#6b6f76;">ចំនួនទឹកប្រាក់ដែលទទួលបាន ($)</label>
+        <input class="inp" id="markPaidAmountInput" type="number" min="0" step="0.01" style="width:100%;margin-top:4px;text-align:right" onchange="onMarkPaidAmountChange()">
+      </div>
+      <div style="margin-bottom:10px;">
         <label style="font-size:12.5px;color:#6b6f76;">រូបិយប័ណ្ណដែលទទួលបាន</label>
         <select class="inp" id="markPaidCurrencySelect" style="width:100%;margin-top:4px;" onchange="onMarkPaidCurrencyChange()">
           <option value="usd">💵 ដុល្លា ($)</option>
@@ -3225,6 +3229,7 @@ function showMarkPaidStep2(method){
   } else {
     sub.textContent = 'ជ្រើសរើសរូបិយប័ណ្ណដែលទទួលបាន';
   }
+  document.getElementById('markPaidAmountInput').value = pendingMarkPaidSubtotal.toFixed(2);
   document.getElementById('markPaidCurrencySelect').value = 'usd';
   document.getElementById('markPaidRielRow').style.display = 'none';
   document.getElementById('markPaidRielInput').value = rielAmountRaw(pendingMarkPaidSubtotal);
@@ -3232,6 +3237,13 @@ function showMarkPaidStep2(method){
 function onMarkPaidCurrencyChange(){
   const cur = document.getElementById('markPaidCurrencySelect').value;
   document.getElementById('markPaidRielRow').style.display = cur==='khr' ? 'block' : 'none';
+  if(cur==='khr') onMarkPaidAmountChange();
+}
+function onMarkPaidAmountChange(){
+  const amt = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
+  if(document.getElementById('markPaidCurrencySelect').value==='khr'){
+    document.getElementById('markPaidRielInput').value = rielAmountRaw(amt);
+  }
 }
 function backToMarkPaidStep1(){
   document.getElementById('markPaidStep1').style.display = 'block';
@@ -3243,8 +3255,10 @@ async function confirmMarkPaidFinal(){
   const cheque = pendingMarkPaidMethod==='cheque' ? document.getElementById('markPaidChequeInput').value.trim() : null;
   const currency = document.getElementById('markPaidCurrencySelect').value;
   const rielAmount = currency==='khr' ? (parseFloat(document.getElementById('markPaidRielInput').value)||0) : null;
+  const depositAmt = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
+  const balanceAmt = Math.max(0, pendingMarkPaidSubtotal - depositAmt);
   const {error} = await sb.from('documents').update({
-    deposit: pendingMarkPaidSubtotal, balance: 0,
+    deposit: depositAmt, balance: balanceAmt,
     payment_method: pendingMarkPaidMethod, bank_name: bank || null,
     cheque_number: cheque || null,
     payment_currency: currency, payment_riel_amount: rielAmount
