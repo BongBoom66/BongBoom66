@@ -606,6 +606,7 @@ function showApp(){
   loadCategories();
   loadBankList();
   loadDarkMode();
+  loadDashboardBgColor();
   loadFontScale();
   loadFontStyle();
   loadOwnCategories();
@@ -1071,6 +1072,32 @@ async function toggleDarkMode(val){
   darkMode = val;
   applyDarkMode();
   await sb.from('app_settings').upsert({key:'dark_mode', value: darkMode ? 'true' : 'false'});
+}
+let dashboardBgColor = '';
+async function loadDashboardBgColor(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','dashboard_bg_color').single();
+    dashboardBgColor = data && data.value ? data.value : '';
+  }catch(e){ dashboardBgColor = ''; }
+  applyDashboardBgColor();
+}
+function applyDashboardBgColor(){
+  if(dashboardBgColor){
+    document.documentElement.style.setProperty('--paper', dashboardBgColor);
+  } else {
+    document.documentElement.style.removeProperty('--paper');
+  }
+}
+async function setDashboardBgColor(color){
+  dashboardBgColor = color;
+  applyDashboardBgColor();
+  await sb.from('app_settings').upsert({key:'dashboard_bg_color', value: dashboardBgColor});
+}
+async function resetDashboardBgColor(){
+  dashboardBgColor = '';
+  applyDashboardBgColor();
+  await sb.from('app_settings').upsert({key:'dashboard_bg_color', value:''});
+  renderSettings(document.getElementById('content'));
 }
 async function loadExchangeRate(){
   try{
@@ -4175,6 +4202,14 @@ async function renderSettings(c){
             <div style="font-family:'${f.id}';font-size:17px;">អក្សរខ្មែរ ABC</div>
             <div style="font-size:11px;color:#8a8d94;margin-top:4px;">${f.label}</div>
           </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <b>ពណ៌ផ្ទៃខាងក្រោយ (Dashboard Background)</b>
+      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួន (មិនប៉ះពាល់ Dark Mode)</p>
+      <div class="row-inline" style="margin-top:12px;">
+        <input type="color" id="dashboardBgColorInput" value="${dashboardBgColor || '#fdf6e8'}" style="width:60px;height:40px;padding:2px;border-radius:8px;border:1px solid var(--paper-dim);cursor:pointer;" onchange="setDashboardBgColor(this.value)">
+        <button class="btn small" onclick="resetDashboardBgColor()">↺ ត្រឡប់ទៅលំនាំដើម</button>
       </div>
     </div>
     <div class="card">
