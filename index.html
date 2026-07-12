@@ -1587,6 +1587,14 @@ async function saveNewCustomer(){
   const loc = document.getElementById('newCustLoc').value.trim();
   if(!name && !phone){ alert('សូមបញ្ចូលឈ្មោះ ឬយ៉ាងតិចលេខទូរស័ព្ទ'); return; }
   const finalName = name || phone;
+  const dup = customersCache.find(cu =>
+    cu.name.trim().toLowerCase()===finalName.toLowerCase() ||
+    (phone && cu.phone && cu.phone.trim()===phone)
+  );
+  if(dup){
+    const matchedOn = dup.name.trim().toLowerCase()===finalName.toLowerCase() ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
+    if(!confirm(`អតិថិជន "${dup.name}" (${cCode(dup)}) មាន${matchedOn}ដូចគ្នារួចហើយ។ អ្នកចង់បន្ថែមជាអតិថិជនថ្មីទៀតឬទេ? (ចុច "បោះបង់" ដើម្បីជ្រើសរើសអតិថិជនចាស់វិញ)`)) return;
+  }
   const {data, error} = await sb.from('customers').insert({name:finalName, phone, location:loc}).select().single();
   if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
   customersCache.push(data);
@@ -2377,7 +2385,7 @@ let customerSearchQuery = '';
 async function renderCustomers(c){
   if(customerDetailId){ return renderCustomerDetail(c, customerDetailId); }
 
-  const {data: custs} = await sb.from('customers').select('*').order('name');
+  const {data: custs} = await sb.from('customers').select('*').order('seq');
   customersCache = custs || [];
   const editCust = editingCustomerId ? customersCache.find(cu=>cu.id===editingCustomerId) : null;
   const q = customerSearchQuery.toLowerCase();
@@ -2577,7 +2585,7 @@ function cancelEditCustomer(){
   renderCustomers(document.getElementById('content'));
 }
 async function exportCustomersExcel(){
-  const {data: custs} = await sb.from('customers').select('*').order('name');
+  const {data: custs} = await sb.from('customers').select('*').order('seq');
   const rows = (custs||[]).map(cu=>({
     'កូដ': cCode(cu),
     'ឈ្មោះ': cu.name,
@@ -2668,6 +2676,14 @@ async function addCustomer(){
     if(error){ alert(error.message); return; }
     editingCustomerId = null;
   } else {
+    const dup = customersCache.find(cu =>
+      cu.name.trim().toLowerCase()===finalName.toLowerCase() ||
+      (phone && cu.phone && cu.phone.trim()===phone)
+    );
+    if(dup){
+      const matchedOn = dup.name.trim().toLowerCase()===finalName.toLowerCase() ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
+      if(!confirm(`អតិថិជន "${dup.name}" (${cCode(dup)}) មាន${matchedOn}ដូចគ្នារួចហើយ។ អ្នកចង់បន្ថែមជាអតិថិជនថ្មីទៀតឬទេ?`)) return;
+    }
     const {error} = await sb.from('customers').insert({name:finalName, phone, location:loc});
     if(error){ alert(error.message); return; }
   }
