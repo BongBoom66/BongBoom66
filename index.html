@@ -455,21 +455,21 @@ function isOwner(){ return currentProfile?.role === 'owner'; }
 
 const ALL_PERM_KEYS = [
   'pos',
-  'stock_view','stock_edit','stock_delete','stock_import_export','stock_transfer',
-  'customers_view','customers_edit','customers_delete','customers_import_export',
+  'stock_view','stock_add','stock_edit','stock_delete','stock_import_export','stock_transfer',
+  'customers_view','customers_add','customers_edit','customers_delete','customers_import_export',
   'purchase','purchase_edit','purchase_receive',
   'history','history_edit','mark_paid',
   'reports','reports_export',
-  'shared_revenue','shared_revenue_export'
+  'shared_revenue','shared_revenue_review','shared_revenue_export'
 ];
 const DEFAULT_PERMISSIONS = {
   pos:true,
-  stock_view:true, stock_edit:true, stock_delete:false, stock_import_export:true, stock_transfer:false,
-  customers_view:true, customers_edit:true, customers_delete:false, customers_import_export:true,
+  stock_view:true, stock_add:true, stock_edit:true, stock_delete:false, stock_import_export:true, stock_transfer:false,
+  customers_view:true, customers_add:true, customers_edit:true, customers_delete:false, customers_import_export:true,
   purchase:true, purchase_edit:true, purchase_receive:true,
   history:true, history_edit:true, mark_paid:true,
   reports:false, reports_export:false,
-  shared_revenue:false, shared_revenue_export:false
+  shared_revenue:false, shared_revenue_review:false, shared_revenue_export:false
 };
 function getMyPermissions(){
   if(isOwner()){
@@ -479,6 +479,12 @@ function getMyPermissions(){
   }
   let perms = {};
   try{ perms = currentProfile?.permissions ? JSON.parse(currentProfile.permissions) : {}; }catch(e){ perms = {}; }
+  // Back-compat: profiles saved before stock_edit/customers_edit were split into
+  // separate add/edit permissions only have the old combined key. Inherit the split
+  // keys from it so existing staff don't silently lose access after this change.
+  if(perms.stock_add===undefined && perms.stock_edit!==undefined) perms.stock_add = perms.stock_edit;
+  if(perms.customers_add===undefined && perms.customers_edit!==undefined) perms.customers_add = perms.customers_edit;
+  if(perms.shared_revenue_review===undefined && perms.shared_revenue_export!==undefined) perms.shared_revenue_review = perms.shared_revenue_export;
   return Object.assign({}, DEFAULT_PERMISSIONS, perms);
 }
 function canAccess(key){ return !!getMyPermissions()[key]; }
@@ -1958,7 +1964,7 @@ async function renderStock(c){
     <h2 class="page-title">ស្តុកទំនិញ</h2>
     <p class="page-sub">គ្រប់គ្រងទំនិញ តម្លៃ និងបរិមាណក្នុងស្តុក (${productsCache.length} មុខសរុប)</p>
     ${locationSwitcherHTML()}
-    ${canAccess('stock_edit') ? `
+    ${(canAccess('stock_add') || canAccess('stock_edit')) ? `
     <div class="card" style="${editProd?'border-color:var(--danger);background:#fff5f6;':''}">
       ${editProd?`<b style="color:var(--danger);display:block;margin-bottom:8px;">កំពុងកែសម្រួល៖ ${escapeHtml(editProd.name)}</b>`:''}
       <div class="row-inline">
@@ -1968,7 +1974,7 @@ async function renderStock(c){
         ${unitSelectHTML('pUnit', editProd?editProd.unit:'')}
         <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃ $" style="flex:1;min-width:100px" value="${editProd?Number(editProd.price):''}">
         <input class="inp" id="pQty" type="number" step="any" placeholder="ចំនួនស្តុក (ទីតាំងបច្ចុប្បន្ន)" style="flex:1;min-width:160px" value="${editProd?getStockFor(editProd.id):''}">
-        <button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>
+        ${(editProd ? canAccess('stock_edit') : canAccess('stock_add')) ? `<button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>` : ''}
         ${editProd?`<button class="btn small" onclick="cancelEditProduct()">✕ បោះបង់</button>`:''}
       </div>
       <div class="row-inline" style="margin-top:8px;">
@@ -2372,14 +2378,14 @@ async function renderCustomers(c){
   c.innerHTML = `
     <h2 class="page-title">អតិថិជន</h2>
     <p class="page-sub">បញ្ជីអតិថិជនទាំងអស់</p>
-    ${canAccess('customers_edit') ? `
+    ${(canAccess('customers_add') || canAccess('customers_edit')) ? `
     <div class="card" style="${editCust?'border-color:var(--danger);background:#fff5f6;':''}">
       ${editCust?`<b style="color:var(--danger);display:block;margin-bottom:8px;">កំពុងកែសម្រួល៖ ${escapeHtml(editCust.name)}</b>`:''}
       <div class="row-inline">
         <input class="inp" id="cName" placeholder="ឈ្មោះ" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.name):''}">
         <input class="inp" id="cPhone" placeholder="លេខទូរស័ព្ទ" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.phone||''):''}">
         <input class="inp" id="cLoc" placeholder="ទីតាំង" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.location||''):''}">
-        <button class="btn accent" onclick="addCustomer()">${editCust?'រក្សាទុកការកែប្រែ':'+ បន្ថែមអតិថិជន'}</button>
+        ${(editCust ? canAccess('customers_edit') : canAccess('customers_add')) ? `<button class="btn accent" onclick="addCustomer()">${editCust?'រក្សាទុកការកែប្រែ':'+ បន្ថែមអតិថិជន'}</button>` : ''}
         ${editCust?`<button class="btn small" onclick="cancelEditCustomer()">✕ បោះបង់</button>`:''}
       </div>
     </div>` : ''}
@@ -3910,7 +3916,7 @@ async function renderSharedRevenue(c){
               <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
-                ${canAccess('shared_revenue_export') ? (m.doc.shared_revenue_reviewed
+                ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
                   ? `<button class="btn small" onclick="setSharedRevReviewed('${m.doc.id}', false)">ដកសម្គាល់</button>`
                   : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="setSharedRevReviewed('${m.doc.id}', true)">ត្រួតពិនិត្យ</button>`) : ''}
               </td>
@@ -4275,12 +4281,12 @@ async function renderSettings(c){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
         ${renderPermGroup('new', 'ការលក់', [['pos','ចូលប្រើ']])}
-        ${renderPermGroup('new', 'ស្តុក', [['stock_view','មើល'],['stock_edit','កែ/បន្ថែម'],['stock_delete','លុប'],['stock_import_export','Import/Export'],['stock_transfer','ផ្ទេររវាងទីតាំង']])}
-        ${renderPermGroup('new', 'អតិថិជន', [['customers_view','មើល'],['customers_edit','កែ/បន្ថែម'],['customers_delete','លុប'],['customers_import_export','Import/Export']])}
+        ${renderPermGroup('new', 'ស្តុក', [['stock_view','មើល'],['stock_add','បន្ថែមថ្មី'],['stock_edit','កែប្រែ'],['stock_delete','លុប'],['stock_import_export','Import/Export'],['stock_transfer','ផ្ទេររវាងទីតាំង']])}
+        ${renderPermGroup('new', 'អតិថិជន', [['customers_view','មើល'],['customers_add','បន្ថែមថ្មី'],['customers_edit','កែប្រែ'],['customers_delete','លុប'],['customers_import_export','Import/Export']])}
         ${renderPermGroup('new', 'បញ្ជាទិញ', [['purchase','មើល'],['purchase_edit','បង្កើត/កែ PO'],['purchase_receive','ទទួលចូលស្តុក']])}
         ${renderPermGroup('new', 'ប្រវត្តិឯកសារ', [['history','មើល'],['history_edit','កែ/លុប'],['mark_paid','សម្គាល់ការទូទាត់']])}
         ${renderPermGroup('new', 'របាយការណ៍', [['reports','មើល'],['reports_export','Export']])}
-        ${renderPermGroup('new', 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_export','Export']])}
+        ${renderPermGroup('new', 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_review','ត្រួតពិនិត្យ'],['shared_revenue_export','Export']])}
       </div>
       <button class="btn accent" style="margin-top:12px;" onclick="addNewStaff()">+ បន្ថែម Staff</button>
       <p id="newStaffStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
@@ -4317,12 +4323,12 @@ async function renderSettings(c){
                 <td colspan="3" class="left" style="background:#faf9f5;">
                   <div style="display:flex;flex-direction:column;gap:10px;padding:8px 0;">
                     ${renderPermGroup(s.id, 'ការលក់', [['pos','ចូលប្រើ']], perms)}
-                    ${renderPermGroup(s.id, 'ស្តុក', [['stock_view','មើល'],['stock_edit','កែ/បន្ថែម'],['stock_delete','លុប'],['stock_import_export','Import/Export'],['stock_transfer','ផ្ទេររវាងទីតាំង']], perms)}
-                    ${renderPermGroup(s.id, 'អតិថិជន', [['customers_view','មើល'],['customers_edit','កែ/បន្ថែម'],['customers_delete','លុប'],['customers_import_export','Import/Export']], perms)}
+                    ${renderPermGroup(s.id, 'ស្តុក', [['stock_view','មើល'],['stock_add','បន្ថែមថ្មី'],['stock_edit','កែប្រែ'],['stock_delete','លុប'],['stock_import_export','Import/Export'],['stock_transfer','ផ្ទេររវាងទីតាំង']], perms)}
+                    ${renderPermGroup(s.id, 'អតិថិជន', [['customers_view','មើល'],['customers_add','បន្ថែមថ្មី'],['customers_edit','កែប្រែ'],['customers_delete','លុប'],['customers_import_export','Import/Export']], perms)}
                     ${renderPermGroup(s.id, 'បញ្ជាទិញ', [['purchase','មើល'],['purchase_edit','បង្កើត/កែ PO'],['purchase_receive','ទទួលចូលស្តុក']], perms)}
                     ${renderPermGroup(s.id, 'ប្រវត្តិឯកសារ', [['history','មើល'],['history_edit','កែ/លុប'],['mark_paid','សម្គាល់ការទូទាត់']], perms)}
                     ${renderPermGroup(s.id, 'របាយការណ៍', [['reports','មើល'],['reports_export','Export']], perms)}
-                    ${renderPermGroup(s.id, 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_export','Export']], perms)}
+                    ${renderPermGroup(s.id, 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_review','ត្រួតពិនិត្យ'],['shared_revenue_export','Export']], perms)}
                   </div>
                   <button class="btn small accent" style="margin-top:8px;" onclick="savePermissions('${s.id}')">រក្សាទុកសិទ្ធិលម្អិត</button>
                   <span id="permStatus_${s.id}" style="font-size:12px;color:#8a8d94;margin-left:8px;"></span>
