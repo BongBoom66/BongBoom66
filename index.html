@@ -394,15 +394,15 @@
         <input class="inp" id="markPaidChequeInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:100%;margin-top:4px;">
       </div>
       <div style="margin-bottom:10px;">
-        <label style="font-size:12.5px;color:#6b6f76;">ចំនួនទឹកប្រាក់ដែលទទួលបាន ($)</label>
-        <input class="inp" id="markPaidAmountInput" type="number" min="0" step="0.01" style="width:100%;margin-top:4px;text-align:right" onchange="onMarkPaidAmountChange()">
-      </div>
-      <div style="margin-bottom:10px;">
         <label style="font-size:12.5px;color:#6b6f76;">រូបិយប័ណ្ណដែលទទួលបាន</label>
         <select class="inp" id="markPaidCurrencySelect" style="width:100%;margin-top:4px;" onchange="onMarkPaidCurrencyChange()">
           <option value="usd">💵 ដុល្លា ($)</option>
           <option value="khr">💴 រៀល (៛)</option>
         </select>
+      </div>
+      <div id="markPaidAmountRow" style="margin-bottom:14px;">
+        <label style="font-size:12.5px;color:#6b6f76;">ចំនួនទឹកប្រាក់ដែលទទួលបាន ($)</label>
+        <input class="inp" id="markPaidAmountInput" type="number" min="0" step="0.01" style="width:100%;margin-top:4px;text-align:right">
       </div>
       <div id="markPaidRielRow" style="display:none;margin-bottom:14px;">
         <label style="font-size:12.5px;color:#6b6f76;">ចំនួន ៛ ជាក់ស្តែងទទួលបាន</label>
@@ -1065,6 +1065,20 @@ function rielAmountRaw(usd){
 function formatRiel(usd){
   return rielAmountRaw(usd).toLocaleString('en-US') + ' ៛';
 }
+function setPaymentCurrency(val){
+  if(val==='khr'){
+    paymentRielAmount = rielAmountRaw(depositVal);
+  } else {
+    depositVal = Math.round((paymentRielAmount/exchangeRate)*100)/100;
+  }
+  paymentCurrency = val;
+  renderPOS(document.getElementById('content'));
+}
+function onPaymentRielInput(val){
+  paymentRielAmount = parseFloat(val)||0;
+  depositVal = Math.round((paymentRielAmount/exchangeRate)*100)/100;
+  renderPOS(document.getElementById('content'));
+}
 let customersCache = [];
 let customItemsCache = {}; // name -> {unit, unit_price}
 
@@ -1254,9 +1268,6 @@ async function renderPOS(c){
             <div class="line"><span>សរុប</span><b>$${subtotal().toFixed(2)}</b></div>
             <div class="line" style="font-size:12px;color:#8a8d94;"><span>≈ រៀល</span><span>${formatRiel(subtotal())}</span></div>
             ${showDeposit?`
-            <div class="line"><span>កក់</span>
-              <input class="inp" style="width:150px;text-align:right" type="number" min="0" step="any" value="${depositVal}" onchange="depositVal=parseFloat(this.value)||0; renderPOS(document.getElementById('content'))">
-            </div>
             <div class="line"><span>វិធីទូទាត់</span>
               <select class="inp" id="paymentMethodSelect" style="width:150px;" onchange="paymentMethod=this.value; renderPOS(document.getElementById('content'))">
                 <option value="cash" ${paymentMethod==='cash'?'selected':''}>💵 សាច់ប្រាក់</option>
@@ -1275,15 +1286,18 @@ async function renderPOS(c){
               <input class="inp" id="chequeNumberInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:150px;" value="${escapeHtml(chequeNumber)}">
             </div>`:''}
             <div class="line"><span>រូបិយប័ណ្ណទទួល</span>
-              <select class="inp" id="paymentCurrencySelect" style="width:150px;" onchange="paymentCurrency=this.value; if(paymentCurrency==='khr' && !paymentRielAmount) paymentRielAmount=rielAmountRaw(depositVal); renderPOS(document.getElementById('content'))">
+              <select class="inp" id="paymentCurrencySelect" style="width:150px;" onchange="setPaymentCurrency(this.value)">
                 <option value="usd" ${paymentCurrency==='usd'?'selected':''}>💵 ដុល្លា ($)</option>
                 <option value="khr" ${paymentCurrency==='khr'?'selected':''}>💴 រៀល (៛)</option>
               </select>
             </div>
             ${paymentCurrency==='khr'?`
-            <div class="line"><span>ចំនួន ៛ ជាក់ស្តែង</span>
-              <input class="inp" id="paymentRielAmountInput" type="number" min="0" step="100" style="width:150px;text-align:right" value="${paymentRielAmount || rielAmountRaw(depositVal)}" onchange="paymentRielAmount=parseFloat(this.value)||0">
-            </div>`:''}
+            <div class="line"><span>កក់ (៛)</span>
+              <input class="inp" id="paymentRielAmountInput" type="number" min="0" step="100" style="width:150px;text-align:right" value="${paymentRielAmount || rielAmountRaw(depositVal)}" onchange="onPaymentRielInput(this.value)">
+            </div>`:`
+            <div class="line"><span>កក់</span>
+              <input class="inp" style="width:150px;text-align:right" type="number" min="0" step="any" value="${depositVal}" onchange="depositVal=parseFloat(this.value)||0; renderPOS(document.getElementById('content'))">
+            </div>`}
             <div class="line"><span>ខ្វះ</span><b>$${(subtotal()-depositVal).toFixed(2)}</b></div>
             <div class="line" style="font-size:12px;color:#8a8d94;"><span>≈ រៀល (ខ្វះ)</span><span>${formatRiel(subtotal()-depositVal)}</span></div>`:''}
           </div>`:''}
@@ -3231,18 +3245,24 @@ function showMarkPaidStep2(method){
   }
   document.getElementById('markPaidAmountInput').value = pendingMarkPaidSubtotal.toFixed(2);
   document.getElementById('markPaidCurrencySelect').value = 'usd';
+  document.getElementById('markPaidAmountRow').style.display = 'block';
   document.getElementById('markPaidRielRow').style.display = 'none';
   document.getElementById('markPaidRielInput').value = rielAmountRaw(pendingMarkPaidSubtotal);
 }
 function onMarkPaidCurrencyChange(){
   const cur = document.getElementById('markPaidCurrencySelect').value;
-  document.getElementById('markPaidRielRow').style.display = cur==='khr' ? 'block' : 'none';
-  if(cur==='khr') onMarkPaidAmountChange();
-}
-function onMarkPaidAmountChange(){
-  const amt = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
-  if(document.getElementById('markPaidCurrencySelect').value==='khr'){
-    document.getElementById('markPaidRielInput').value = rielAmountRaw(amt);
+  const amountRow = document.getElementById('markPaidAmountRow');
+  const rielRow = document.getElementById('markPaidRielRow');
+  if(cur==='khr'){
+    const usdVal = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
+    document.getElementById('markPaidRielInput').value = rielAmountRaw(usdVal);
+    amountRow.style.display = 'none';
+    rielRow.style.display = 'block';
+  } else {
+    const rielVal = parseFloat(document.getElementById('markPaidRielInput').value) || 0;
+    document.getElementById('markPaidAmountInput').value = (rielVal / exchangeRate).toFixed(2);
+    amountRow.style.display = 'block';
+    rielRow.style.display = 'none';
   }
 }
 function backToMarkPaidStep1(){
@@ -3254,8 +3274,14 @@ async function confirmMarkPaidFinal(){
   const bank = pendingMarkPaidMethod==='bank' ? document.getElementById('markPaidBankSelect').value : null;
   const cheque = pendingMarkPaidMethod==='cheque' ? document.getElementById('markPaidChequeInput').value.trim() : null;
   const currency = document.getElementById('markPaidCurrencySelect').value;
-  const rielAmount = currency==='khr' ? (parseFloat(document.getElementById('markPaidRielInput').value)||0) : null;
-  const depositAmt = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
+  let depositAmt, rielAmount;
+  if(currency==='khr'){
+    rielAmount = parseFloat(document.getElementById('markPaidRielInput').value) || 0;
+    depositAmt = Math.round((rielAmount / exchangeRate) * 100) / 100;
+  } else {
+    depositAmt = parseFloat(document.getElementById('markPaidAmountInput').value) || 0;
+    rielAmount = null;
+  }
   const balanceAmt = Math.max(0, pendingMarkPaidSubtotal - depositAmt);
   const {error} = await sb.from('documents').update({
     deposit: depositAmt, balance: balanceAmt,
