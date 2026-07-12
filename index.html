@@ -150,6 +150,7 @@
   .card{background:#fff;border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
+  .arrange-mode [data-resizable]{border:2px dashed var(--spark-dim) !important;}
   .arrange-dragover{outline:3px dashed var(--spark);outline-offset:2px;}
   .arrange-drag-handle:active{cursor:grabbing;}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
@@ -1165,7 +1166,7 @@ function applyCardArrange(containerEl, pageKey){
   if(cards.length===0) return;
   const layout = cardLayouts[pageKey] || {};
   const order = layout.order || [];
-  const heights = layout.heights || {};
+  const sizes = layout.sizes || {};
 
   if(order.length>0){
     const byParent = new Map();
@@ -1190,7 +1191,7 @@ function applyCardArrange(containerEl, pageKey){
   if(arrangeMode){
     const banner = document.createElement('div');
     banner.className = 'arrange-banner';
-    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — អូសកន្លែង ⠿⠿ ដើម្បីផ្លាស់ទីតាំង, អូសកន្លែង ↕ ដើម្បីប្តូរទំហំតារាង</span>`;
+    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — អូសកន្លែង ⠿⠿ ដើម្បីផ្លាស់ទីតាំង, អូសកជ្រុងខាងក្រោមស្តាំតារាង (◢) ដើម្បីប្តូរទំហំ (ធំ/តូច ទទឹង-បណ្តោយ)</span>`;
     const resetBtn = document.createElement('button');
     resetBtn.className = 'btn small';
     resetBtn.textContent = '↺ កំណត់ទីតាំងទំព័រនេះឡើងវិញ';
@@ -1202,8 +1203,27 @@ function applyCardArrange(containerEl, pageKey){
   cards.forEach(el=>{
     const key = el.getAttribute('data-card-key');
     const resizeTarget = el.querySelector('[data-resizable]');
-    if(resizeTarget && heights[key]){
-      resizeTarget.style.maxHeight = heights[key]+'px';
+    if(resizeTarget){
+      const sz = sizes[key];
+      if(sz && sz.h) resizeTarget.style.height = sz.h+'px';
+      if(sz && sz.w) resizeTarget.style.width = sz.w+'px';
+      if(arrangeMode || (sz && sz.h)) resizeTarget.style.maxHeight = 'none';
+      // Native browser resize handle — no custom drag math needed, works
+      // smoothly in both directions out of the box. Only enabled in Arrange
+      // Mode so it doesn't clutter normal browsing.
+      resizeTarget.style.resize = arrangeMode ? 'both' : 'none';
+      resizeTarget.style.overflow = 'auto';
+      if(arrangeMode && !resizeTarget._arrangeResizeObserver){
+        const ro = new ResizeObserver(()=>{
+          if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
+          if(!cardLayouts[pageKey].sizes) cardLayouts[pageKey].sizes = {};
+          cardLayouts[pageKey].sizes[key] = {w: resizeTarget.offsetWidth, h: resizeTarget.offsetHeight};
+          clearTimeout(resizeTarget._arrangeSaveTimer);
+          resizeTarget._arrangeSaveTimer = setTimeout(saveCardLayouts, 400);
+        });
+        ro.observe(resizeTarget);
+        resizeTarget._arrangeResizeObserver = ro;
+      }
     }
     if(!arrangeMode) return;
 
@@ -1239,33 +1259,6 @@ function applyCardArrange(containerEl, pageKey){
       reorderCards(pageKey, containerEl, draggedKey, key);
     });
 
-    if(resizeTarget){
-      const rHandle = document.createElement('div');
-      rHandle.textContent = '↕ អូសដើម្បីប្តូរទំហំ';
-      rHandle.setAttribute('draggable', 'false');
-      rHandle.style.cssText = 'cursor:ns-resize;background:var(--paper-dim);color:#6b6f76;font-size:11px;text-align:center;padding:4px;border-radius:0 0 6px 6px;margin-top:6px;user-select:none;';
-      resizeTarget.insertAdjacentElement('afterend', rHandle);
-      rHandle.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        const startY = e.clientY;
-        const startH = resizeTarget.offsetHeight;
-        function onMove(ev){
-          const newH = Math.max(120, startH + (ev.clientY - startY));
-          resizeTarget.style.maxHeight = newH+'px';
-        }
-        function onUp(){
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
-          if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], heights:{}};
-          if(!cardLayouts[pageKey].heights) cardLayouts[pageKey].heights = {};
-          cardLayouts[pageKey].heights[key] = resizeTarget.offsetHeight;
-          saveCardLayouts();
-        }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      });
-    }
   });
 }
 async function loadExchangeRate(){
