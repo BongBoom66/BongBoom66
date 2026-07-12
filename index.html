@@ -4216,13 +4216,13 @@ async function renderSettings(c){
     <div class="card">
       <b>ពណ៌ផ្ទៃខាងក្រោយ តាមទំព័រនីមួយៗ (Per-Page Background)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួនសម្រាប់ទំព័រនីមួយៗ (មិនប៉ះពាល់ Dark Mode)</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
         ${DASHBOARD_PAGES.map(pg=>`
-          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:10px;">
-            <div style="font-size:13px;font-weight:700;margin-bottom:8px;">${pg.label}</div>
-            <div class="row-inline">
-              <input type="color" value="${pageBgColors[pg.key] || '#fdf6e8'}" style="width:44px;height:34px;padding:2px;border-radius:6px;border:1px solid var(--paper-dim);cursor:pointer;" onchange="setPageBgColor('${pg.key}', this.value)">
-              <button class="btn small" onclick="resetPageBgColor('${pg.key}')">↺ លំនាំដើម</button>
+          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;width:130px;flex:none;">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${pg.label}">${pg.label}</div>
+            <div class="row-inline" style="gap:6px;flex-wrap:nowrap;">
+              <input type="color" value="${pageBgColors[pg.key] || '#fdf6e8'}" style="width:30px;height:26px;padding:1px;border-radius:5px;border:1px solid var(--paper-dim);cursor:pointer;flex:none;" onchange="setPageBgColor('${pg.key}', this.value)">
+              <button class="btn small" onclick="resetPageBgColor('${pg.key}')" title="ត្រឡប់ទៅលំនាំដើម" style="font-size:11px;padding:4px 7px;">↺</button>
             </div>
           </div>`).join('')}
       </div>
