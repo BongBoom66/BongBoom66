@@ -639,7 +639,7 @@ function renderNav(){
       <span class="dot"></span>${n.label}
     </button>`).join('');
 }
-function goNav(key){ activeNav = key; renderNav(); applyDashboardBgColor(); renderPage(); }
+function goNav(key){ if(key!==activeNav && key==='settings') settingsSubPage = null; activeNav = key; renderNav(); applyDashboardBgColor(); renderPage(); }
 
 function renderPage(){
   const c = document.getElementById('content');
@@ -1053,6 +1053,9 @@ function applyShopInfoToUI(){
     else { logoEl.style.display = 'none'; }
   }
 }
+let settingsSubPage = null;
+function openSettingsSub(key){ settingsSubPage = key; renderSettings(document.getElementById('content')); window.scrollTo(0,0); }
+function closeSettingsSub(){ settingsSubPage = null; renderSettings(document.getElementById('content')); window.scrollTo(0,0); }
 let darkMode = false;
 async function loadDarkMode(){
   try{
@@ -4434,9 +4437,36 @@ async function renderSettings(c){
   const {data: counters} = await sb.from('doc_counters').select('*').eq('yy', curYY).eq('mm', curMM);
   const getCounter = (type) => (counters||[]).find(x=>x.doc_type===type)?.counter || 0;
 
-  c.innerHTML = `
-    <h2 class="page-title">ការកំណត់</h2>
-    <p class="page-sub">ព័ត៌មានទីតាំងផ្ទុកទិន្នន័យ, Rate រៀល, Backup និងសិទ្ធិបុគ្គលិក</p>
+  const settingsGroups = [
+    {key:'display', icon:'🎨', label:'ការបង្ហាញ', desc:'Light/Dark, ទំហំ & រចនាប័ទ្មអក្សរ, ពណ៌ទំព័រ'},
+    {key:'shop', icon:'🏪', label:'ព័ត៌មានហាង', desc:'ឈ្មោះ, ការពិពណ៌នា, Logo លើ Invoice'},
+    {key:'docnum', icon:'🧾', label:'លេខឯកសារ & អត្រាប្តូរប្រាក់', desc:'លេខចាប់ផ្តើម Invoice/Quotation/Delivery, Rate USD → ៛'},
+    {key:'lists', icon:'📋', label:'បញ្ជីទិន្នន័យ', desc:'ឯកតា, ប្រភេទទំនិញ, ធនាគារ, ម្ចាស់ & ពាក្យគន្លឹះ'},
+    {key:'locations', icon:'📍', label:'ទីតាំង', desc:'កន្លែងលក់ & ឃ្លាំង'},
+    {key:'staff', icon:'👥', label:'បុគ្គលិក & សិទ្ធិ', desc:'បង្កើត Staff ថ្មី, កំណត់សិទ្ធិ, Password'},
+    {key:'data', icon:'☁️', label:'ទិន្នន័យ & Backup', desc:'ទីតាំងផ្ទុកទិន្នន័យ, ទាញយក Backup'}
+  ];
+
+  if(!settingsSubPage){
+    c.innerHTML = `
+      <h2 class="page-title">ការកំណត់</h2>
+      <p class="page-sub">ជ្រើសរើសផ្នែកខាងក្រោម ដើម្បីកែ</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:14px;">
+        ${settingsGroups.map(g=>`
+          <div class="card" style="cursor:pointer;text-align:center;padding:26px 14px;" onclick="openSettingsSub('${g.key}')">
+            <div style="font-size:34px;">${g.icon}</div>
+            <div style="font-weight:700;margin-top:10px;font-size:14px;">${g.label}</div>
+            <div style="font-size:11.5px;color:#8a8d94;margin-top:4px;">${g.desc}</div>
+          </div>`).join('')}
+      </div>
+    `;
+    return;
+  }
+
+  const groupLabel = {};
+  settingsGroups.forEach(g=>{ groupLabel[g.key] = g.label; });
+
+  const htmlDisplay = `
     <div class="card">
       <div class="row-inline" style="justify-content:space-between;">
         <div>
@@ -4487,6 +4517,9 @@ async function renderSettings(c){
           </div>`).join('')}
       </div>
     </div>
+  `;
+
+  const htmlShop = `
     <div class="card">
       <b>ព័ត៌មានហាង (បង្ហាញលើ Invoice/Header)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:4px;">កែឈ្មោះហាង, ការពិពណ៌នា, និងលេខទូរស័ព្ទ</p>
@@ -4537,6 +4570,9 @@ async function renderSettings(c){
       <button class="btn accent small" style="margin-top:10px;" onclick="saveShopInfo()">រក្សាទុក</button>
       <p id="shopInfoStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
     </div>
+  `;
+
+  const htmlDocnum = `
     <div class="card">
       <b>កំណត់លេខឯកសារចាប់ផ្តើម (ខែ ${curMM} ឆ្នាំ 20${curYY})</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;line-height:1.6;">
@@ -4569,6 +4605,9 @@ async function renderSettings(c){
       </div>
       <p id="rateStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
     </div>
+  `;
+
+  const htmlLists = `
     <div class="card">
       <b>បញ្ជីឯកតា (Unit)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កែបញ្ជីឯកតាដែលបង្ហាញក្នុង Dropdown (ខណ្ឌដោយសញ្ញា , )</p>
@@ -4639,6 +4678,9 @@ async function renderSettings(c){
       </div>
       <p id="ownCatStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
     </div>
+  `;
+
+  const htmlLocations = `
     <div class="card" style="border-color:var(--laser);">
       <b>ទីតាំង (ហាង / ឃ្លាំង)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">គ្រប់គ្រងកន្លែងលក់ និងឃ្លាំងស្តុកទំនិញ — ស្តុកគណនាដាច់ដោយឡែកគ្នាតាមទីតាំង</p>
@@ -4660,6 +4702,9 @@ async function renderSettings(c){
       </div>
       <p id="locStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
     </div>
+  `;
+
+  const htmlStaff = `
     <div class="card" style="border-color:var(--spark);">
       <b>បន្ថែម Staff ថ្មី</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">បង្កើត Login ថ្មី ជាមួយកំណត់សិទ្ធិចូលប្រើភ្លាមៗ</p>
@@ -4729,6 +4774,9 @@ async function renderSettings(c){
       </div>
       <p id="staffStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
     </div>
+  `;
+
+  const htmlData = `
     <div class="card">
       <b>ទីតាំងផ្ទុកទិន្នន័យចម្បង — Cloud (Supabase)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;line-height:1.6;">
@@ -4744,6 +4792,16 @@ async function renderSettings(c){
       <button class="btn accent" style="margin-top:10px;" onclick="downloadBackup()">ទាញយក Backup (.xlsx)</button>
       <p id="backupStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
     </div>
+  `;
+
+  const groupHtml = {display:htmlDisplay, shop:htmlShop, docnum:htmlDocnum, lists:htmlLists, locations:htmlLocations, staff:htmlStaff, data:htmlData};
+
+  c.innerHTML = `
+    <div class="row-inline" style="justify-content:space-between;margin-bottom:14px;">
+      <h2 class="page-title" style="margin:0;">ការកំណត់ — ${groupLabel[settingsSubPage]||''}</h2>
+      <button class="btn small" onclick="closeSettingsSub()">← ត្រឡប់ទៅមុខងារទាំងអស់</button>
+    </div>
+    ${groupHtml[settingsSubPage] || '<p>រកមិនឃើញ</p>'}
   `;
 }
 
