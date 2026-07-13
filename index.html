@@ -1294,7 +1294,7 @@ function applyCardArrange(containerEl, pageKey){
   if(arrangeMode){
     const banner = document.createElement('div');
     banner.className = 'arrange-banner';
-    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — ប្រើប៊ូតុង ▲▼ ដើម្បីផ្លាស់ទីតាំង, ប៊ូតុង តូច/មធ្យម/ធំ ដើម្បីប្តូរទំហំតារាង</span>`;
+    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — ប្រើប៊ូតុង ▲▼ ដើម្បីផ្លាស់ទីតាំង, ប៊ូតុង តូច/មធ្យម/ធំ ដើម្បីប្តូរទំហំកាត</span>`;
     const resetBtn = document.createElement('button');
     resetBtn.className = 'btn small';
     resetBtn.textContent = '↺ កំណត់ទីតាំងទំព័រនេះឡើងវិញ';
@@ -1305,13 +1305,21 @@ function applyCardArrange(containerEl, pageKey){
 
   cards.forEach(el=>{
     const key = el.getAttribute('data-card-key');
-    const resizeTarget = el.querySelector('[data-resizable]');
-    if(resizeTarget){
-      const sizeId = sizes[key];
-      const preset = ARRANGE_SIZE_PRESETS[sizeId];
-      resizeTarget.style.maxHeight = preset ? preset.maxHeight : '';
-      resizeTarget.style.overflow = 'auto';
+    // Any card without its own designated [data-resizable] area (e.g. a plain
+    // form card) gets one synthesized around its full content, so the S/M/L
+    // size controls below work uniformly on every card, not just tables.
+    let resizeTarget = el.querySelector('[data-resizable]');
+    if(!resizeTarget){
+      const wrap = document.createElement('div');
+      wrap.setAttribute('data-resizable', '');
+      while(el.firstChild) wrap.appendChild(el.firstChild);
+      el.appendChild(wrap);
+      resizeTarget = wrap;
     }
+    const sizeId = sizes[key];
+    const preset = ARRANGE_SIZE_PRESETS[sizeId];
+    resizeTarget.style.maxHeight = preset ? preset.maxHeight : '';
+    resizeTarget.style.overflow = 'auto';
     if(!arrangeMode) return;
 
     const siblings = Array.from(el.parentElement.children).filter(c=>c.hasAttribute('data-card-key'));
@@ -1321,8 +1329,8 @@ function applyCardArrange(containerEl, pageKey){
     toolbar.innerHTML = `
       <button class="btn small" ${idx===0?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',-1)" title="ឡើងលើ">▲</button>
       <button class="btn small" ${idx===siblings.length-1?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',1)" title="ចុះក្រោម">▼</button>
-      ${resizeTarget ? Object.keys(ARRANGE_SIZE_PRESETS).map(sid=>`
-        <button class="btn small ${sizes[key]===sid?'accent':''}" onclick="setCardSize('${pageKey}','${key}','${sid}')">${ARRANGE_SIZE_PRESETS[sid].label}</button>`).join('') : ''}
+      ${Object.keys(ARRANGE_SIZE_PRESETS).map(sid=>`
+        <button class="btn small ${sizes[key]===sid?'accent':''}" onclick="setCardSize('${pageKey}','${key}','${sid}')">${ARRANGE_SIZE_PRESETS[sid].label}</button>`).join('')}
     `;
     el.insertBefore(toolbar, el.firstChild);
   });
