@@ -150,10 +150,9 @@
   .card{background:#fff;border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
-  .arrange-mode [data-resizable]{border:2px dashed var(--spark-dim) !important;}
-  .arrange-dragover{outline:3px dashed var(--spark);outline-offset:2px;}
-  .arrange-drag-handle:active{cursor:grabbing;}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
+  .arrange-toolbar .btn{padding:3px 9px;font-size:11px;}
 
   /* POS section size scaling */
   .pos-big-50 > b{font-size:15.5px;}
@@ -1207,9 +1206,9 @@ async function resetPageBgColor(navKey){
   renderSettings(document.getElementById('content'));
 }
 
-/* ================= DASHBOARD ARRANGE MODE (drag to reorder, drag to resize) ================= */
+/* ================= DASHBOARD ARRANGE MODE (▲▼ buttons to reorder, S/M/L buttons to resize) ================= */
 let arrangeMode = false;
-let cardLayouts = {}; // { [pageKey]: { order:[cardKey,...], heights:{cardKey:px} } }
+let cardLayouts = {}; // { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'} } }
 async function loadCardLayouts(){
   try{
     const {data} = await sb.from('app_settings').select('value').eq('key','card_layouts').single();
@@ -1232,24 +1231,38 @@ async function resetPageLayout(pageKey){
   await saveCardLayouts();
   renderPage();
 }
-function reorderCards(pageKey, containerEl, draggedKey, targetKey){
-  const cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
-  const keysInDomOrder = cards.map(el=>el.getAttribute('data-card-key'));
-  const fromIdx = keysInDomOrder.indexOf(draggedKey);
-  const toIdx = keysInDomOrder.indexOf(targetKey);
-  if(fromIdx===-1 || toIdx===-1 || fromIdx===toIdx) return;
-  keysInDomOrder.splice(fromIdx,1);
-  const insertAt = keysInDomOrder.indexOf(targetKey);
-  keysInDomOrder.splice(insertAt + (fromIdx<toIdx?1:0), 0, draggedKey);
-  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], heights:{}};
-  cardLayouts[pageKey].order = keysInDomOrder;
+const ARRANGE_SIZE_PRESETS = { S: {label:'តូច', maxHeight:'200px'}, M: {label:'មធ្យម', maxHeight:'420px'}, L: {label:'ធំ', maxHeight:'none'} };
+function moveCardOrder(pageKey, key, dir){
+  const containerEl = document.getElementById('content');
+  const cardEl = containerEl.querySelector(`[data-card-key="${key}"]`);
+  if(!cardEl) return;
+  const parent = cardEl.parentElement;
+  const siblings = Array.from(parent.children).filter(el=>el.hasAttribute('data-card-key'));
+  const idx = siblings.indexOf(cardEl);
+  const newIdx = idx + dir;
+  if(newIdx<0 || newIdx>=siblings.length) return;
+  const other = siblings[newIdx];
+  if(dir<0) parent.insertBefore(cardEl, other);
+  else parent.insertBefore(other, cardEl);
+  const order = Array.from(containerEl.querySelectorAll('[data-card-key]')).map(el=>el.getAttribute('data-card-key'));
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
+  cardLayouts[pageKey].order = order;
   saveCardLayouts();
   renderPage();
 }
-// Call at the end of every page render function: applies saved order/heights to
-// [data-card-key] elements, and (when arrangeMode is on) attaches drag-to-reorder
-// and drag-to-resize handles. No-op if the page has no [data-card-key] cards or no
-// saved layout — so pages/users that never touch this feature render exactly as before.
+function setCardSize(pageKey, key, sizeId){
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
+  if(!cardLayouts[pageKey].sizes) cardLayouts[pageKey].sizes = {};
+  cardLayouts[pageKey].sizes[key] = sizeId;
+  saveCardLayouts();
+  renderPage();
+}
+// Call at the end of every page render function: applies saved order/sizes to
+// [data-card-key] elements, and (when arrangeMode is on) adds ▲/▼ move buttons
+// and S/M/L size-preset buttons per card. Uses plain buttons (not drag gestures)
+// so it works reliably with mouse, trackpad, and touchscreen alike. No-op if the
+// page has no [data-card-key] cards — pages that never touch this feature render
+// exactly as before.
 function applyCardArrange(containerEl, pageKey){
   if(!containerEl) return;
   const cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
@@ -1281,7 +1294,7 @@ function applyCardArrange(containerEl, pageKey){
   if(arrangeMode){
     const banner = document.createElement('div');
     banner.className = 'arrange-banner';
-    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — អូសកន្លែង ⠿⠿ ដើម្បីផ្លាស់ទីតាំង, អូសកជ្រុងខាងក្រោមស្តាំតារាង (◢) ដើម្បីប្តូរទំហំ (ធំ/តូច ទទឹង-បណ្តោយ)</span>`;
+    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — ប្រើប៊ូតុង ▲▼ ដើម្បីផ្លាស់ទីតាំង, ប៊ូតុង តូច/មធ្យម/ធំ ដើម្បីប្តូរទំហំតារាង</span>`;
     const resetBtn = document.createElement('button');
     resetBtn.className = 'btn small';
     resetBtn.textContent = '↺ កំណត់ទីតាំងទំព័រនេះឡើងវិញ';
@@ -1294,61 +1307,24 @@ function applyCardArrange(containerEl, pageKey){
     const key = el.getAttribute('data-card-key');
     const resizeTarget = el.querySelector('[data-resizable]');
     if(resizeTarget){
-      const sz = sizes[key];
-      if(sz && sz.h) resizeTarget.style.height = sz.h+'px';
-      if(sz && sz.w) resizeTarget.style.width = sz.w+'px';
-      if(arrangeMode || (sz && sz.h)) resizeTarget.style.maxHeight = 'none';
-      // Native browser resize handle — no custom drag math needed, works
-      // smoothly in both directions out of the box. Only enabled in Arrange
-      // Mode so it doesn't clutter normal browsing.
-      resizeTarget.style.resize = arrangeMode ? 'both' : 'none';
+      const sizeId = sizes[key];
+      const preset = ARRANGE_SIZE_PRESETS[sizeId];
+      resizeTarget.style.maxHeight = preset ? preset.maxHeight : '';
       resizeTarget.style.overflow = 'auto';
-      if(arrangeMode && !resizeTarget._arrangeResizeObserver){
-        const ro = new ResizeObserver(()=>{
-          if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
-          if(!cardLayouts[pageKey].sizes) cardLayouts[pageKey].sizes = {};
-          cardLayouts[pageKey].sizes[key] = {w: resizeTarget.offsetWidth, h: resizeTarget.offsetHeight};
-          clearTimeout(resizeTarget._arrangeSaveTimer);
-          resizeTarget._arrangeSaveTimer = setTimeout(saveCardLayouts, 400);
-        });
-        ro.observe(resizeTarget);
-        resizeTarget._arrangeResizeObserver = ro;
-      }
     }
     if(!arrangeMode) return;
 
-    // Card is NOT draggable by default — only the grab handle below turns it on
-    // for the duration of a drag. This keeps the resize handle (and everything
-    // else in the card) fully independent of the native HTML5 drag system, since
-    // nothing in the card can accidentally start a drag except the handle itself.
-    el.setAttribute('draggable', 'false');
-    const handle = document.createElement('div');
-    handle.className = 'arrange-drag-handle';
-    handle.textContent = '⠿⠿ អូសដើម្បីផ្លាស់ទីតាំង';
-    handle.setAttribute('draggable', 'true');
-    handle.style.cssText = 'cursor:grab;background:var(--spark);color:#1a2f42;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;text-align:center;user-select:none;';
-    el.insertBefore(handle, el.firstChild);
-
-    handle.addEventListener('mousedown', ()=>{ el.setAttribute('draggable', 'true'); });
-    handle.addEventListener('dragstart', (e)=>{
-      e.dataTransfer.setData('text/plain', key);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    el.addEventListener('dragend', ()=>{ el.setAttribute('draggable', 'false'); });
-    el.addEventListener('dragover', (e)=>{
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      el.classList.add('arrange-dragover');
-    });
-    el.addEventListener('dragleave', ()=>{ el.classList.remove('arrange-dragover'); });
-    el.addEventListener('drop', (e)=>{
-      e.preventDefault();
-      el.classList.remove('arrange-dragover');
-      const draggedKey = e.dataTransfer.getData('text/plain');
-      if(!draggedKey || draggedKey===key) return;
-      reorderCards(pageKey, containerEl, draggedKey, key);
-    });
-
+    const siblings = Array.from(el.parentElement.children).filter(c=>c.hasAttribute('data-card-key'));
+    const idx = siblings.indexOf(el);
+    const toolbar = document.createElement('div');
+    toolbar.className = 'arrange-toolbar';
+    toolbar.innerHTML = `
+      <button class="btn small" ${idx===0?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',-1)" title="ឡើងលើ">▲</button>
+      <button class="btn small" ${idx===siblings.length-1?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',1)" title="ចុះក្រោម">▼</button>
+      ${resizeTarget ? Object.keys(ARRANGE_SIZE_PRESETS).map(sid=>`
+        <button class="btn small ${sizes[key]===sid?'accent':''}" onclick="setCardSize('${pageKey}','${key}','${sid}')">${ARRANGE_SIZE_PRESETS[sid].label}</button>`).join('') : ''}
+    `;
+    el.insertBefore(toolbar, el.firstChild);
   });
 }
 async function loadExchangeRate(){
