@@ -900,6 +900,21 @@ function setCategorySelectValue(id, val){
     other.value = val;
   }
 }
+function syncCategoriesFromInputs(){
+  const inputs = document.querySelectorAll('.cat-item-input');
+  if(inputs.length===0) return;
+  CATEGORIES = Array.from(inputs).map(i=>i.value);
+}
+function addCategoryItem(){
+  syncCategoriesFromInputs();
+  CATEGORIES.push('');
+  renderSettings(document.getElementById('content'));
+}
+function removeCategoryItem(idx){
+  syncCategoriesFromInputs();
+  CATEGORIES.splice(idx,1);
+  renderSettings(document.getElementById('content'));
+}
 
 let exchangeRate = 4100;
 let ownerKeywordMap = [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}];
@@ -909,12 +924,37 @@ async function loadOwnCategories(){
     ownerKeywordMap = data && data.value ? JSON.parse(data.value) : [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}];
   }catch(e){ ownerKeywordMap = [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}]; }
 }
+function syncOwnerRowsFromDOM(){
+  const rows = document.querySelectorAll('.owner-row');
+  if(rows.length===0) return;
+  rows.forEach(row=>{
+    const idx = +row.getAttribute('data-idx');
+    if(!ownerKeywordMap[idx]) return;
+    const nameEl = document.getElementById('ownerName_'+idx);
+    if(nameEl) ownerKeywordMap[idx].name = nameEl.value;
+    const kwInputs = row.querySelectorAll('.owner-kw-input');
+    if(kwInputs.length>0) ownerKeywordMap[idx].keywords = Array.from(kwInputs).map(i=>i.value);
+  });
+}
 function addOwnerRow(){
-  ownerKeywordMap.push({name:'', keywords:[]});
+  syncOwnerRowsFromDOM();
+  ownerKeywordMap.push({name:'', keywords:['']});
   renderSettings(document.getElementById('content'));
 }
 function removeOwnerRow(idx){
+  syncOwnerRowsFromDOM();
   ownerKeywordMap.splice(idx,1);
+  renderSettings(document.getElementById('content'));
+}
+function addKeywordItem(oIdx){
+  syncOwnerRowsFromDOM();
+  if(!ownerKeywordMap[oIdx].keywords) ownerKeywordMap[oIdx].keywords = [];
+  ownerKeywordMap[oIdx].keywords.push('');
+  renderSettings(document.getElementById('content'));
+}
+function removeKeywordItem(oIdx, kIdx){
+  syncOwnerRowsFromDOM();
+  ownerKeywordMap[oIdx].keywords.splice(kIdx,1);
   renderSettings(document.getElementById('content'));
 }
 async function saveOwnerKeywordMap(){
@@ -924,8 +964,8 @@ async function saveOwnerKeywordMap(){
   rows.forEach(row=>{
     const idx = row.getAttribute('data-idx');
     const name = document.getElementById('ownerName_'+idx).value.trim();
-    const raw = document.getElementById('ownerKeywords_'+idx).value.trim();
-    const keywords = raw.split(',').map(s=>s.trim()).filter(Boolean);
+    const kwInputs = row.querySelectorAll('.owner-kw-input');
+    const keywords = Array.from(kwInputs).map(i=>i.value.trim()).filter(Boolean);
     if(name && keywords.length>0){ newMap.push({name, keywords}); }
   });
   if(newMap.length===0){ statusEl.textContent = 'សូមបញ្ចូលយ៉ាងតិចម្ចាស់ម្នាក់ ជាមួយឈ្មោះ និងពាក្យគន្លឹះ'; return; }
@@ -4488,9 +4528,16 @@ async function renderSettings(c){
     </div>
     <div class="card">
       <b>បញ្ជីប្រភេទទំនិញ (Category)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កែបញ្ជីប្រភេទដែលបង្ហាញក្នុង Dropdown (ខណ្ឌដោយសញ្ញា , ) — មានប្រយោជន៍ខ្លាំងសម្រាប់ស្តុកច្រើនមុខ</p>
-      <div class="row-inline" style="margin-top:8px;">
-        <input class="inp" id="categoriesInput" value="${CATEGORIES.join(', ')}" style="flex:1;min-width:220px">
+      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">គ្រប់គ្រងប្រភេទដែលបង្ហាញក្នុង Dropdown ជា List — មានប្រយោជន៍ខ្លាំងសម្រាប់ស្តុកច្រើនមុខ</p>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+        ${CATEGORIES.map((cat,idx)=>`
+          <div class="row-inline" style="margin-bottom:0;">
+            <input class="inp cat-item-input" id="catItem_${idx}" placeholder="ឈ្មោះប្រភេទ" value="${escapeHtml(cat)}" style="flex:1;min-width:160px">
+            <button class="btn small danger" onclick="removeCategoryItem(${idx})">✕</button>
+          </div>`).join('')}
+      </div>
+      <div class="row-inline" style="margin-top:10px;">
+        <button class="btn small" onclick="addCategoryItem()">+ បន្ថែមប្រភេទ</button>
         <button class="btn accent small" onclick="saveCategories()">រក្សាទុក</button>
       </div>
       <p id="categoriesStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
@@ -4507,12 +4554,22 @@ async function renderSettings(c){
     <div class="card" style="border-color:var(--danger);">
       <b>ម្ចាស់ផលិតផល & ពាក្យគន្លឹះ (សម្រាប់ចែកចំណូល)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កំណត់ឈ្មោះម្ចាស់នីមួយៗ (ខ្លួនឯង, បងប្អូន...) ជាមួយពាក្យគន្លឹះឈ្មោះទំនិញរបស់គេ។ Dashboard "ចំណូលរួម" នឹងបែងចែកចំណូល Invoice ទៅតាមម្ចាស់នីមួយៗ</p>
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
-        ${ownerKeywordMap.map((o,idx)=>`
-          <div class="owner-row row-inline" data-idx="${idx}">
-            <input class="inp" id="ownerName_${idx}" placeholder="ឈ្មោះម្ចាស់ (ឧ. គឹមស្រ៊ាង)" value="${escapeHtml(o.name)}" style="flex:1;min-width:140px">
-            <input class="inp" id="ownerKeywords_${idx}" placeholder="ពាក្យគន្លឹះ (ខណ្ឌដោយ ,) ឧ. សន្លឹក" value="${escapeHtml((o.keywords||[]).join(', '))}" style="flex:2;min-width:200px">
-            <button class="btn small danger" onclick="removeOwnerRow(${idx})">✕</button>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+        ${ownerKeywordMap.map((o,oIdx)=>`
+          <div class="owner-row" data-idx="${oIdx}" style="border:1px solid var(--line,#e2e2e2);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;">
+            <div class="row-inline">
+              <input class="inp" id="ownerName_${oIdx}" placeholder="ឈ្មោះម្ចាស់ (ឧ. គឹមស្រ៊ាង)" value="${escapeHtml(o.name)}" style="flex:1;min-width:140px">
+              <button class="btn small danger" onclick="removeOwnerRow(${oIdx})">✕ លុបម្ចាស់</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding-left:8px;">
+              <span style="font-size:12px;color:#6b6f76;">ពាក្យគន្លឹះ:</span>
+              ${(o.keywords||[]).map((kw,kIdx)=>`
+                <div class="row-inline" style="margin-bottom:0;">
+                  <input class="inp owner-kw-input" id="ownerKw_${oIdx}_${kIdx}" placeholder="ពាក្យគន្លឹះ ឧ. សន្លឹក" value="${escapeHtml(kw)}" style="flex:1;min-width:140px">
+                  <button class="btn small danger" onclick="removeKeywordItem(${oIdx},${kIdx})">✕</button>
+                </div>`).join('')}
+              <button class="btn small" onclick="addKeywordItem(${oIdx})" style="align-self:flex-start;">+ បន្ថែមពាក្យគន្លឹះ</button>
+            </div>
           </div>`).join('')}
       </div>
       <div class="row-inline" style="margin-top:10px;">
@@ -4787,14 +4844,15 @@ async function saveUnits(){
 }
 
 async function saveCategories(){
-  const raw = document.getElementById('categoriesInput').value;
   const statusEl = document.getElementById('categoriesStatus');
-  const list = raw.split(',').map(s=>s.trim()).filter(s=>s);
+  const inputs = document.querySelectorAll('.cat-item-input');
+  const list = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
   if(list.length===0){ statusEl.textContent = 'សូមបញ្ចូលប្រភេទយ៉ាងតិចមួយ'; return; }
   const {error} = await sb.from('app_settings').upsert({key:'categories', value:JSON.stringify(list)});
   if(error){ statusEl.textContent = 'មានបញ្ហា៖ '+error.message; return; }
   CATEGORIES = list;
   statusEl.textContent = 'រក្សាទុកជោគជ័យ!';
+  renderSettings(document.getElementById('content'));
 }
 
 async function downloadBackup(){
