@@ -915,14 +915,63 @@ function removeCategoryItem(idx){
   CATEGORIES.splice(idx,1);
   renderSettings(document.getElementById('content'));
 }
+function exportListExcel(list, colName, filename){
+  const rows = (list||[]).filter(Boolean).map(v=>({ [colName]: v }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), colName.slice(0,31));
+  XLSX.writeFile(wb, filename);
+}
+async function readListExcelFile(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+  const items = [];
+  rows.forEach(r=>{ const v = String((r||[])[0]||'').trim(); if(v) items.push(v); });
+  return items;
+}
+function exportCategoriesExcel(){
+  exportListExcel(CATEGORIES, 'ប្រភេទទំនិញ', `ប្រភេទទំនិញ_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function importCategoriesExcel(fileInputEl){
+  const file = fileInputEl.files[0];
+  if(!file) return;
+  syncCategoriesFromInputs();
+  const items = await readListExcelFile(file);
+  CATEGORIES = Array.from(new Set([...CATEGORIES.filter(Boolean), ...items]));
+  fileInputEl.value = '';
+  renderSettings(document.getElementById('content'));
+}
 
 let exchangeRate = 4100;
 let ownerKeywordMap = [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}];
+let collapsedOwners = new Set();
 async function loadOwnCategories(){
   try{
     const {data} = await sb.from('app_settings').select('value').eq('key','owner_keyword_map').single();
     ownerKeywordMap = data && data.value ? JSON.parse(data.value) : [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}];
   }catch(e){ ownerKeywordMap = [{name:'ខ្ញុំផ្ទាល់', keywords:['សន្លឹក']}]; }
+  collapsedOwners = new Set(ownerKeywordMap.map((_,i)=>i));
+}
+function toggleOwnerKeywords(oIdx){
+  syncOwnerRowsFromDOM();
+  if(collapsedOwners.has(oIdx)) collapsedOwners.delete(oIdx); else collapsedOwners.add(oIdx);
+  renderSettings(document.getElementById('content'));
+}
+function exportOwnerKeywordsExcel(oIdx){
+  const o = ownerKeywordMap[oIdx];
+  exportListExcel(o.keywords, 'ពាក្យគន្លឹះ', `ពាក្យគន្លឹះ_${o.name||('ម្ចាស់'+(oIdx+1))}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function importOwnerKeywordsExcel(oIdx, fileInputEl){
+  const file = fileInputEl.files[0];
+  if(!file) return;
+  syncOwnerRowsFromDOM();
+  const items = await readListExcelFile(file);
+  const existing = ownerKeywordMap[oIdx].keywords || [];
+  ownerKeywordMap[oIdx].keywords = Array.from(new Set([...existing.filter(Boolean), ...items]));
+  collapsedOwners.delete(oIdx);
+  fileInputEl.value = '';
+  renderSettings(document.getElementById('content'));
 }
 function syncOwnerRowsFromDOM(){
   const rows = document.querySelectorAll('.owner-row');
@@ -959,13 +1008,11 @@ function removeKeywordItem(oIdx, kIdx){
 }
 async function saveOwnerKeywordMap(){
   const statusEl = document.getElementById('ownCatStatus');
-  const rows = document.querySelectorAll('.owner-row');
+  syncOwnerRowsFromDOM();
   const newMap = [];
-  rows.forEach(row=>{
-    const idx = row.getAttribute('data-idx');
-    const name = document.getElementById('ownerName_'+idx).value.trim();
-    const kwInputs = row.querySelectorAll('.owner-kw-input');
-    const keywords = Array.from(kwInputs).map(i=>i.value.trim()).filter(Boolean);
+  ownerKeywordMap.forEach(o=>{
+    const name = (o.name||'').trim();
+    const keywords = (o.keywords||[]).map(k=>k.trim()).filter(Boolean);
     if(name && keywords.length>0){ newMap.push({name, keywords}); }
   });
   if(newMap.length===0){ statusEl.textContent = 'សូមបញ្ចូលយ៉ាងតិចម្ចាស់ម្នាក់ ជាមួយឈ្មោះ និងពាក្យគន្លឹះ'; return; }
@@ -4529,17 +4576,20 @@ async function renderSettings(c){
     <div class="card">
       <b>បញ្ជីប្រភេទទំនិញ (Category)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">គ្រប់គ្រងប្រភេទដែលបង្ហាញក្នុង Dropdown ជា List — មានប្រយោជន៍ខ្លាំងសម្រាប់ស្តុកច្រើនមុខ</p>
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
         ${CATEGORIES.map((cat,idx)=>`
-          <div class="row-inline" style="margin-bottom:0;">
-            <input class="inp cat-item-input" id="catItem_${idx}" placeholder="ឈ្មោះប្រភេទ" value="${escapeHtml(cat)}" style="flex:1;min-width:160px">
-            <button class="btn small danger" onclick="removeCategoryItem(${idx})">✕</button>
+          <div style="display:flex;align-items:center;gap:2px;">
+            <input class="inp cat-item-input" id="catItem_${idx}" placeholder="ឈ្មោះប្រភេទ" value="${escapeHtml(cat)}" style="width:130px;padding:4px 6px;font-size:12px;">
+            <button class="btn small danger" onclick="removeCategoryItem(${idx})" style="padding:2px 6px;">✕</button>
           </div>`).join('')}
       </div>
       <div class="row-inline" style="margin-top:10px;">
         <button class="btn small" onclick="addCategoryItem()">+ បន្ថែមប្រភេទ</button>
+        <button class="btn small" onclick="exportCategoriesExcel()">📤 នាំចេញ Excel</button>
+        <label class="btn small" style="cursor:pointer;">📥 នាំចូល Excel<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importCategoriesExcel(this)"></label>
         <button class="btn accent small" onclick="saveCategories()">រក្សាទុក</button>
       </div>
+      <p style="font-size:11px;color:#8a8d94;margin-top:4px;">នាំចូល Excel៖ File មួយជួរឈរ រាល់ជួរ = ឈ្មោះប្រភេទមួយ (បន្ថែមទៅលើបញ្ជីបច្ចុប្បន្ន)</p>
       <p id="categoriesStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
     </div>
     <div class="card">
@@ -4555,22 +4605,28 @@ async function renderSettings(c){
       <b>ម្ចាស់ផលិតផល & ពាក្យគន្លឹះ (សម្រាប់ចែកចំណូល)</b>
       <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កំណត់ឈ្មោះម្ចាស់នីមួយៗ (ខ្លួនឯង, បងប្អូន...) ជាមួយពាក្យគន្លឹះឈ្មោះទំនិញរបស់គេ។ Dashboard "ចំណូលរួម" នឹងបែងចែកចំណូល Invoice ទៅតាមម្ចាស់នីមួយៗ</p>
       <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
-        ${ownerKeywordMap.map((o,oIdx)=>`
+        ${ownerKeywordMap.map((o,oIdx)=>{ const isCollapsed = collapsedOwners.has(oIdx); return `
           <div class="owner-row" data-idx="${oIdx}" style="border:1px solid var(--line,#e2e2e2);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;">
             <div class="row-inline">
+              <button class="btn small" onclick="toggleOwnerKeywords(${oIdx})" title="បង្ហាញ/លាក់ពាក្យគន្លឹះ" style="padding:2px 8px;">${isCollapsed?'▶':'▼'}</button>
               <input class="inp" id="ownerName_${oIdx}" placeholder="ឈ្មោះម្ចាស់ (ឧ. គឹមស្រ៊ាង)" value="${escapeHtml(o.name)}" style="flex:1;min-width:140px">
+              <span style="font-size:12px;color:#6b6f76;">(${(o.keywords||[]).filter(Boolean).length} ពាក្យគន្លឹះ)</span>
               <button class="btn small danger" onclick="removeOwnerRow(${oIdx})">✕ លុបម្ចាស់</button>
             </div>
-            <div style="display:flex;flex-direction:column;gap:4px;padding-left:8px;">
+            <div style="padding-left:8px;display:${isCollapsed?'none':'block'};">
               <span style="font-size:12px;color:#6b6f76;">ពាក្យគន្លឹះ:</span>
-              ${(o.keywords||[]).map((kw,kIdx)=>`
-                <div class="row-inline" style="margin-bottom:0;">
-                  <input class="inp owner-kw-input" id="ownerKw_${oIdx}_${kIdx}" placeholder="ពាក្យគន្លឹះ ឧ. សន្លឹក" value="${escapeHtml(kw)}" style="flex:1;min-width:140px">
-                  <button class="btn small danger" onclick="removeKeywordItem(${oIdx},${kIdx})">✕</button>
-                </div>`).join('')}
-              <button class="btn small" onclick="addKeywordItem(${oIdx})" style="align-self:flex-start;">+ បន្ថែមពាក្យគន្លឹះ</button>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+                ${(o.keywords||[]).map((kw,kIdx)=>`
+                  <div style="display:flex;align-items:center;gap:2px;">
+                    <input class="inp owner-kw-input" id="ownerKw_${oIdx}_${kIdx}" placeholder="ពាក្យគន្លឹះ" value="${escapeHtml(kw)}" style="width:110px;padding:4px 6px;font-size:12px;">
+                    <button class="btn small danger" onclick="removeKeywordItem(${oIdx},${kIdx})" style="padding:2px 6px;">✕</button>
+                  </div>`).join('')}
+                <button class="btn small" onclick="addKeywordItem(${oIdx})">+ បន្ថែម</button>
+                <button class="btn small" onclick="exportOwnerKeywordsExcel(${oIdx})">📤 Excel</button>
+                <label class="btn small" style="cursor:pointer;">📥 Excel<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importOwnerKeywordsExcel(${oIdx},this)"></label>
+              </div>
             </div>
-          </div>`).join('')}
+          </div>`;}).join('')}
       </div>
       <div class="row-inline" style="margin-top:10px;">
         <button class="btn small" onclick="addOwnerRow()">+ បន្ថែមម្ចាស់</button>
