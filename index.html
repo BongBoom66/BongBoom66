@@ -1538,7 +1538,7 @@ async function renderPOS(c){
               <tbody>
                 ${cart.length===0?`<tr><td colspan="7" class="empty">មិនទាន់មានទំនិញ</td></tr>`:
                 cart.map((it,i)=>`
-                  <tr>
+                  <tr ondblclick="onCartRowDblClick(event, ${i})" title="ចុចទ្វេដងលើជួរ ដើម្បីទាញមកកែក្នុងប្រអប់ខាងលើ">
                     <td>
                       <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
                         <span>${i+1}</span>
@@ -1548,10 +1548,10 @@ async function renderPOS(c){
                         </div>
                       </div>
                     </td>
-                    <td class="left" ondblclick="editCartItemInline(${i})" style="cursor:pointer;" title="ចុចទ្វេដងដើម្បីកែ">${escapeHtml(it.name)}</td>
+                    <td class="left" style="cursor:pointer;">${escapeHtml(it.name)}</td>
                     <td><input class="inp" style="width:65px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updateQty(${i}, this.value)"></td>
-                    <td>${escapeHtml(it.unit||'')}</td>
-                    ${showPrice?`<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td>$${(it.qty*it.price).toFixed(2)}</td>`:''}
+                    <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>
+                    ${showPrice?`<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`:''}
                     <td><button class="btn small danger" onclick="removeItem(${i})">✕</button></td>
                   </tr>`).join('')}
               </tbody>
@@ -1775,6 +1775,11 @@ function updateQty(i, val){
   renderPOS(document.getElementById('content'));
 }
 function updatePrice(i, val){ cart[i].price = parseFloat(val)||0; renderPOS(document.getElementById('content')); }
+function onCartRowDblClick(e, i){
+  const tag = (e.target.tagName || '').toUpperCase();
+  if(tag === 'INPUT' || tag === 'BUTTON') return;
+  editCartItemInline(i);
+}
 async function editCartItemInline(i){
   const it = cart[i];
   if(!it) return;
