@@ -154,7 +154,7 @@
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
   .arrange-toolbar .btn{padding:3px 9px;font-size:11px;}
 
-  /* Reports page — analytics-dashboard styling (6 preset themes: dark + light) */
+  /* Reports page — dark analytics-dashboard styling */
   .report-dashboard{
     --rt-bg1:#0f1c30; --rt-bg2:#132840; --rt-card:#16273f; --rt-border:#24405f;
     --rt-ink:#eef3fa; --rt-muted:#7d92b3; --rt-track:#22344f;
@@ -162,16 +162,8 @@
     --ink:var(--rt-ink); --report-track:var(--rt-track);
     background:linear-gradient(160deg,var(--rt-bg1),var(--rt-bg2));border-radius:16px;padding:18px;margin-bottom:16px;
   }
-  .report-dashboard[data-theme="purple"]{--rt-bg1:#180f2c;--rt-bg2:#2a1a4a;--rt-card:#221837;--rt-border:#3d2a63;--rt-ink:#f3eefc;--rt-muted:#a897c9;--rt-track:#2f2050;}
-  .report-dashboard[data-theme="emerald"]{--rt-bg1:#08201c;--rt-bg2:#0f3a30;--rt-card:#123a30;--rt-border:#1f5c4a;--rt-ink:#e8faf3;--rt-muted:#7fb8a4;--rt-track:#163f34;}
-  .report-dashboard[data-theme="sky"]{--rt-bg1:#eaf4ff;--rt-bg2:#dbeafe;--rt-card:#ffffff;--rt-border:#c7ddf5;--rt-ink:#163257;--rt-muted:#5b7ba0;--rt-track:#e4eefc;--rt-good:#1f7a4d;--rt-bad:#b23b3b;--rt-good-bg:rgba(31,122,77,0.12);--rt-bad-bg:rgba(178,59,59,0.12);}
-  .report-dashboard[data-theme="cream"]{--rt-bg1:#fdf8ec;--rt-bg2:#f7ecd3;--rt-card:#ffffff;--rt-border:#e8d8b0;--rt-ink:#4a3a1f;--rt-muted:#8a7550;--rt-track:#f2e6c8;--rt-good:#1f7a4d;--rt-bad:#b23b3b;--rt-good-bg:rgba(31,122,77,0.12);--rt-bad-bg:rgba(178,59,59,0.12);}
-  .report-dashboard[data-theme="mint"]{--rt-bg1:#eafcf3;--rt-bg2:#d9f5e6;--rt-card:#ffffff;--rt-border:#bfe8d2;--rt-ink:#17402c;--rt-muted:#5d9377;--rt-track:#e0f5e9;--rt-good:#1f7a4d;--rt-bad:#b23b3b;--rt-good-bg:rgba(31,122,77,0.12);--rt-bad-bg:rgba(178,59,59,0.12);}
   .report-dashboard .card{background:var(--rt-card);border:1px solid var(--rt-border);color:var(--rt-ink);box-shadow:0 4px 14px rgba(0,0,0,0.1);}
   .report-dashboard .card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.14);}
-  .report-theme-picker{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
-  .report-theme-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;padding:0;}
-  .report-theme-swatch.active{border-color:var(--ink);box-shadow:0 0 0 2px var(--spark);}
   .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
   .kpi-tile{background:var(--rt-card);border:1px solid var(--rt-border);border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.1);}
   .kpi-label{font-size:11px;color:var(--rt-muted);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
@@ -645,7 +637,6 @@ function showApp(){
   loadLocations();
   loadShopInfo();
   loadCardLayouts();
-  loadReportTheme();
   if(isOwner()) document.getElementById('arrangeModeBtn').style.display = 'inline-block';
   renderNav();
   renderPage();
@@ -1219,41 +1210,13 @@ async function loadDashboardBgColor(){
 function applyDashboardBgColor(){
   const contentEl = document.getElementById('content');
   if(!contentEl) return;
-  const val = pageBgColors[activeNav];
-  if(val && typeof val === 'object' && val.type === 'image'){
-    contentEl.style.background = '';
-    contentEl.style.backgroundImage = `url(${val.url})`;
-    contentEl.style.backgroundSize = 'cover';
-    contentEl.style.backgroundPosition = 'center';
-    contentEl.style.backgroundRepeat = 'no-repeat';
-  } else {
-    contentEl.style.backgroundImage = 'none';
-    contentEl.style.background = val || '';
-  }
+  const color = pageBgColors[activeNav];
+  contentEl.style.background = (typeof color === 'string' && color) ? color : '';
 }
 async function setPageBgColor(navKey, color){
   pageBgColors[navKey] = color;
   applyDashboardBgColor();
   await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
-  renderSettings(document.getElementById('content'));
-}
-function onPageBgImageSelected(navKey, event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const statusEl = document.getElementById('pageBgImgStatus_'+navKey);
-  if(file.size > 500*1024){
-    if(statusEl) statusEl.textContent = 'រូបភាពធំពេក (អតិបរមា 500KB)';
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = (e)=>{ setPageBgImage(navKey, e.target.result); };
-  reader.readAsDataURL(file);
-}
-async function setPageBgImage(navKey, dataUrl){
-  pageBgColors[navKey] = {type:'image', url:dataUrl};
-  applyDashboardBgColor();
-  await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
-  renderSettings(document.getElementById('content'));
 }
 async function resetPageBgColor(navKey){
   delete pageBgColors[navKey];
@@ -3777,26 +3740,6 @@ function downloadImageFromViewModal(){
 
 /* ================= REPORTS ================= */
 let reportRange = 'month';
-const REPORT_THEMES = [
-  {id:'navy', label:'Navy (ងងឹត)', swatch:'#132840'},
-  {id:'purple', label:'Purple (ងងឹត)', swatch:'#2a1a4a'},
-  {id:'emerald', label:'Emerald (ងងឹត)', swatch:'#0f3a30'},
-  {id:'sky', label:'Sky (ភ្លឺ)', swatch:'#dbeafe'},
-  {id:'cream', label:'Cream (ភ្លឺ)', swatch:'#f7ecd3'},
-  {id:'mint', label:'Mint (ភ្លឺ)', swatch:'#d9f5e6'}
-];
-let reportTheme = 'navy';
-async function loadReportTheme(){
-  try{
-    const {data} = await sb.from('app_settings').select('value').eq('key','report_theme').single();
-    if(data && data.value && REPORT_THEMES.some(t=>t.id===data.value)) reportTheme = data.value;
-  }catch(e){ /* keep default */ }
-}
-async function setReportTheme(themeId){
-  reportTheme = themeId;
-  await sb.from('app_settings').upsert({key:'report_theme', value: themeId});
-  renderPage();
-}
 async function renderReports(c){
   const today = new Date();
   let startDate;
@@ -3962,7 +3905,7 @@ async function renderReports(c){
       <button class="btn" onclick="downloadReportPDF()">ទាញយក PDF</button>
       <button class="btn accent" onclick="downloadReport()">ទាញយក Excel (.xlsx)</button>
     </div>` : ''}
-    <div id="reportCapture" class="report-dashboard" data-theme="${reportTheme}">
+    <div id="reportCapture" class="report-dashboard">
 
     <div class="kpi-row">
       <div class="kpi-tile" style="border-left:3px solid #4fc3f7;">
@@ -4588,34 +4531,17 @@ async function renderSettings(c){
       </div>
     </div>
     <div class="card">
-      <b>🎨 Theme ទំព័រនីមួយៗ (ពណ៌ ឬ រូបភាព Background)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ ឬ Upload រូបភាពផ្ទាល់ខ្លួន ធ្វើជាផ្ទៃខាងក្រោយសម្រាប់ទំព័រនីមួយៗ (មិនប៉ះពាល់ Dark Mode)</p>
+      <b>ពណ៌ផ្ទៃខាងក្រោយ តាមទំព័រនីមួយៗ (Per-Page Background)</b>
+      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួនសម្រាប់ទំព័រនីមួយៗ (មិនប៉ះពាល់ Dark Mode)</p>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
-        ${DASHBOARD_PAGES.map(pg=>{
-          const val = pageBgColors[pg.key];
-          const isImage = val && typeof val==='object' && val.type==='image';
-          return `
-          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;width:150px;flex:none;">
+        ${DASHBOARD_PAGES.map(pg=>`
+          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;width:130px;flex:none;">
             <div style="font-size:12px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${pg.label}">${pg.label}</div>
-            ${isImage ? `<img src="${val.url}" style="width:100%;height:40px;object-fit:cover;border-radius:5px;margin-bottom:6px;">` : ''}
             <div class="row-inline" style="gap:6px;flex-wrap:nowrap;">
-              <input type="color" value="${isImage ? '#fdf6e8' : (val || '#fdf6e8')}" style="width:26px;height:24px;padding:1px;border-radius:5px;border:1px solid var(--paper-dim);cursor:pointer;flex:none;" onchange="setPageBgColor('${pg.key}', this.value)" title="ជ្រើសពណ៌">
-              <label class="btn small" style="cursor:pointer;padding:3px 7px;font-size:11px;" title="Upload រូបភាព">📷<input type="file" accept="image/*" style="display:none" onchange="onPageBgImageSelected('${pg.key}', event)"></label>
+              <input type="color" value="${pageBgColors[pg.key] || '#fdf6e8'}" style="width:30px;height:26px;padding:1px;border-radius:5px;border:1px solid var(--paper-dim);cursor:pointer;flex:none;" onchange="setPageBgColor('${pg.key}', this.value)">
               <button class="btn small" onclick="resetPageBgColor('${pg.key}')" title="ត្រឡប់ទៅលំនាំដើម" style="font-size:11px;padding:4px 7px;">↺</button>
             </div>
-            <p id="pageBgImgStatus_${pg.key}" style="font-size:10px;color:#8a8d94;margin-top:3px;"></p>
-          </div>`;}).join('')}
-      </div>
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--paper-dim);">
-        <b style="font-size:13px;">✨ Theme ពិសេស សម្រាប់ "របាយការណ៍"</b>
-        <p style="font-size:12px;color:#6b6f76;margin-top:4px;">ជម្រើសបន្ថែម — ប្តូររចនាប័ទ្មកាតទាំងមូលក្នុងទំព័របាយការណ៍ (មិនមែនត្រឹមតែផ្ទៃខាងក្រោយ) មានទាំងពណ៌ភ្លឺ និងពណ៌ងងឹត</p>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;">
-          ${REPORT_THEMES.map(t=>`
-            <div style="text-align:center;cursor:pointer;" onclick="setReportTheme('${t.id}')">
-              <div style="width:44px;height:44px;border-radius:50%;background:${t.swatch};border:3px solid ${reportTheme===t.id?'var(--spark)':'var(--paper-dim)'};box-shadow:0 2px 6px rgba(0,0,0,0.12);"></div>
-              <div style="font-size:11px;color:#6b6f76;margin-top:6px;">${t.label}</div>
-            </div>`).join('')}
-        </div>
+          </div>`).join('')}
       </div>
     </div>
   `;
