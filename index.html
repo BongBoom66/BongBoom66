@@ -53,6 +53,7 @@
     --spark-dim:#3a7ab8;
     --laser:#d3bdf0;
     --ink:#000000;
+    --ink-muted:#6b6f76;
     --danger:#e08585;
     --good:#4a9a6c;
     --radius:10px;
@@ -145,7 +146,7 @@
 
   main.content{flex:1;padding:22px;}
   h2.page-title{margin:0 0 4px;font-size:20px;font-weight:800;}
-  p.page-sub{margin:0 0 18px;color:#6b6f76;font-size:13px;}
+  p.page-sub{margin:0 0 18px;color:var(--ink-muted);font-size:13px;}
 
   .card{background:#fff;border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
@@ -301,7 +302,7 @@
   .inv-sign .name{margin:22px auto 0;border-top:1px solid #000;padding-top:4px;width:36mm;}
 
   /* ---------- DARK MODE ---------- */
-  body.dark-mode{ --paper:#1a1e1e; --paper-dim:#2a302f; --ink:#e8ecec; }
+  body.dark-mode{ --paper:#1a1e1e; --paper-dim:#2a302f; --ink:#e8ecec; --ink-muted:#8a9694; }
   body.dark-mode #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #141717; }
   body.dark-mode .login-card{ background:#222827; border-color:#333a38; }
   body.dark-mode .login-card p.sub{ color:#8a9694; }
@@ -331,7 +332,7 @@
   body.dark-mode .row-inline[style*="background:#faf9f5"]{ background:#2a302f !important; }
 
   /* ---------- APP THEME VARIANTS ---------- */
-  body.theme-navy{ --paper:#0f1c30; --paper-dim:#1b2c47; --ink:#eef3fa; }
+  body.theme-navy{ --paper:#0f1c30; --paper-dim:#1b2c47; --ink:#eef3fa; --ink-muted:#7d92b3; }
   body.theme-navy #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #0f1c30; }
   body.theme-navy .login-card{ background:#16273f; border-color:#24405f; }
   body.theme-navy .login-card p.sub{ color:#7d92b3; }
@@ -360,7 +361,7 @@
   body.theme-navy .empty{ color:#7d92b3; }
   body.theme-navy .row-inline[style*="background:#faf9f5"]{ background:#1b2c47 !important; }
   
-  body.theme-darkgray{ --paper:#1c1c1e; --paper-dim:#2c2c2e; --ink:#f0f0f0; }
+  body.theme-darkgray{ --paper:#1c1c1e; --paper-dim:#2c2c2e; --ink:#f0f0f0; --ink-muted:#9a9a9e; }
   body.theme-darkgray #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #1c1c1e; }
   body.theme-darkgray .login-card{ background:#242426; border-color:#3a3a3c; }
   body.theme-darkgray .login-card p.sub{ color:#9a9a9e; }
@@ -389,7 +390,7 @@
   body.theme-darkgray .empty{ color:#9a9a9e; }
   body.theme-darkgray .row-inline[style*="background:#faf9f5"]{ background:#2c2c2e !important; }
   
-  body.theme-fbblue{ --paper:#13294d; --paper-dim:#1c3a68; --ink:#eaf2ff; --spark:#1877f2; }
+  body.theme-fbblue{ --paper:#13294d; --paper-dim:#1c3a68; --ink:#eaf2ff; --ink-muted:#a8c0e0; --spark:#1877f2; }
   body.theme-fbblue #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(24,119,242,0.20), transparent 40%), radial-gradient(circle at 80% 80%, rgba(24,119,242,0.14), transparent 40%), #13294d; }
   body.theme-fbblue .login-card{ background:#1e3a68; border-color:#3573c9; }
   body.theme-fbblue .login-card p.sub{ color:#a8c0e0; }
@@ -436,7 +437,7 @@
     <div class="field">
       <label>ឈ្មោះ / ID / លេខទូរស័ព្ទ</label>
       <input type="text" id="loginEmail" placeholder="ឧ. sreang ឬ 012345678" autocomplete="username" oninput="showDerivedLoginEmail(this.value)">
-      <div id="derivedEmailPreview" style="font-size:11px;color:#8a8d94;margin-top:3px;"></div>
+      <div id="derivedEmailPreview" style="font-size:11px;color:var(--ink-muted);margin-top:3px;"></div>
     </div>
     <div class="field">
       <label>លេខសម្ងាត់ (4 ខ្ទង់)</label>
@@ -492,7 +493,7 @@
   <div style="background:#fff;border-radius:12px;max-width:360px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <div id="markPaidStep1">
       <b style="font-size:16px;display:block;margin-bottom:4px;">សម្គាល់ថាបានទូទាត់</b>
-      <p style="font-size:13px;color:#6b6f76;margin:0 0 14px;">ជ្រើសរើសវិធីទូទាត់ដែលអតិថិជនប្រើ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin:0 0 14px;">ជ្រើសរើសវិធីទូទាត់ដែលអតិថិជនប្រើ</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <button class="btn accent" style="text-align:left;" onclick="showMarkPaidStep2('cash')">💵 សាច់ប្រាក់ (Cash)</button>
         <button class="btn accent" style="text-align:left;" onclick="showMarkPaidStep2('bank')">🏦 ធនាគារ (Bank Transfer)</button>
@@ -502,28 +503,28 @@
     </div>
     <div id="markPaidStep2" style="display:none;">
       <b style="font-size:16px;display:block;margin-bottom:4px;">ព័ត៌មានទូទាត់</b>
-      <p style="font-size:13px;color:#6b6f76;margin:0 0 14px;" id="markPaidStep2Sub"></p>
+      <p style="font-size:13px;color:var(--ink-muted);margin:0 0 14px;" id="markPaidStep2Sub"></p>
       <div id="markPaidBankRow" style="display:none;margin-bottom:14px;">
-        <label style="font-size:12.5px;color:#6b6f76;">ធនាគារ</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">ធនាគារ</label>
         <select class="inp" id="markPaidBankSelect" style="width:100%;margin-top:4px;"></select>
       </div>
       <div id="markPaidChequeRow" style="display:none;margin-bottom:14px;">
-        <label style="font-size:12.5px;color:#6b6f76;">លេខមូលបត្រ</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">លេខមូលបត្រ</label>
         <input class="inp" id="markPaidChequeInput" placeholder="លេខសំគាល់មូលបត្រ" style="width:100%;margin-top:4px;">
       </div>
       <div style="margin-bottom:10px;">
-        <label style="font-size:12.5px;color:#6b6f76;">រូបិយប័ណ្ណដែលទទួលបាន</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">រូបិយប័ណ្ណដែលទទួលបាន</label>
         <select class="inp" id="markPaidCurrencySelect" style="width:100%;margin-top:4px;" onchange="onMarkPaidCurrencyChange()">
           <option value="usd">💵 ដុល្លា ($)</option>
           <option value="khr">💴 រៀល (៛)</option>
         </select>
       </div>
       <div id="markPaidAmountRow" style="margin-bottom:14px;">
-        <label style="font-size:12.5px;color:#6b6f76;">ចំនួនទឹកប្រាក់ដែលទទួលបាន ($)</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">ចំនួនទឹកប្រាក់ដែលទទួលបាន ($)</label>
         <input class="inp" id="markPaidAmountInput" type="number" min="0" step="0.01" style="width:100%;margin-top:4px;text-align:right">
       </div>
       <div id="markPaidRielRow" style="display:none;margin-bottom:14px;">
-        <label style="font-size:12.5px;color:#6b6f76;">ចំនួន ៛ ជាក់ស្តែងទទួលបាន</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">ចំនួន ៛ ជាក់ស្តែងទទួលបាន</label>
         <input class="inp" id="markPaidRielInput" type="number" min="0" step="100" style="width:100%;margin-top:4px;text-align:right">
       </div>
       <div style="display:flex;gap:8px;">
@@ -541,29 +542,29 @@
       <button class="btn small" onclick="closeCameraScan()">✕ បិទ</button>
     </div>
     <div id="cameraScanReader" style="width:100%;"></div>
-    <p id="cameraScanStatus" style="font-size:12.5px;color:#6b6f76;margin-top:8px;text-align:center;"></p>
+    <p id="cameraScanStatus" style="font-size:12.5px;color:var(--ink-muted);margin-top:8px;text-align:center;"></p>
   </div>
 </div>
 
 <div id="resetPasswordOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:210;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:12px;max-width:400px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <b style="font-size:16px;display:block;margin-bottom:4px;">កំណត់ Password ថ្មីឲ្យ <span id="resetPassStaffName"></span></b>
-    <p style="font-size:12.5px;color:#6b6f76;margin:0 0 12px;">វាយ PIN ថ្មី 4 ខ្ទង់ រួចចុច "កំណត់ Password ថ្មី"</p>
-    <label style="font-size:12.5px;color:#6b6f76;">PIN ថ្មី (4 ខ្ទង់)</label>
+    <p style="font-size:12.5px;color:var(--ink-muted);margin:0 0 12px;">វាយ PIN ថ្មី 4 ខ្ទង់ រួចចុច "កំណត់ Password ថ្មី"</p>
+    <label style="font-size:12.5px;color:var(--ink-muted);">PIN ថ្មី (4 ខ្ទង់)</label>
     <input class="inp" id="resetPassPinInput" maxlength="4" inputmode="numeric" placeholder="ឧ. 1234" style="width:100%;margin:4px 0 12px;">
     <div style="display:flex;gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeResetPasswordModal()">✕ បិទ</button>
       <button class="btn accent" style="flex:1;" onclick="submitResetPassword()">កំណត់ Password ថ្មី</button>
     </div>
-    <p id="resetPassStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+    <p id="resetPassStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
   </div>
 </div>
 
 <div id="sharedRevNoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:210;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <b style="font-size:16px;display:block;margin-bottom:4px;">សម្គាល់ថាបានត្រួតពិនិត្យ</b>
-    <p style="font-size:12.5px;color:#6b6f76;margin:0 0 12px;">អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ</p>
-    <label style="font-size:12.5px;color:#6b6f76;">កំណត់ចំណាំ</label>
+    <p style="font-size:12.5px;color:var(--ink-muted);margin:0 0 12px;">អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ</p>
+    <label style="font-size:12.5px;color:var(--ink-muted);">កំណត់ចំណាំ</label>
     <textarea class="inp" id="sharedRevNoteInput" rows="3" placeholder="ឧ. បានពិនិត្យត្រឹមត្រូវ / ត្រូវសួរម្ចាស់ពី..." style="width:100%;margin:4px 0 12px;resize:vertical;"></textarea>
     <div style="display:flex;gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeSharedRevNoteModal()">✕ បិទ</button>
@@ -855,7 +856,7 @@ function locationSwitcherHTML(){
   return `
     <div class="card" style="margin-bottom:14px;padding:10px 16px;">
       <div class="row-inline" style="justify-content:space-between;">
-        <label style="font-size:12.5px;color:#6b6f76;">ទីតាំងកំពុងធ្វើការ</label>
+        <label style="font-size:12.5px;color:var(--ink-muted);">ទីតាំងកំពុងធ្វើការ</label>
         <select class="inp" style="max-width:260px;" onchange="setCurrentLocation(this.value)">
           ${locationsCache.map(l=>`<option value="${l.id}" ${currentLocationId===l.id?'selected':''}>${l.type==='shop'?'🏪':'📦'} ${escapeHtml(l.name)}</option>`).join('')}
         </select>
@@ -1525,7 +1526,7 @@ async function renderPOS(c){
         <span id="recallToggleIcon">${recallBoxOpen?'▲':'▼'}</span>
       </div>
       <div id="recallBoxContent" style="display:${recallBoxOpen?'block':'none'};margin-top:8px;">
-        <p style="margin:0 0 8px;font-size:12px;color:#8a8d94;">វាយលេខ Invoice ឬឈ្មោះ/ទូរស័ព្ទអតិថិជន ដើម្បីចូលកែភ្លាមៗ (មិនចាំបាច់ចូល "ប្រវត្តិឯកសារ")</p>
+        <p style="margin:0 0 8px;font-size:12px;color:var(--ink-muted);">វាយលេខ Invoice ឬឈ្មោះ/ទូរស័ព្ទអតិថិជន ដើម្បីចូលកែភ្លាមៗ (មិនចាំបាច់ចូល "ប្រវត្តិឯកសារ")</p>
         <input class="inp" id="recallInvoiceSearch" autocomplete="off" placeholder="វាយលេខ Invoice ឬឈ្មោះ/ទូរស័ព្ទ..." style="width:100%;" oninput="onRecallInvoiceSearch(this.value)">
         <div id="recallInvoiceResults" style="margin-top:8px;"></div>
       </div>
@@ -1538,7 +1539,7 @@ async function renderPOS(c){
         <span id="loadSourceToggleIcon">${loadSourceBoxOpen?'▲':'▼'}</span>
       </div>
       <div id="loadSourceBoxContent" style="display:${loadSourceBoxOpen?'block':'none'};margin-top:8px;">
-        <p style="margin:0 0 8px;font-size:12px;color:#8a8d94;">${docType==='invoice' ? 'ពេលភ្ញៀវព្រមតម្លៃ ជ្រើសរើសសម្រង់តម្លៃ ដើម្បីទាញទំនិញ និងអតិថិជនចូលធ្វើវិក្កយបត្រ' : 'ជ្រើសរើសវិក្កយបត្រ ដើម្បីទាញទំនិញ និងអតិថិជនចូលធ្វើប័ណ្ណដឹកជញ្ជូន'}</p>
+        <p style="margin:0 0 8px;font-size:12px;color:var(--ink-muted);">${docType==='invoice' ? 'ពេលភ្ញៀវព្រមតម្លៃ ជ្រើសរើសសម្រង់តម្លៃ ដើម្បីទាញទំនិញ និងអតិថិជនចូលធ្វើវិក្កយបត្រ' : 'ជ្រើសរើសវិក្កយបត្រ ដើម្បីទាញទំនិញ និងអតិថិជនចូលធ្វើប័ណ្ណដឹកជញ្ជូន'}</p>
         <div class="row-inline">
           <select class="inp" id="sourceDocSelect" style="flex:1;min-width:200px">
             <option value="">-- ជ្រើសរើសឯកសារ --</option>
@@ -1577,7 +1578,7 @@ async function renderPOS(c){
 
         <div class="card pos-big-30" style="border-color:var(--spark);" data-card-key="pos_manual">
           <b>វាយបញ្ចូលទំនិញផ្ទាល់ (មិនចាំបាច់មានក្នុងស្តុក)</b>
-          <p style="margin:4px 0 10px;font-size:12px;color:#8a8d94;">សម្រាប់ទំនិញ Custom តាមស្នាមអតិថិជន — វាយឈ្មោះ ចំនួន ឯកតា និងតម្លៃ រួចចុចបន្ថែម</p>
+          <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញ Custom តាមស្នាមអតិថិជន — វាយឈ្មោះ ចំនួន ឯកតា និងតម្លៃ រួចចុចបន្ថែម</p>
           <div class="row-inline">
             <input class="inp" id="manName" list="manNameList" placeholder="ឈ្មោះទំនិញ" style="flex:6;min-width:100%;" oninput="autofillManualName()">
             <datalist id="manNameList">
@@ -1610,7 +1611,7 @@ async function renderPOS(c){
         <div class="card pos-big-50" style="border-color:${docType==='invoice' ? 'var(--graphite)' : docType==='quotation' ? 'var(--laser)' : 'var(--spark)'};border-width:2px;" data-card-key="pos_cart">
           <b>របស់ក្នុងកន្ត្រក — ${docType==='invoice' ? 'វិក្កយបត្រ' : docType==='quotation' ? 'សម្រង់តម្លៃ' : 'ប័ណ្ណដឹកជញ្ជូន'}</b>
           ${editingDocId ? `<span style="font-size:13px;margin-left:8px;background:#fff5f6;color:var(--danger);padding:3px 10px;border-radius:20px;font-weight:700;">កំពុងកែ #${editingDocNo}</span>` : ''}
-          ${(!editingDocId && nextDocNoPreview) ? `<span style="font-size:12.5px;color:#8a8d94;margin-left:8px;">(លេខបន្ទាប់៖ <b style="color:var(--spark-dim);">${nextDocNoPreview}</b>)</span>` : ''}
+          ${(!editingDocId && nextDocNoPreview) ? `<span style="font-size:12.5px;color:var(--ink-muted);margin-left:8px;">(លេខបន្ទាប់៖ <b style="color:var(--spark-dim);">${nextDocNoPreview}</b>)</span>` : ''}
           <div class="tbl-wrap" style="margin-top:8px;">
             <table>
               <thead><tr>
@@ -1644,7 +1645,7 @@ async function renderPOS(c){
           ${showPrice?`
           <div class="totals">
             <div class="line"><span>សរុប</span><b>$${subtotal().toFixed(2)}</b></div>
-            <div class="line" style="font-size:12px;color:#8a8d94;"><span>≈ រៀល</span><span>${formatRiel(subtotal())}</span></div>
+            <div class="line" style="font-size:12px;color:var(--ink-muted);"><span>≈ រៀល</span><span>${formatRiel(subtotal())}</span></div>
             ${showDeposit?`
             <div class="line"><span>វិធីទូទាត់</span>
               <select class="inp" id="paymentMethodSelect" style="width:150px;" onchange="paymentMethod=this.value; renderPOS(document.getElementById('content'))">
@@ -1677,7 +1678,7 @@ async function renderPOS(c){
               <input class="inp" style="width:150px;text-align:right" type="number" min="0" step="any" value="${depositVal}" onchange="depositVal=parseFloat(this.value)||0; renderPOS(document.getElementById('content'))">
             </div>`}
             <div class="line"><span>ខ្វះ</span><b>$${(subtotal()-depositVal).toFixed(2)}</b></div>
-            <div class="line" style="font-size:12px;color:#8a8d94;"><span>≈ រៀល (ខ្វះ)</span><span>${formatRiel(subtotal()-depositVal)}</span></div>`:''}
+            <div class="line" style="font-size:12px;color:var(--ink-muted);"><span>≈ រៀល (ខ្វះ)</span><span>${formatRiel(subtotal()-depositVal)}</span></div>`:''}
           </div>`:''}
 
           ${!editingDocId ? `
@@ -1913,12 +1914,12 @@ function onCustPickerSearch(val){
     ).slice(0, 20);
   }
   if(matches.length===0){
-    box.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:#8a8d94;">រកមិនឃើញអតិថិជនត្រូវនឹង "${escapeHtml(val)}" — អាចចុច "+ អតិថិជនថ្មី" ខាងលើ</div>`;
+    box.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--ink-muted);">រកមិនឃើញអតិថិជនត្រូវនឹង "${escapeHtml(val)}" — អាចចុច "+ អតិថិជនថ្មី" ខាងលើ</div>`;
   } else {
     box.innerHTML = matches.map(cu=>`
       <div style="padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--paper-dim);" onmousedown="selectCustomerFromSuggestion('${cu.id}')">
-        <b>${escapeHtml(cu.name)}</b> <span style="color:#8a8d94;font-size:12px;">${cCode(cu)}</span><br>
-        <span style="color:#6b6f76;font-size:12px;">${escapeHtml(cu.phone||'')}${cu.location?' • '+escapeHtml(cu.location):''}</span>
+        <b>${escapeHtml(cu.name)}</b> <span style="color:var(--ink-muted);font-size:12px;">${cCode(cu)}</span><br>
+        <span style="color:var(--ink-muted);font-size:12px;">${escapeHtml(cu.phone||'')}${cu.location?' • '+escapeHtml(cu.location):''}</span>
       </div>`).join('');
   }
   box.style.display = 'block';
@@ -2165,14 +2166,14 @@ function onRecallInvoiceSearch(val){
   if(!box) return;
   const q = val.trim();
   if(!q){ box.innerHTML=''; return; }
-  box.innerHTML = `<p style="font-size:12px;color:#8a8d94;">កំពុងស្វែងរក...</p>`;
+  box.innerHTML = `<p style="font-size:12px;color:var(--ink-muted);">កំពុងស្វែងរក...</p>`;
   recallInvoiceDebounce = setTimeout(async ()=>{
     const {data} = await sb.from('documents').select('id, doc_no, customer_name, customer_phone, subtotal, balance')
       .eq('doc_type','invoice')
       .or(`doc_no.ilike.%${q}%,customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`)
       .order('created_at',{ascending:false}).limit(10);
     if(!data || data.length===0){
-      box.innerHTML = `<p style="font-size:12px;color:#8a8d94;">រកមិនឃើញ Invoice ត្រូវនឹង "${escapeHtml(q)}"</p>`;
+      box.innerHTML = `<p style="font-size:12px;color:var(--ink-muted);">រកមិនឃើញ Invoice ត្រូវនឹង "${escapeHtml(q)}"</p>`;
       return;
     }
     box.innerHTML = data.map(d=>`
@@ -2372,18 +2373,18 @@ async function renderStock(c){
     ${canAccess('stock_import_export') ? `
     <div class="card" data-card-key="stock_import_export">
       <b>Upload / ទាញយក ទំនិញតាម Excel</b>
-      <p style="font-size:12px;color:#8a8d94;margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ប្រភេទ, ឯកតា, តម្លៃ, ស្តុក (ជួរទី ១ ជា Header)</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ប្រភេទ, ឯកតា, តម្លៃ, ស្តុក (ជួរទី ១ ជា Header)</p>
       <div class="row-inline">
         <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
         <button class="btn accent" onclick="importExcelProducts()">Import</button>
         <button class="btn" onclick="exportStockExcel()">ទាញយក Excel (Export)</button>
       </div>
-      <p id="importStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="importStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
     ${canAccess('stock_transfer') && locationsCache.length>1 ? `
     <div class="card" data-card-key="stock_transfer" style="border-color:var(--laser);">
       <b>ផ្ទេរស្តុករវាងទីតាំង</b>
-      <p style="font-size:12px;color:#8a8d94;margin:4px 0 10px;">ផ្លាស់ទីបរិមាណទំនិញពីទីតាំងមួយទៅមួយទៀត (ឧ. ពីឃ្លាំង ទៅហាង)</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">ផ្លាស់ទីបរិមាណទំនិញពីទីតាំងមួយទៅមួយទៀត (ឧ. ពីឃ្លាំង ទៅហាង)</p>
       <div class="row-inline">
         <select class="inp" id="transferProduct" style="flex:2;min-width:200px">
           <option value="">-- ជ្រើសរើសទំនិញ --</option>
@@ -2398,7 +2399,7 @@ async function renderStock(c){
         <input class="inp" id="transferQty" type="number" step="any" placeholder="ចំនួន" style="flex:1;min-width:100px">
         <button class="btn accent" onclick="transferStock()">ផ្ទេរ</button>
       </div>
-      <p id="transferStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="transferStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
     ${locationsCache.length>1 ? `
     <div class="card" data-card-key="stock_transfer_history">
@@ -2781,13 +2782,13 @@ async function renderCustomers(c){
     ${canAccess('customers_import_export') ? `
     <div class="card" data-card-key="customers_import_export">
       <b>Upload / ទាញយក អតិថិជនតាម Excel</b>
-      <p style="font-size:12px;color:#8a8d94;margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ទូរស័ព្ទ, ទីតាំង (ជួរទី ១ ជា Header)</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ទូរស័ព្ទ, ទីតាំង (ជួរទី ១ ជា Header)</p>
       <div class="row-inline">
         <input type="file" id="custExcelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
         <button class="btn accent" onclick="importExcelCustomers()">Import</button>
         <button class="btn" onclick="exportCustomersExcel()">ទាញយក Excel (Export)</button>
       </div>
-      <p id="custImportStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="custImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
     <div class="card" data-card-key="customers_search">
       <input class="inp" id="custSearchInput" placeholder="ស្វែងរកអតិថិជន (ឈ្មោះ/ទូរស័ព្ទ/ទីតាំង/កូដ)..." style="width:100%;" value="${escapeHtml(customerSearchQuery)}" oninput="onCustomerSearchInput(this.value)">
@@ -2870,12 +2871,12 @@ async function renderCustomerDetail(c, customerId){
       <div class="card">
         <b>សរុបទិញ (Invoice)</b>
         <div style="font-size:24px;font-weight:800;margin-top:6px;">$${totalSpent.toFixed(2)}</div>
-        <p style="font-size:12px;color:#8a8d94;margin-top:4px;">${invoices.length} វិក្កយបត្រ</p>
+        <p style="font-size:12px;color:var(--ink-muted);margin-top:4px;">${invoices.length} វិក្កយបត្រ</p>
       </div>
       <div class="card">
         <b>បានទទួល / នៅខ្វះ</b>
-        <div style="font-size:18px;font-weight:700;margin-top:6px;">$${totalPaid.toFixed(2)} <span style="font-size:12px;color:#8a8d94;font-weight:400;">ទទួល</span></div>
-        <div style="font-size:18px;font-weight:700;color:var(--danger);">$${totalOwing.toFixed(2)} <span style="font-size:12px;color:#8a8d94;font-weight:400;">ខ្វះ</span></div>
+        <div style="font-size:18px;font-weight:700;margin-top:6px;">$${totalPaid.toFixed(2)} <span style="font-size:12px;color:var(--ink-muted);font-weight:400;">ទទួល</span></div>
+        <div style="font-size:18px;font-weight:700;color:var(--danger);">$${totalOwing.toFixed(2)} <span style="font-size:12px;color:var(--ink-muted);font-weight:400;">ខ្វះ</span></div>
       </div>
     </div>
     <div class="card">
@@ -2900,7 +2901,7 @@ async function renderCustomerDetail(c, customerId){
                 <td>${DOC_LABELS[d.doc_type]?.short||d.doc_type}</td>
                 <td>${d.doc_date}</td>
                 <td>${d.doc_type==='delivery'?'—':'$'+Number(d.subtotal).toFixed(2)}</td>
-                <td>${d.doc_type==='invoice' ? (Number(d.balance)<=0.001?`<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}`:`<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : (d.doc_type==='delivery'?(d.status==='delivered'?`<span class="badge ok">ដឹករួច</span>`:`<span class="badge low">រង់ចាំដឹក</span>`):'')}</td>
+                <td>${d.doc_type==='invoice' ? (Number(d.balance)<=0.001?`<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:var(--ink-muted);">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}`:`<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : (d.doc_type==='delivery'?(d.status==='delivered'?`<span class="badge ok">ដឹករួច</span>`:`<span class="badge low">រង់ចាំដឹក</span>`):'')}</td>
                 <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                   <button class="btn small" onclick="viewDocument('${d.id}')">មើល</button>
                   ${canAccess('history_edit') ? `<button class="btn small accent" onclick="editDocument('${d.id}')">កែសម្រួល</button>` : ''}
@@ -3109,7 +3110,7 @@ async function renderPurchase(c){
         </div>
         <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
           <b>ទំនិញថ្មី (មិនទាន់មានក្នុងស្តុក)</b>
-          <p style="margin:4px 0 10px;font-size:12px;color:#8a8d94;">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ</p>
+          <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ</p>
           <div class="row-inline">
             <input class="inp" id="poNewName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:140px">
             ${categorySelectHTML('poNewCategory','')}
@@ -3117,19 +3118,19 @@ async function renderPurchase(c){
           </div>
           <div class="row-inline" style="margin-top:8px;">
             <div style="flex:1;min-width:90px;">
-              <label style="font-size:11px;color:#6b6f76;">ចំនួនទិញ</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ចំនួនទិញ</label>
               <input class="inp" id="poNewQty" type="number" step="any" value="1" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:100px;">
-              <label style="font-size:11px;color:#6b6f76;">ថ្លៃដើម $/ឯកតា</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម $/ឯកតា</label>
               <input class="inp" id="poNewBaseCost" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:100px;">
-              <label style="font-size:11px;color:#6b6f76;">ថ្លៃដឹកសរុប $</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដឹកសរុប $</label>
               <input class="inp" id="poNewShipping" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:90px;">
-              <label style="font-size:11px;color:#6b6f76;">ចំណេញ %</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ចំណេញ %</label>
               <input class="inp" id="poNewProfitPct" type="number" step="0.1" value="20" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
           </div>
@@ -3165,7 +3166,7 @@ async function renderPurchase(c){
       <div>
         <div class="card" data-card-key="purchase_shipping">
           <b>ថ្លៃដឹកជញ្ជូនរួម (បែងចែកទៅតាមមុខទំនិញ)</b>
-          <p style="margin:4px 0 8px;font-size:12px;color:#8a8d94;">បញ្ចូលថ្លៃដឹកសរុបលើកនេះ ១ដង ជ្រើសរើសវិធីបែងចែក រួចចុច "អនុវត្ត" — ប្រព័ន្ធនឹងបូកចូលទៅតម្លៃចូលរបស់ទំនិញនីមួយៗតាមសមាមាត្រ</p>
+          <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បញ្ចូលថ្លៃដឹកសរុបលើកនេះ ១ដង ជ្រើសរើសវិធីបែងចែក រួចចុច "អនុវត្ត" — ប្រព័ន្ធនឹងបូកចូលទៅតម្លៃចូលរបស់ទំនិញនីមួយៗតាមសមាមាត្រ</p>
           <div class="row-inline">
             <input class="inp" id="poShippingInput" type="number" step="0.01" placeholder="ថ្លៃដឹកសរុប $" value="${poShippingTotal||''}" style="flex:1;min-width:120px">
             <select class="inp" id="poShippingMethod" style="flex:1;min-width:160px">
@@ -3491,11 +3492,11 @@ async function renderHistory(c){
       <b>ត្រងតាមកាលបរិច្ឆេទ</b>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">ចាប់ពីថ្ងៃ</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ</label>
           <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">ដល់ថ្ងៃ</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
           <input class="inp" type="date" id="historyDateTo" value="${historyDateTo}" style="width:100%;margin-top:4px;">
         </div>
         <button class="btn accent" style="margin-top:18px;" onclick="applyHistoryDateFilter()">អនុវត្ត</button>
@@ -3537,7 +3538,7 @@ function renderHistoryRows(docs){
               <td>${d.doc_date}</td>
               <td>${d.doc_type==='delivery'?'—':'$'+Number(d.subtotal).toFixed(2)}</td>
               <td>
-                ${d.doc_type==='invoice' ? (Number(d.balance)<=0.001 ? `<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:#8a8d94;">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}` : `<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : ''}
+                ${d.doc_type==='invoice' ? (Number(d.balance)<=0.001 ? `<span class="badge ok">បង់រួច</span>${d.payment_method?`<br><span style="font-size:11px;color:var(--ink-muted);">${paymentMethodLabel(d.payment_method, d.bank_name, d.payment_currency, d.payment_riel_amount, d.cheque_number)}</span>`:''}` : `<span class="badge low">ខ្វះ $${Number(d.balance).toFixed(2)}</span>`) : ''}
                 ${d.doc_type==='delivery' ? (d.status==='delivered' ? `<span class="badge ok">ដឹករួច</span>` : `<span class="badge low">រង់ចាំដឹក</span>`) : ''}
                 ${d.doc_type==='quotation' ? (d.status==='converted' ? `<span class="badge ok">បញ្ជាក់ទិញរួច</span>` : d.status==='processing' ? `<span class="badge low">កំពុងធ្វើ Invoice</span>` : `<span class="badge low">រង់ចាំ</span>`) : ''}
                 ${d.doc_type==='invoice' && d.source_doc_id ? `<span class="badge ok">Quotation: ${escapeHtml((window._sourceQuoLookup||{})[d.source_doc_id] || '?')}</span>` : ''}
@@ -3557,13 +3558,13 @@ function renderHistoryRows(docs){
             <tr id="linkQuoRow_${d.id}" style="display:none;">
               <td colspan="7" class="left" style="background:#faf9f5;">
                 <div class="row-inline" style="padding:8px 0;">
-                  <span style="font-size:13px;color:#6b6f76;">ជ្រើសរើស Quotation ដើមរបស់ Invoice នេះ៖</span>
+                  <span style="font-size:13px;color:var(--ink-muted);">ជ្រើសរើស Quotation ដើមរបស់ Invoice នេះ៖</span>
                   <select class="inp" id="linkQuoSelect_${d.id}" style="flex:1;min-width:220px;">
                     <option value="">-- ជ្រើសរើស Quotation --</option>
                     ${quos.map(qd=>`<option value="${qd.id}">${qd.doc_no} — ${escapeHtml(qd.customer_name||'អតិថិជនទូទៅ')} ($${Number(qd.subtotal).toFixed(2)})</option>`).join('')}
                   </select>
                   <button class="btn small accent" onclick="confirmLinkQuotation('${d.id}')">បញ្ជាក់ភ្ជាប់</button>
-                  <span id="linkQuoStatus_${d.id}" style="font-size:12px;color:#8a8d94;"></span>
+                  <span id="linkQuoStatus_${d.id}" style="font-size:12px;color:var(--ink-muted);"></span>
                 </div>
               </td>
             </tr>` : ''}`).join('');
@@ -4268,12 +4269,12 @@ async function renderSharedRevenue(c){
       <button class="${sharedRevRange==='all'?'active invoice':''}" onclick="setSharedRevRange('all')">ទាំងអស់</button>
     </div>
     <div class="card" data-card-key="sharedrev_filter">
-      <label style="font-size:12.5px;color:#6b6f76;">ជ្រើសរើសម្ចាស់</label>
+      <label style="font-size:12.5px;color:var(--ink-muted);">ជ្រើសរើសម្ចាស់</label>
       <select class="inp" id="sharedRevOwnerSelect" style="width:100%;margin-top:4px;" onchange="setSharedRevOwnerFilter(this.value)">
         <option value="all" ${sharedRevOwnerFilter==='all'?'selected':''}>-- ទាំងអស់ (មើលរួម) --</option>
         ${allOwnerLabels.map(nm=>`<option value="${escapeHtml(nm)}" ${sharedRevOwnerFilter===nm?'selected':''}>${escapeHtml(nm)}</option>`).join('')}
       </select>
-      <label style="font-size:12.5px;color:#6b6f76;margin-top:10px;display:block;">ស្ថានភាពពិនិត្យ</label>
+      <label style="font-size:12.5px;color:var(--ink-muted);margin-top:10px;display:block;">ស្ថានភាពពិនិត្យ</label>
       <div class="doctabs" style="margin-top:4px;">
         <button class="${sharedRevReviewFilter==='unreviewed'?'active invoice':''}" onclick="setSharedRevReviewFilter('unreviewed')">មិនទាន់ពិនិត្យ (${unreviewedCount})</button>
         <button class="${sharedRevReviewFilter==='reviewed'?'active invoice':''}" onclick="setSharedRevReviewFilter('reviewed')">ពិនិត្យរួច (${reviewedCount})</button>
@@ -4293,11 +4294,11 @@ async function renderSharedRevenue(c){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
       ${ownerList.map((o,i)=>`
         <div class="card" style="border-left:4px solid ${o.name===UNASSIGNED?'#999':OWNER_COLORS[i%OWNER_COLORS.length]};margin-bottom:0;">
-          <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;margin:0;">${escapeHtml(o.name)}</p>
+          <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">${escapeHtml(o.name)}</p>
           <div style="font-size:22px;font-weight:800;margin-top:6px;">$${o.val.toFixed(2)}</div>
         </div>`).join('')}
       <div class="card" style="border-left:4px solid #3fa9dc;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;margin:0;">Invoice សរុប</p>
+        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">Invoice សរុប</p>
         <div style="font-size:22px;font-weight:800;margin-top:6px;">${invoiceRows.length}</div>
       </div>
     </div>
@@ -4320,11 +4321,11 @@ async function renderSharedRevenue(c){
     ` : `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
       <div class="card" style="border-left:4px solid #3fa9dc;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;margin:0;">${escapeHtml(sharedRevOwnerFilter)} — ចំណូលសរុប</p>
+        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">${escapeHtml(sharedRevOwnerFilter)} — ចំណូលសរុប</p>
         <div style="font-size:24px;font-weight:800;margin-top:6px;">$${filteredTotal.toFixed(2)}</div>
       </div>
       <div class="card" style="border-left:4px solid #5fb082;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;margin:0;">ចំនួន Invoice</p>
+        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">ចំនួន Invoice</p>
         <div style="font-size:24px;font-weight:800;margin-top:6px;">${displayRows.length}</div>
       </div>
     </div>
@@ -4343,7 +4344,7 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:#8a8d94;" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
+              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
                 ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
@@ -4481,17 +4482,17 @@ async function renderMyAccount(c){
         <input class="inp" id="myFullName" placeholder="ឈ្មោះពេញ" style="flex:1;min-width:180px" value="${escapeHtml(currentProfile.full_name||'')}">
         <button class="btn accent small" onclick="saveMyProfile()">រក្សាទុក</button>
       </div>
-      <p id="myProfileStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="myProfileStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card">
       <b>ប្តូរលេខសម្ងាត់</b>
-      <p style="font-size:12px;color:#8a8d94;margin:4px 0 10px;">ទុកទទេបើមិនចង់ប្តូរ — លេខសម្ងាត់ជាលេខ 4 ខ្ទង់</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">ទុកទទេបើមិនចង់ប្តូរ — លេខសម្ងាត់ជាលេខ 4 ខ្ទង់</p>
       <div class="row-inline">
         <input class="inp" id="myNewPass" type="password" placeholder="លេខសម្ងាត់ថ្មី (4 ខ្ទង់)" maxlength="4" inputmode="numeric" style="flex:1;min-width:160px">
         <input class="inp" id="myNewPass2" type="password" placeholder="វាយម្តងទៀត" maxlength="4" inputmode="numeric" style="flex:1;min-width:160px">
         <button class="btn accent small" onclick="saveMyPassword()">ប្តូរលេខសម្ងាត់</button>
       </div>
-      <p id="myPassStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="myPassStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
   `;
 }
@@ -4560,7 +4561,7 @@ async function renderSettings(c){
           <div class="card" style="cursor:pointer;text-align:center;padding:26px 14px;" onclick="openSettingsSub('${g.key}')">
             <div style="font-size:34px;">${g.icon}</div>
             <div style="font-weight:700;margin-top:10px;font-size:14px;">${g.label}</div>
-            <div style="font-size:11.5px;color:#8a8d94;margin-top:4px;">${g.desc}</div>
+            <div style="font-size:11.5px;color:var(--ink-muted);margin-top:4px;">${g.desc}</div>
           </div>`).join('')}
       </div>
     `;
@@ -4573,36 +4574,36 @@ async function renderSettings(c){
   const htmlDisplay = `
     <div class="card">
       <b>🎨 Theme (ពណ៌សម្បុរកម្មវិធីទាំងមូល)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌មួយ អនុវត្តលើគ្រប់ទំព័រទាំងអស់តែម្តង (ការលក់, ស្តុក, អតិថិជន, របាយការណ៍...)</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:4px;">ជ្រើសរើសពណ៌មួយ អនុវត្តលើគ្រប់ទំព័រទាំងអស់តែម្តង (ការលក់, ស្តុក, អតិថិជន, របាយការណ៍...)</p>
       <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;">
         ${APP_THEMES.map(t=>`
           <div style="text-align:center;cursor:pointer;" onclick="setAppTheme('${t.id}')">
             <div style="width:44px;height:44px;border-radius:50%;background:${t.swatch};border:3px solid ${appTheme===t.id?'var(--spark)':'var(--paper-dim)'};box-shadow:0 2px 6px rgba(0,0,0,0.12);"></div>
-            <div style="font-size:11px;color:#6b6f76;margin-top:6px;">${t.label}</div>
+            <div style="font-size:11px;color:var(--ink-muted);margin-top:6px;">${t.label}</div>
           </div>`).join('')}
       </div>
     </div>
     <div class="card">
       <b>ទំហំអក្សរ (Font Size)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">កែតម្រូវទំហំអក្សរទាំង App តាមចង់បាន (10 កម្រិត)</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:4px;">កែតម្រូវទំហំអក្សរទាំង App តាមចង់បាន (10 កម្រិត)</p>
       <div style="margin-top:12px;">
         <input type="range" min="1" max="10" step="1" value="${fontScaleLevel}" style="width:100%;" oninput="setFontScaleLevel(this.value)">
         <div class="row-inline" style="justify-content:space-between;margin-top:6px;">
-          <span style="font-size:11px;color:#8a8d94;">តូចបំផុត</span>
+          <span style="font-size:11px;color:var(--ink-muted);">តូចបំផុត</span>
           <span id="fontScaleLabel" style="font-size:13px;font-weight:700;">កម្រិត ${fontScaleLevel}/10 (${levelToScale(fontScaleLevel).toFixed(2)}x)</span>
-          <span style="font-size:11px;color:#8a8d94;">ធំបំផុត</span>
+          <span style="font-size:11px;color:var(--ink-muted);">ធំបំផុត</span>
         </div>
       </div>
     </div>
     <div class="card">
       <b>រចនាប័ទ្មអក្សរ (Font Style)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពី 10 រចនាប័ទ្មអក្សរខ្មែរ (មិនប៉ះពាល់ Invoice ដែល Print)</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:4px;">ជ្រើសរើសពី 10 រចនាប័ទ្មអក្សរខ្មែរ (មិនប៉ះពាល់ Invoice ដែល Print)</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px;">
         ${FONT_STYLES.map(f=>`
           <div onclick="setFontStyle('${f.id}'); renderSettings(document.getElementById('content'));"
                style="cursor:pointer;padding:12px 10px;border-radius:8px;border:2px solid ${appFontStyle===f.id?'var(--spark)':'var(--paper-dim)'};background:${appFontStyle===f.id?'var(--paper-dim)':'#fff'};text-align:center;">
             <div style="font-family:'${f.id}';font-size:17px;">អក្សរខ្មែរ ABC</div>
-            <div style="font-size:11px;color:#8a8d94;margin-top:4px;">${f.label}</div>
+            <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">${f.label}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -4611,44 +4612,44 @@ async function renderSettings(c){
   const htmlShop = `
     <div class="card">
       <b>ព័ត៌មានហាង (បង្ហាញលើ Invoice/Header)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">កែឈ្មោះហាង, ការពិពណ៌នា, និងលេខទូរស័ព្ទ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:4px;">កែឈ្មោះហាង, ការពិពណ៌នា, និងលេខទូរស័ព្ទ</p>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:180px;">
-          <label style="font-size:12px;color:#6b6f76;">ឈ្មោះហាង (ពេញ — Topbar/Login)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ឈ្មោះហាង (ពេញ — Topbar/Login)</label>
           <input class="inp" id="shopNameInput" value="${escapeHtml(shopInfo.name)}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:180px;">
-          <label style="font-size:12px;color:#6b6f76;">ឈ្មោះហាង (ខ្លី — លើ Invoice)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ឈ្មោះហាង (ខ្លី — លើ Invoice)</label>
           <input class="inp" id="shopNameShortInput" value="${escapeHtml(shopInfo.nameShort)}" style="width:100%;margin-top:4px;">
         </div>
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:220px;">
-          <label style="font-size:12px;color:#6b6f76;">ចំណងជើងរង (Topbar)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ចំណងជើងរង (Topbar)</label>
           <input class="inp" id="shopSubtitleInput" value="${escapeHtml(shopInfo.subtitle)}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">លេខទូរស័ព្ទ</label>
+          <label style="font-size:12px;color:var(--ink-muted);">លេខទូរស័ព្ទ</label>
           <input class="inp" id="shopPhoneInput" value="${escapeHtml(shopInfo.phone)}" style="width:100%;margin-top:4px;">
         </div>
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:220px;">
-          <label style="font-size:12px;color:#6b6f76;">ការពិពណ៌នា (ជួរទី១ លើ Invoice)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ការពិពណ៌នា (ជួរទី១ លើ Invoice)</label>
           <input class="inp" id="shopDesc1Input" value="${escapeHtml(shopInfo.desc1)}" style="width:100%;margin-top:4px;">
         </div>
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:220px;">
-          <label style="font-size:12px;color:#6b6f76;">ការពិពណ៌នា (ជួរទី២ លើ Invoice)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ការពិពណ៌នា (ជួរទី២ លើ Invoice)</label>
           <input class="inp" id="shopDesc2Input" value="${escapeHtml(shopInfo.desc2)}" style="width:100%;margin-top:4px;">
         </div>
       </div>
       <div class="row-inline" style="margin-top:8px;align-items:flex-start;">
         <div style="flex:1;min-width:220px;">
-          <label style="font-size:12px;color:#6b6f76;">Logo ហាង (បង្ហាញលើ Topbar និង Invoice)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">Logo ហាង (បង្ហាញលើ Topbar និង Invoice)</label>
           <input type="file" accept="image/*" id="shopLogoFile" style="width:100%;margin-top:4px;" onchange="onShopLogoFileSelected(event)">
-          <p id="shopLogoStatus" style="font-size:11px;color:#8a8d94;margin-top:4px;"></p>
+          <p id="shopLogoStatus" style="font-size:11px;color:var(--ink-muted);margin-top:4px;"></p>
         </div>
         ${shopInfo.logoUrl ? `
         <div style="text-align:center;">
@@ -4657,58 +4658,58 @@ async function renderSettings(c){
         </div>`:''}
       </div>
       <button class="btn accent small" style="margin-top:10px;" onclick="saveShopInfo()">រក្សាទុក</button>
-      <p id="shopInfoStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="shopInfoStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
   `;
 
   const htmlDocnum = `
     <div class="card">
       <b>កំណត់លេខឯកសារចាប់ផ្តើម (ខែ ${curMM} ឆ្នាំ 20${curYY})</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;line-height:1.6;">
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;line-height:1.6;">
         វាយ <b>លេខចុងក្រោយដែលបានប្រើរួច</b> សម្រាប់ខែនេះ (ឧ. បើប្រើ Excel រហូតដល់ Y26-7-0140 សូមវាយ 140) — ឯកសារបន្ទាប់ដែលបង្កើតនឹងចាប់ផ្តើមពីលេខបន្ទាប់ស្វ័យប្រវត្តិ
       </p>
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">វិក្កយបត្រ (Y)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">វិក្កយបត្រ (Y)</label>
           <input class="inp" id="startInvoiceNo" type="number" min="0" value="${getCounter('invoice')}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">សម្រង់តម្លៃ (Q)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">សម្រង់តម្លៃ (Q)</label>
           <input class="inp" id="startQuotationNo" type="number" min="0" value="${getCounter('quotation')}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#6b6f76;">ដឹកជញ្ជូន (D)</label>
+          <label style="font-size:12px;color:var(--ink-muted);">ដឹកជញ្ជូន (D)</label>
           <input class="inp" id="startDeliveryNo" type="number" min="0" value="${getCounter('delivery')}" style="width:100%;margin-top:4px;">
         </div>
         <button class="btn accent small" onclick="saveStartNumbers()" style="align-self:flex-end;">រក្សាទុក</button>
       </div>
-      <p id="startNoStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="startNoStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card">
       <b>អត្រាប្តូរប្រាក់ (USD → រៀល)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">ប្រើសម្រាប់បង្ហាញតម្លៃជារៀលក្នុងការលក់ និង Invoice</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">ប្រើសម្រាប់បង្ហាញតម្លៃជារៀលក្នុងការលក់ និង Invoice</p>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="rateInput" type="number" step="1" value="${exchangeRate}" style="flex:1;min-width:120px">
-        <span style="font-size:13px;color:#6b6f76;">៛ / $1</span>
+        <span style="font-size:13px;color:var(--ink-muted);">៛ / $1</span>
         <button class="btn accent small" onclick="saveExchangeRate()">រក្សាទុក</button>
       </div>
-      <p id="rateStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="rateStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
   `;
 
   const htmlLists = `
     <div class="card">
       <b>បញ្ជីឯកតា (Unit)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កែបញ្ជីឯកតាដែលបង្ហាញក្នុង Dropdown (ខណ្ឌដោយសញ្ញា , )</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">កែបញ្ជីឯកតាដែលបង្ហាញក្នុង Dropdown (ខណ្ឌដោយសញ្ញា , )</p>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="unitsInput" value="${UNIT_OPTIONS.join(', ')}" style="flex:1;min-width:220px">
         <button class="btn accent small" onclick="saveUnits()">រក្សាទុក</button>
       </div>
-      <p id="unitsStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="unitsStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card">
       <b>បញ្ជីប្រភេទទំនិញ (Category)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">គ្រប់គ្រងប្រភេទដែលបង្ហាញក្នុង Dropdown ជា List — មានប្រយោជន៍ខ្លាំងសម្រាប់ស្តុកច្រើនមុខ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">គ្រប់គ្រងប្រភេទដែលបង្ហាញក្នុង Dropdown ជា List — មានប្រយោជន៍ខ្លាំងសម្រាប់ស្តុកច្រើនមុខ</p>
       <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
         ${CATEGORIES.map((cat,idx)=>`
           <div style="display:flex;align-items:center;gap:2px;">
@@ -4722,32 +4723,32 @@ async function renderSettings(c){
         <label class="btn small" style="cursor:pointer;">📥 នាំចូល Excel<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importCategoriesExcel(this)"></label>
         <button class="btn accent small" onclick="saveCategories()">រក្សាទុក</button>
       </div>
-      <p style="font-size:11px;color:#8a8d94;margin-top:4px;">នាំចូល Excel៖ File មួយជួរឈរ រាល់ជួរ = ឈ្មោះប្រភេទមួយ (បន្ថែមទៅលើបញ្ជីបច្ចុប្បន្ន)</p>
-      <p id="categoriesStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p style="font-size:11px;color:var(--ink-muted);margin-top:4px;">នាំចូល Excel៖ File មួយជួរឈរ រាល់ជួរ = ឈ្មោះប្រភេទមួយ (បន្ថែមទៅលើបញ្ជីបច្ចុប្បន្ន)</p>
+      <p id="categoriesStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card">
       <b>បញ្ជីធនាគារ (Bank List)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កែបញ្ជីធនាគារដែលបង្ហាញពេលទូទាត់តាមធនាគារ (ខណ្ឌដោយសញ្ញា , )</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">កែបញ្ជីធនាគារដែលបង្ហាញពេលទូទាត់តាមធនាគារ (ខណ្ឌដោយសញ្ញា , )</p>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="bankListInput" value="${BANK_LIST.join(', ')}" style="flex:1;min-width:220px">
         <button class="btn accent small" onclick="saveBankList()">រក្សាទុក</button>
       </div>
-      <p id="bankListStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="bankListStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card" style="border-color:var(--danger);">
       <b>ម្ចាស់ផលិតផល & ពាក្យគន្លឹះ (សម្រាប់ចែកចំណូល)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">កំណត់ឈ្មោះម្ចាស់នីមួយៗ (ខ្លួនឯង, បងប្អូន...) ជាមួយពាក្យគន្លឹះឈ្មោះទំនិញរបស់គេ។ Dashboard "ចំណូលរួម" នឹងបែងចែកចំណូល Invoice ទៅតាមម្ចាស់នីមួយៗ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">កំណត់ឈ្មោះម្ចាស់នីមួយៗ (ខ្លួនឯង, បងប្អូន...) ជាមួយពាក្យគន្លឹះឈ្មោះទំនិញរបស់គេ។ Dashboard "ចំណូលរួម" នឹងបែងចែកចំណូល Invoice ទៅតាមម្ចាស់នីមួយៗ</p>
       <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
         ${ownerKeywordMap.map((o,oIdx)=>{ const isCollapsed = collapsedOwners.has(oIdx); return `
           <div class="owner-row" data-idx="${oIdx}" style="border:1px solid var(--line,#e2e2e2);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;">
             <div class="row-inline">
               <button class="btn small" onclick="toggleOwnerKeywords(${oIdx})" title="បង្ហាញ/លាក់ពាក្យគន្លឹះ" style="padding:2px 8px;">${isCollapsed?'▶':'▼'}</button>
               <input class="inp" id="ownerName_${oIdx}" placeholder="ឈ្មោះម្ចាស់ (ឧ. គឹមស្រ៊ាង)" value="${escapeHtml(o.name)}" style="flex:1;min-width:140px">
-              <span style="font-size:12px;color:#6b6f76;">(${(o.keywords||[]).filter(Boolean).length} ពាក្យគន្លឹះ)</span>
+              <span style="font-size:12px;color:var(--ink-muted);">(${(o.keywords||[]).filter(Boolean).length} ពាក្យគន្លឹះ)</span>
               <button class="btn small danger" onclick="removeOwnerRow(${oIdx})">✕ លុបម្ចាស់</button>
             </div>
             <div style="padding-left:8px;display:${isCollapsed?'none':'block'};">
-              <span style="font-size:12px;color:#6b6f76;">ពាក្យគន្លឹះ:</span>
+              <span style="font-size:12px;color:var(--ink-muted);">ពាក្យគន្លឹះ:</span>
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
                 ${(o.keywords||[]).map((kw,kIdx)=>`
                   <div style="display:flex;align-items:center;gap:2px;">
@@ -4765,14 +4766,14 @@ async function renderSettings(c){
         <button class="btn small" onclick="addOwnerRow()">+ បន្ថែមម្ចាស់</button>
         <button class="btn accent small" onclick="saveOwnerKeywordMap()">រក្សាទុក</button>
       </div>
-      <p id="ownCatStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="ownCatStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
   `;
 
   const htmlLocations = `
     <div class="card" style="border-color:var(--laser);">
       <b>ទីតាំង (ហាង / ឃ្លាំង)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">គ្រប់គ្រងកន្លែងលក់ និងឃ្លាំងស្តុកទំនិញ — ស្តុកគណនាដាច់ដោយឡែកគ្នាតាមទីតាំង</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">គ្រប់គ្រងកន្លែងលក់ និងឃ្លាំងស្តុកទំនិញ — ស្តុកគណនាដាច់ដោយឡែកគ្នាតាមទីតាំង</p>
       <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
         ${locationsCache.map((l,idx)=>`
           <div class="row-inline" data-loc-idx="${idx}">
@@ -4789,14 +4790,14 @@ async function renderSettings(c){
         <button class="btn small" onclick="addLocationRow()">+ បន្ថែមទីតាំង</button>
         <button class="btn accent small" onclick="saveLocations()">រក្សាទុក</button>
       </div>
-      <p id="locStatus" style="font-size:12px;color:#8a8d94;margin-top:6px;"></p>
+      <p id="locStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
   `;
 
   const htmlStaff = `
     <div class="card" style="border-color:var(--spark);">
       <b>បន្ថែម Staff ថ្មី</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">បង្កើត Login ថ្មី ជាមួយកំណត់សិទ្ធិចូលប្រើភ្លាមៗ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">បង្កើត Login ថ្មី ជាមួយកំណត់សិទ្ធិចូលប្រើភ្លាមៗ</p>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="newStaffName" placeholder="ឈ្មោះពេញ" style="flex:1;min-width:160px">
         <input class="inp" id="newStaffEmail" type="text" placeholder="ID/ឈ្មោះ/លេខទូរស័ព្ទ សម្រាប់ចូល" style="flex:1;min-width:180px">
@@ -4812,11 +4813,11 @@ async function renderSettings(c){
         ${renderPermGroup('new', 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_review','ត្រួតពិនិត្យ'],['shared_revenue_export','Export']])}
       </div>
       <button class="btn accent" style="margin-top:12px;" onclick="addNewStaff()">+ បន្ថែម Staff</button>
-      <p id="newStaffStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="newStaffStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>
     <div class="card">
       <b>សិទ្ធិបុគ្គលិក (Owner / Staff)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;">Owner អាចមើលរបាយការណ៍, ការកំណត់, និងលុបស្តុក/អតិថិជនបាន — Staff ធម្មតាមិនអាចលុប ឬមើលទំព័រទាំងនេះទេ</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">Owner អាចមើលរបាយការណ៍, ការកំណត់, និងលុបស្តុក/អតិថិជនបាន — Staff ធម្មតាមិនអាចលុប ឬមើលទំព័រទាំងនេះទេ</p>
       <div class="tbl-wrap" style="margin-top:10px;">
         <table>
           <thead><tr><th style="text-align:left;background:var(--spark);">ឈ្មោះ / អ៊ីមែល</th><th style="background:var(--spark);">សិទ្ធិ</th><th style="background:var(--spark);"></th></tr></thead>
@@ -4825,7 +4826,7 @@ async function renderSettings(c){
               const perms = Object.assign({}, DEFAULT_PERMISSIONS, (()=>{try{return s.permissions?JSON.parse(s.permissions):{};}catch(e){return {};}})());
               return `
               <tr>
-                <td class="left">${escapeHtml(s.full_name)}${s.login_id?`<br><span style="font-size:11px;color:#8a8d94;">ID: ${escapeHtml(s.login_id)} — Email: ${escapeHtml(toAuthEmail(s.login_id))}</span>`:''}${s.disabled?`<br><span class="badge low">ផ្អាកហើយ</span>`:''}</td>
+                <td class="left">${escapeHtml(s.full_name)}${s.login_id?`<br><span style="font-size:11px;color:var(--ink-muted);">ID: ${escapeHtml(s.login_id)} — Email: ${escapeHtml(toAuthEmail(s.login_id))}</span>`:''}${s.disabled?`<br><span class="badge low">ផ្អាកហើយ</span>`:''}</td>
                 <td>
                   <select class="inp" id="roleSel_${s.id}" style="padding:4px 8px;">
                     <option value="staff" ${s.role==='staff'?'selected':''}>Staff</option>
@@ -4854,32 +4855,32 @@ async function renderSettings(c){
                     ${renderPermGroup(s.id, 'ចំណូលរួម', [['shared_revenue','មើល'],['shared_revenue_review','ត្រួតពិនិត្យ'],['shared_revenue_export','Export']], perms)}
                   </div>
                   <button class="btn small accent" style="margin-top:8px;" onclick="savePermissions('${s.id}')">រក្សាទុកសិទ្ធិលម្អិត</button>
-                  <span id="permStatus_${s.id}" style="font-size:12px;color:#8a8d94;margin-left:8px;"></span>
+                  <span id="permStatus_${s.id}" style="font-size:12px;color:var(--ink-muted);margin-left:8px;"></span>
                 </td>
               </tr>` : ''}`;
             }).join('')}
           </tbody>
         </table>
       </div>
-      <p id="staffStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="staffStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>
   `;
 
   const htmlData = `
     <div class="card">
       <b>ទីតាំងផ្ទុកទិន្នន័យចម្បង — Cloud (Supabase)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;line-height:1.6;">
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;line-height:1.6;">
         ទិន្នន័យទាំងអស់ (ស្តុក, អតិថិជន, វិក្កយបត្រ) រក្សាទុកនៅលើ Cloud Server (Supabase) ដើម្បីអោយបុគ្គលិកទាំងអស់ Sync ភ្លាមៗ រវាង Computer និងទូរស័ព្ទច្រើនគ្រឿង។ នេះជាទីតាំងចម្បង និងតែមួយគត់សម្រាប់ប្រតិបត្តិការប្រចាំថ្ងៃ។
       </p>
-      <p style="font-size:12px;color:#8a8d94;margin-top:8px;">Project URL: ${SUPABASE_URL}</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Project URL: ${SUPABASE_URL}</p>
     </div>
     <div class="card" style="border-color:var(--spark);">
       <b>Backup ទុកក្នុង Computer (ក្នុងករណីបម្រុង)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:6px;line-height:1.6;">
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;line-height:1.6;">
         ទាញយកទិន្នន័យទាំងអស់ជា File Excel (.xlsx) មួយ ដើម្បីរក្សាទុកក្នុង Computer ជាការបម្រុងទុក។ ណែនាំធ្វើរាល់សប្តាហ៍ ឬរាល់ខែ។
       </p>
       <button class="btn accent" style="margin-top:10px;" onclick="downloadBackup()">ទាញយក Backup (.xlsx)</button>
-      <p id="backupStatus" style="font-size:12px;color:#8a8d94;margin-top:8px;"></p>
+      <p id="backupStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>
   `;
 
