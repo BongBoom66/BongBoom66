@@ -154,12 +154,23 @@
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
   .arrange-toolbar .btn{padding:3px 9px;font-size:11px;}
 
-  /* Reports page — dark analytics-dashboard styling */
-  .report-dashboard{--ink:#eef3fa;--report-track:#22344f;background:linear-gradient(160deg,#0f1c30,#132840);border-radius:16px;padding:18px;margin-bottom:16px;}
-  .report-dashboard .card{background:#16273f;border:1px solid #24405f;color:#dbe6f5;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  /* Reports page — dark analytics-dashboard styling (5 preset themes) */
+  .report-dashboard{
+    --rt-bg1:#0f1c30; --rt-bg2:#132840; --rt-card:#16273f; --rt-border:#24405f;
+    --ink:#eef3fa; --report-track:#22344f;
+    background:linear-gradient(160deg,var(--rt-bg1),var(--rt-bg2));border-radius:16px;padding:18px;margin-bottom:16px;
+  }
+  .report-dashboard[data-theme="purple"]{--rt-bg1:#180f2c;--rt-bg2:#2a1a4a;--rt-card:#221837;--rt-border:#3d2a63;}
+  .report-dashboard[data-theme="emerald"]{--rt-bg1:#08201c;--rt-bg2:#0f3a30;--rt-card:#123a30;--rt-border:#1f5c4a;}
+  .report-dashboard[data-theme="amber"]{--rt-bg1:#241609;--rt-bg2:#3d2814;--rt-card:#33221a;--rt-border:#5a3f26;}
+  .report-dashboard[data-theme="slate"]{--rt-bg1:#171a20;--rt-bg2:#252a33;--rt-card:#20242c;--rt-border:#363c48;}
+  .report-dashboard .card{background:var(--rt-card);border:1px solid var(--rt-border);color:#dbe6f5;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
   .report-dashboard .card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.32);}
+  .report-theme-picker{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .report-theme-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;padding:0;}
+  .report-theme-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--spark);}
   .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
-  .kpi-tile{background:#16273f;border:1px solid #24405f;border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  .kpi-tile{background:var(--rt-card);border:1px solid var(--rt-border);border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
   .kpi-label{font-size:11px;color:#7d92b3;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
   .kpi-value{font-size:25px;font-weight:800;color:#f2f6fb;margin-top:8px;}
   .kpi-sub{font-size:12px;color:#7d92b3;margin-top:3px;}
@@ -631,6 +642,7 @@ function showApp(){
   loadLocations();
   loadShopInfo();
   loadCardLayouts();
+  loadReportTheme();
   if(isOwner()) document.getElementById('arrangeModeBtn').style.display = 'inline-block';
   renderNav();
   renderPage();
@@ -3734,6 +3746,25 @@ function downloadImageFromViewModal(){
 
 /* ================= REPORTS ================= */
 let reportRange = 'month';
+const REPORT_THEMES = [
+  {id:'navy', label:'Navy', swatch:'#132840'},
+  {id:'purple', label:'Purple', swatch:'#2a1a4a'},
+  {id:'emerald', label:'Emerald', swatch:'#0f3a30'},
+  {id:'amber', label:'Amber', swatch:'#3d2814'},
+  {id:'slate', label:'Slate', swatch:'#252a33'}
+];
+let reportTheme = 'navy';
+async function loadReportTheme(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','report_theme').single();
+    if(data && data.value && REPORT_THEMES.some(t=>t.id===data.value)) reportTheme = data.value;
+  }catch(e){ /* keep default */ }
+}
+async function setReportTheme(themeId){
+  reportTheme = themeId;
+  await sb.from('app_settings').upsert({key:'report_theme', value: themeId});
+  renderReports(document.getElementById('content'));
+}
 async function renderReports(c){
   const today = new Date();
   let startDate;
@@ -3899,7 +3930,13 @@ async function renderReports(c){
       <button class="btn" onclick="downloadReportPDF()">ទាញយក PDF</button>
       <button class="btn accent" onclick="downloadReport()">ទាញយក Excel (.xlsx)</button>
     </div>` : ''}
-    <div id="reportCapture" class="report-dashboard">
+    <div id="reportCapture" class="report-dashboard" data-theme="${reportTheme}">
+
+    <div class="report-theme-picker">
+      <span style="font-size:12px;color:#7d92b3;">ពណ៌ផ្ទាំង៖</span>
+      ${REPORT_THEMES.map(t=>`
+        <button class="report-theme-swatch ${reportTheme===t.id?'active':''}" style="background:${t.swatch};" title="${t.label}" onclick="setReportTheme('${t.id}')"></button>`).join('')}
+    </div>
 
     <div class="kpi-row">
       <div class="kpi-tile" style="border-left:3px solid #4fc3f7;">
