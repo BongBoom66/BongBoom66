@@ -160,20 +160,20 @@
     --rt-bg1:#0f1c30; --rt-bg2:#132840; --rt-card:#16273f; --rt-border:#24405f;
     --rt-ink:#eef3fa; --rt-muted:#7d92b3; --rt-track:#22344f;
     --rt-good:#7bd6a0; --rt-bad:#f29b9b; --rt-good-bg:rgba(123,214,160,0.16); --rt-bad-bg:rgba(242,155,155,0.16);
-    --ink:var(--rt-ink); --report-track:var(--rt-track);
+    --ink:var(--rt-ink); --ink-muted:var(--rt-muted); --good:var(--rt-good); --danger:var(--rt-bad); --report-track:var(--rt-track);
     background:linear-gradient(160deg,var(--rt-bg1),var(--rt-bg2));border-radius:16px;padding:18px;margin-bottom:16px;
   }
   .report-dashboard .card{background:var(--rt-card);border:1px solid var(--rt-border);color:var(--rt-ink);box-shadow:0 4px 14px rgba(0,0,0,0.1);}
   .report-dashboard .card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.14);}
   .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
-  .kpi-tile{background:var(--rt-card);border:1px solid var(--rt-border);border-radius:14px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.1);}
+  .kpi-tile{border-radius:14px;margin-bottom:0;}
   .kpi-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;}
-  .kpi-label{font-size:11px;color:var(--rt-muted);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
-  .kpi-value{font-size:25px;font-weight:800;color:var(--rt-ink);margin-top:8px;}
-  .kpi-sub{font-size:12px;color:var(--rt-muted);margin-top:3px;}
+  .kpi-label{font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
+  .kpi-value{font-size:25px;font-weight:800;color:var(--ink);margin-top:8px;}
+  .kpi-sub{font-size:12px;color:var(--ink-muted);margin-top:3px;}
   .kpi-trend{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;margin-top:8px;}
-  .kpi-trend.up{background:var(--rt-good-bg);color:var(--rt-good);}
-  .kpi-trend.down{background:var(--rt-bad-bg);color:var(--rt-bad);}
+  .kpi-trend.up{background:rgba(74,154,108,0.16);color:var(--good);}
+  .kpi-trend.down{background:rgba(224,133,133,0.16);color:var(--danger);}
 
   /* POS section size scaling */
   .pos-big-50 > b{font-size:15.5px;}
@@ -303,7 +303,7 @@
   .inv-sign .name{margin:22px auto 0;border-top:1px solid #000;padding-top:4px;width:36mm;}
 
   /* ---------- DARK MODE ---------- */
-  body.dark-mode{ --paper:#1a1e1e; --paper-dim:#2a302f; --ink:#e8ecec; --ink-muted:#8a9694; }
+  body.dark-mode{ --paper:#1a1e1e; --paper-dim:#2a302f; --ink:#e8ecec; --ink-muted:#8a9694; --good:#7bd6a0; --danger:#f29b9b; }
   body.dark-mode #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #141717; }
   body.dark-mode .login-card{ background:#222827; border-color:#333a38; }
   body.dark-mode .login-card p.sub{ color:#8a9694; }
@@ -333,7 +333,7 @@
   body.dark-mode .row-inline[style*="background:#faf9f5"]{ background:#2a302f !important; }
 
   /* ---------- APP THEME VARIANTS ---------- */
-  body.theme-navy{ --paper:#0f1c30; --paper-dim:#1b2c47; --ink:#eef3fa; --ink-muted:#7d92b3; }
+  body.theme-navy{ --paper:#0f1c30; --paper-dim:#1b2c47; --ink:#eef3fa; --ink-muted:#7d92b3; --good:#7bd6a0; --danger:#f29b9b; }
   body.theme-navy #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #0f1c30; }
   body.theme-navy .login-card{ background:#16273f; border-color:#24405f; }
   body.theme-navy .login-card p.sub{ color:#7d92b3; }
@@ -362,7 +362,7 @@
   body.theme-navy .empty{ color:#7d92b3; }
   body.theme-navy .row-inline[style*="background:#faf9f5"]{ background:#1b2c47 !important; }
   
-  body.theme-darkgray{ --paper:#1c1c1e; --paper-dim:#2c2c2e; --ink:#f0f0f0; --ink-muted:#9a9a9e; }
+  body.theme-darkgray{ --paper:#1c1c1e; --paper-dim:#2c2c2e; --ink:#f0f0f0; --ink-muted:#9a9a9e; --good:#7bd6a0; --danger:#f29b9b; }
   body.theme-darkgray #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(168,224,214,0.10), transparent 40%), radial-gradient(circle at 80% 80%, rgba(211,189,240,0.08), transparent 40%), #1c1c1e; }
   body.theme-darkgray .login-card{ background:#242426; border-color:#3a3a3c; }
   body.theme-darkgray .login-card p.sub{ color:#9a9a9e; }
@@ -391,7 +391,7 @@
   body.theme-darkgray .empty{ color:#9a9a9e; }
   body.theme-darkgray .row-inline[style*="background:#faf9f5"]{ background:#2c2c2e !important; }
   
-  body.theme-fbblue{ --paper:#13294d; --paper-dim:#1c3a68; --ink:#eaf2ff; --ink-muted:#a8c0e0; --spark:#1877f2; }
+  body.theme-fbblue{ --paper:#13294d; --paper-dim:#1c3a68; --ink:#eaf2ff; --ink-muted:#a8c0e0; --spark:#1877f2; --good:#7bd6a0; --danger:#f29b9b; }
   body.theme-fbblue #loginScreen{ background: radial-gradient(circle at 20% 20%, rgba(24,119,242,0.20), transparent 40%), radial-gradient(circle at 80% 80%, rgba(24,119,242,0.14), transparent 40%), #13294d; }
   body.theme-fbblue .login-card{ background:#1e3a68; border-color:#3573c9; }
   body.theme-fbblue .login-card p.sub{ color:#a8c0e0; }
@@ -3987,7 +3987,7 @@ async function renderReports(c){
     <div id="reportCapture" class="report-dashboard">
 
     <div class="kpi-row">
-      <div class="kpi-tile">
+      <div class="card kpi-tile">
         <div class="kpi-icon" style="background:rgba(79,195,247,0.16);color:#4fc3f7;">💰</div>
         <p class="kpi-label">សរុបលក់</p>
         <div class="kpi-value">$${totalSales.toFixed(2)}</div>
@@ -3996,19 +3996,19 @@ async function renderReports(c){
         <span class="kpi-trend ${salesChangePct>=0?'up':'down'}">${salesChangePct>=0?'▲':'▼'} ${Math.abs(salesChangePct).toFixed(1)}%</span>
         <span class="kpi-sub" style="display:block;margin-top:2px;">ធៀបនឹងកំឡុងពេលមុន</span>` : ''}
       </div>
-      <div class="kpi-tile">
+      <div class="card kpi-tile">
         <div class="kpi-icon" style="background:rgba(120,120,120,0.14);color:var(--rt-good);">✅</div>
         <p class="kpi-label">បានទទួល</p>
         <div class="kpi-value" style="color:var(--rt-good);">$${totalDeposit.toFixed(2)}</div>
         <p class="kpi-sub">${paidCount}/${invoices.length} បង់រួច</p>
       </div>
-      <div class="kpi-tile">
+      <div class="card kpi-tile">
         <div class="kpi-icon" style="background:rgba(120,120,120,0.14);color:var(--rt-bad);">⏳</div>
         <p class="kpi-label">នៅខ្វះ</p>
         <div class="kpi-value" style="color:var(--rt-bad);">$${totalBalance.toFixed(2)}</div>
         <p class="kpi-sub">${invoices.length-paidCount} Invoice</p>
       </div>
-      <div class="kpi-tile">
+      <div class="card kpi-tile">
         <div class="kpi-icon" style="background:rgba(212,184,245,0.18);color:#d4b8f5;">📑</div>
         <p class="kpi-label">ឯកសារសរុប</p>
         <div class="kpi-value">${(docs||[]).length}</div>
@@ -4296,15 +4296,17 @@ async function renderSharedRevenue(c){
     </div>
 
     ${sharedRevOwnerFilter==='all' ? `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
+    <div class="kpi-row">
       ${ownerList.map((o,i)=>`
-        <div class="card" style="border-left:4px solid ${o.name===UNASSIGNED?'#999':OWNER_COLORS[i%OWNER_COLORS.length]};margin-bottom:0;">
-          <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">${escapeHtml(o.name)}</p>
-          <div style="font-size:22px;font-weight:800;margin-top:6px;">$${o.val.toFixed(2)}</div>
+        <div class="card kpi-tile">
+          <div class="kpi-icon" style="background:rgba(120,120,120,0.14);color:${o.name===UNASSIGNED?'#999':OWNER_COLORS[i%OWNER_COLORS.length]};">👤</div>
+          <p class="kpi-label">${escapeHtml(o.name)}</p>
+          <div class="kpi-value">$${o.val.toFixed(2)}</div>
         </div>`).join('')}
-      <div class="card" style="border-left:4px solid #3fa9dc;margin-bottom:0;">
-        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">Invoice សរុប</p>
-        <div style="font-size:22px;font-weight:800;margin-top:6px;">${invoiceRows.length}</div>
+      <div class="card kpi-tile">
+        <div class="kpi-icon" style="background:rgba(63,169,220,0.16);color:#3fa9dc;">🧾</div>
+        <p class="kpi-label">Invoice សរុប</p>
+        <div class="kpi-value">${invoiceRows.length}</div>
       </div>
     </div>
 
@@ -4324,14 +4326,16 @@ async function renderSharedRevenue(c){
       </div>
     </div>`:''}
     ` : `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
-      <div class="card" style="border-left:4px solid #3fa9dc;margin-bottom:0;">
-        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">${escapeHtml(sharedRevOwnerFilter)} — ចំណូលសរុប</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;">$${filteredTotal.toFixed(2)}</div>
+    <div class="kpi-row">
+      <div class="card kpi-tile">
+        <div class="kpi-icon" style="background:rgba(63,169,220,0.16);color:#3fa9dc;">💰</div>
+        <p class="kpi-label">${escapeHtml(sharedRevOwnerFilter)} — ចំណូលសរុប</p>
+        <div class="kpi-value">$${filteredTotal.toFixed(2)}</div>
       </div>
-      <div class="card" style="border-left:4px solid #5fb082;margin-bottom:0;">
-        <p style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;margin:0;">ចំនួន Invoice</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;">${displayRows.length}</div>
+      <div class="card kpi-tile">
+        <div class="kpi-icon" style="background:rgba(95,176,130,0.16);color:#5fb082;">🧾</div>
+        <p class="kpi-label">ចំនួន Invoice</p>
+        <div class="kpi-value">${displayRows.length}</div>
       </div>
     </div>
     `}
