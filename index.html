@@ -154,6 +154,19 @@
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
   .arrange-toolbar .btn{padding:3px 9px;font-size:11px;}
 
+  /* Reports page — dark analytics-dashboard styling */
+  .report-dashboard{--ink:#eef3fa;--report-track:#22344f;background:linear-gradient(160deg,#0f1c30,#132840);border-radius:16px;padding:18px;margin-bottom:16px;}
+  .report-dashboard .card{background:#16273f;border:1px solid #24405f;color:#dbe6f5;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  .report-dashboard .card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.32);}
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
+  .kpi-tile{background:#16273f;border:1px solid #24405f;border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  .kpi-label{font-size:11px;color:#7d92b3;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
+  .kpi-value{font-size:25px;font-weight:800;color:#f2f6fb;margin-top:8px;}
+  .kpi-sub{font-size:12px;color:#7d92b3;margin-top:3px;}
+  .kpi-trend{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;margin-top:8px;}
+  .kpi-trend.up{background:rgba(123,214,160,0.16);color:#7bd6a0;}
+  .kpi-trend.down{background:rgba(242,155,155,0.16);color:#f29b9b;}
+
   /* POS section size scaling */
   .pos-big-50 > b{font-size:15.5px;}
   .pos-big-50 input.inp, .pos-big-50 select.inp{font-size:18px;padding:14px 15px;}
@@ -3740,6 +3753,27 @@ async function renderReports(c){
   const totalBalance = invoices.reduce((s,d)=>s+Number(d.balance),0);
   const paidCount = invoices.filter(d=>Number(d.balance)<=0.001).length;
 
+  // Previous period (same length, immediately before) — powers the "vs previous period" trend badge
+  let prevStartStr = null, prevEndStr = null;
+  if(reportRange==='today'){
+    const y = new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
+    prevStartStr = y.toISOString().slice(0,10); prevEndStr = prevStartStr;
+  } else if(reportRange==='week'){
+    const pEnd = new Date(startDate); pEnd.setDate(startDate.getDate()-1);
+    const pStart = new Date(pEnd); pStart.setDate(pEnd.getDate()-6);
+    prevStartStr = pStart.toISOString().slice(0,10); prevEndStr = pEnd.toISOString().slice(0,10);
+  } else if(reportRange==='month'){
+    const pEnd = new Date(startDate); pEnd.setDate(startDate.getDate()-1);
+    const pStart = new Date(pEnd.getFullYear(), pEnd.getMonth(), 1);
+    prevStartStr = pStart.toISOString().slice(0,10); prevEndStr = pEnd.toISOString().slice(0,10);
+  }
+  let prevTotalSales = null;
+  if(prevStartStr){
+    const {data: prevInvoices} = await sb.from('documents').select('subtotal').eq('doc_type','invoice').gte('doc_date', prevStartStr).lte('doc_date', prevEndStr);
+    prevTotalSales = (prevInvoices||[]).reduce((s,d)=>s+Number(d.subtotal),0);
+  }
+  const salesChangePct = (prevTotalSales!==null && prevTotalSales>0) ? ((totalSales-prevTotalSales)/prevTotalSales*100) : null;
+
   const paymentMethodTotals = {};
   let totalRielReceived = 0;
   invoices.forEach(d=>{
@@ -3865,28 +3899,31 @@ async function renderReports(c){
       <button class="btn" onclick="downloadReportPDF()">ទាញយក PDF</button>
       <button class="btn accent" onclick="downloadReport()">ទាញយក Excel (.xlsx)</button>
     </div>` : ''}
-    <div id="reportCapture">
+    <div id="reportCapture" class="report-dashboard">
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;">
-      <div class="card" style="border-left:4px solid #3fa9dc;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;letter-spacing:.3px;margin:0;">សរុបលក់</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;">$${totalSales.toFixed(2)}</div>
-        <p style="font-size:12px;color:#8a8d94;margin-top:2px;">${invoices.length} វិក្កយបត្រ</p>
+    <div class="kpi-row">
+      <div class="kpi-tile" style="border-left:3px solid #4fc3f7;">
+        <p class="kpi-label">💰 សរុបលក់</p>
+        <div class="kpi-value">$${totalSales.toFixed(2)}</div>
+        <p class="kpi-sub">${invoices.length} វិក្កយបត្រ</p>
+        ${salesChangePct!==null ? `
+        <span class="kpi-trend ${salesChangePct>=0?'up':'down'}">${salesChangePct>=0?'▲':'▼'} ${Math.abs(salesChangePct).toFixed(1)}%</span>
+        <span class="kpi-sub" style="display:block;margin-top:2px;">ធៀបនឹងកំឡុងពេលមុន</span>` : ''}
       </div>
-      <div class="card" style="border-left:4px solid #5fb082;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;letter-spacing:.3px;margin:0;">បានទទួល</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;color:#4a9a6c;">$${totalDeposit.toFixed(2)}</div>
-        <p style="font-size:12px;color:#8a8d94;margin-top:2px;">${paidCount}/${invoices.length} បង់រួច</p>
+      <div class="kpi-tile" style="border-left:3px solid #7bd6a0;">
+        <p class="kpi-label">✅ បានទទួល</p>
+        <div class="kpi-value" style="color:#7bd6a0;">$${totalDeposit.toFixed(2)}</div>
+        <p class="kpi-sub">${paidCount}/${invoices.length} បង់រួច</p>
       </div>
-      <div class="card" style="border-left:4px solid #e08585;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;letter-spacing:.3px;margin:0;">នៅខ្វះ</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;color:var(--danger);">$${totalBalance.toFixed(2)}</div>
-        <p style="font-size:12px;color:#8a8d94;margin-top:2px;">${invoices.length-paidCount} Invoice</p>
+      <div class="kpi-tile" style="border-left:3px solid #f29b9b;">
+        <p class="kpi-label">⏳ នៅខ្វះ</p>
+        <div class="kpi-value" style="color:#f29b9b;">$${totalBalance.toFixed(2)}</div>
+        <p class="kpi-sub">${invoices.length-paidCount} Invoice</p>
       </div>
-      <div class="card" style="border-left:4px solid #c3a8e8;margin-bottom:0;">
-        <p style="font-size:11px;color:#8a8d94;text-transform:uppercase;letter-spacing:.3px;margin:0;">ឯកសារសរុប</p>
-        <div style="font-size:24px;font-weight:800;margin-top:6px;">${(docs||[]).length}</div>
-        <p style="font-size:12px;color:#8a8d94;margin-top:2px;">គ្រប់ប្រភេទ</p>
+      <div class="kpi-tile" style="border-left:3px solid #d4b8f5;">
+        <p class="kpi-label">📑 ឯកសារសរុប</p>
+        <div class="kpi-value">${(docs||[]).length}</div>
+        <p class="kpi-sub">គ្រប់ប្រភេទ</p>
       </div>
     </div>
 
@@ -3909,16 +3946,16 @@ async function renderReports(c){
       <div class="card" data-card-key="reports_payratio">
         <b>ចំណាត់ថ្នាក់ការទូទាត់</b>
         <div style="margin-top:14px;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b6f76;margin-bottom:4px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#93a4c2;margin-bottom:4px;">
             <span>បង់រួច</span><span>${invoices.length?((paidCount/invoices.length)*100).toFixed(0):0}%</span>
           </div>
-          <div style="background:#f0eee6;border-radius:8px;height:14px;overflow:hidden;margin-bottom:14px;">
+          <div style="background:var(--report-track,#f0eee6);border-radius:8px;height:14px;overflow:hidden;margin-bottom:14px;">
             <div style="width:${invoices.length?(paidCount/invoices.length*100):0}%;background:#5fb082;height:100%;border-radius:8px;"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b6f76;margin-bottom:4px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#93a4c2;margin-bottom:4px;">
             <span>ចំនួនទឹកប្រាក់បានទទួល</span><span>${totalSales?((totalDeposit/totalSales)*100).toFixed(0):0}%</span>
           </div>
-          <div style="background:#f0eee6;border-radius:8px;height:14px;overflow:hidden;">
+          <div style="background:var(--report-track,#f0eee6);border-radius:8px;height:14px;overflow:hidden;">
             <div style="width:${totalSales?(totalDeposit/totalSales*100):0}%;background:#3fa9dc;height:100%;border-radius:8px;"></div>
           </div>
         </div>
@@ -3931,9 +3968,9 @@ async function renderReports(c){
       <div style="display:flex;align-items:flex-end;gap:10px;margin-top:20px;height:220px;overflow-x:auto;padding-bottom:4px;">
         ${days.map(d=>`
           <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:48px;height:100%;justify-content:flex-end;">
-            <div style="font-size:10px;color:#6b6f76;margin-bottom:4px;white-space:nowrap;">$${byDay[d].toFixed(0)}</div>
+            <div style="font-size:10px;color:#93a4c2;margin-bottom:4px;white-space:nowrap;">$${byDay[d].toFixed(0)}</div>
             <div style="width:28px;background:linear-gradient(180deg, #e57373, #c62828);border-radius:5px 5px 0 0;height:${Math.max(4,(byDay[d]/maxDay*160)).toFixed(0)}px;box-shadow:0 2px 4px rgba(198,40,40,0.25);"></div>
-            <div style="font-size:10.5px;color:#8a8d94;margin-top:6px;white-space:nowrap;">${d.slice(5)}</div>
+            <div style="font-size:10.5px;color:#7d92b3;margin-top:6px;white-space:nowrap;">${d.slice(5)}</div>
           </div>`).join('')}
       </div>
     </div>`:`
@@ -3968,10 +4005,10 @@ async function renderReports(c){
           <div style="margin-bottom:12px;">
             <div style="font-size:12.5px;color:var(--ink);font-weight:600;margin-bottom:4px;">${i+1}. ${escapeHtml(p.name)}</div>
             <div style="display:flex;align-items:center;gap:10px;">
-              <div style="flex:1;background:#f0eee6;border-radius:6px;overflow:hidden;height:16px;">
+              <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:16px;">
                 <div style="width:${(p.revenue/maxProductRevenue*100).toFixed(0)}%;background:linear-gradient(90deg, #c3a8e8, #f2a154);height:100%;border-radius:6px;"></div>
               </div>
-              <div style="width:55px;text-align:right;font-size:11px;color:#8a8d94;white-space:nowrap;">x${p.qty}</div>
+              <div style="width:55px;text-align:right;font-size:11px;color:#7d92b3;white-space:nowrap;">x${p.qty}</div>
               <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;">$${p.revenue.toFixed(2)}</div>
             </div>
           </div>`).join('')}
@@ -3981,7 +4018,7 @@ async function renderReports(c){
     ${(customCount+catalogCount)>0?`
     <div class="card" data-card-key="reports_customvsstock">
       <b>ការលក់ Custom Size Vs ស្តុក (List)</b>
-      <p style="font-size:12px;color:#8a8d94;margin-top:4px;">Custom Size = ទំនិញវាយបញ្ចូលដោយផ្ទាល់ (មិននៅក្នុងបញ្ជីស្តុក) • ស្តុក = ជ្រើសរើសពីបញ្ជីស្តុកមានស្រាប់</p>
+      <p style="font-size:12px;color:#7d92b3;margin-top:4px;">Custom Size = ទំនិញវាយបញ្ចូលដោយផ្ទាល់ (មិននៅក្នុងបញ្ជីស្តុក) • ស្តុក = ជ្រើសរើសពីបញ្ជីស្តុកមានស្រាប់</p>
       <div style="display:flex;align-items:center;gap:20px;margin-top:14px;flex-wrap:wrap;">
         <svg viewBox="0 0 120 120" width="120" height="120">
           ${(()=>{
@@ -3993,16 +4030,16 @@ async function renderReports(c){
             <circle cx="60" cy="60" r="${R}" fill="none" stroke="#3fa9dc" stroke-width="18" stroke-dasharray="${(CIRC-dashCustom).toFixed(1)} ${dashCustom.toFixed(1)}" stroke-dashoffset="${(-dashCustom).toFixed(1)}" transform="rotate(-90 60 60)"/>`;
           })()}
           <text x="60" y="55" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink)">${customCatalogTotal?((customRevenue/customCatalogTotal)*100).toFixed(0):0}%</text>
-          <text x="60" y="70" text-anchor="middle" font-size="8" fill="#8a8d94">Custom</text>
+          <text x="60" y="70" text-anchor="middle" font-size="8" fill="#7d92b3">Custom</text>
         </svg>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
             <div class="row-inline" style="gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f2a154;display:inline-block;"></span><b style="font-size:13px;">Custom Size</b></div>
-            <p style="font-size:12px;color:#8a8d94;margin:2px 0 0 18px;">$${customRevenue.toFixed(2)} • ${customCount} ជួរ • x${customQty}</p>
+            <p style="font-size:12px;color:#7d92b3;margin:2px 0 0 18px;">$${customRevenue.toFixed(2)} • ${customCount} ជួរ • x${customQty}</p>
           </div>
           <div>
             <div class="row-inline" style="gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#3fa9dc;display:inline-block;"></span><b style="font-size:13px;">ស្តុក (List)</b></div>
-            <p style="font-size:12px;color:#8a8d94;margin:2px 0 0 18px;">$${catalogRevenue.toFixed(2)} • ${catalogCount} ជួរ • x${catalogQty}</p>
+            <p style="font-size:12px;color:#7d92b3;margin:2px 0 0 18px;">$${catalogRevenue.toFixed(2)} • ${catalogCount} ជួរ • x${catalogQty}</p>
           </div>
         </div>
       </div>
@@ -4016,10 +4053,10 @@ async function renderReports(c){
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
             <span style="width:10px;height:10px;border-radius:50%;background:${CAT_COLORS[i%CAT_COLORS.length]};display:inline-block;flex:none;"></span>
             <div style="width:140px;font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</div>
-            <div style="flex:1;background:#f0eee6;border-radius:6px;overflow:hidden;height:18px;">
+            <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:18px;">
               <div style="width:${(cat.revenue/maxCategoryRevenue*100).toFixed(0)}%;background:${CAT_COLORS[i%CAT_COLORS.length]};height:100%;border-radius:6px;"></div>
             </div>
-            <div style="width:55px;text-align:right;font-size:11px;color:#8a8d94;">x${cat.qty}</div>
+            <div style="width:55px;text-align:right;font-size:11px;color:#7d92b3;">x${cat.qty}</div>
             <div style="width:70px;text-align:right;font-size:12px;font-weight:700;">$${cat.revenue.toFixed(2)}</div>
           </div>`).join('')}
       </div>
@@ -4033,10 +4070,10 @@ async function renderReports(c){
           <div style="margin-bottom:12px;">
             <div style="font-size:12.5px;color:var(--ink);font-weight:600;margin-bottom:4px;">${i+1}. ${escapeHtml(cu.name)}</div>
             <div style="display:flex;align-items:center;gap:10px;">
-              <div style="flex:1;background:#f0eee6;border-radius:6px;overflow:hidden;height:16px;">
+              <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:16px;">
                 <div style="width:${(cu.revenue/maxCustomerRevenue*100).toFixed(0)}%;background:linear-gradient(90deg, #3fa9dc, #5fb082);height:100%;border-radius:6px;"></div>
               </div>
-              <div style="width:55px;text-align:right;font-size:11px;color:#8a8d94;white-space:nowrap;">${cu.count} INV</div>
+              <div style="width:55px;text-align:right;font-size:11px;color:#7d92b3;white-space:nowrap;">${cu.count} INV</div>
               <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;">$${cu.revenue.toFixed(2)}</div>
             </div>
           </div>`).join('')}
@@ -4046,16 +4083,16 @@ async function renderReports(c){
     ${topSuppliers.length>0?`
     <div class="card" data-card-key="reports_topsuppliers">
       <b>អ្នកផ្គត់ផ្គង់កំពូល (Top ${topSuppliers.length})</b>
-      <p style="font-size:12px;color:#8a8d94;margin-top:4px;">តាមតម្លៃបញ្ជាទិញសរុប (Purchase Order)</p>
+      <p style="font-size:12px;color:#7d92b3;margin-top:4px;">តាមតម្លៃបញ្ជាទិញសរុប (Purchase Order)</p>
       <div style="margin-top:14px;">
         ${topSuppliers.map((sp,i)=>`
           <div style="margin-bottom:12px;">
             <div style="font-size:12.5px;color:var(--ink);font-weight:600;margin-bottom:4px;">${i+1}. ${escapeHtml(sp.name)}</div>
             <div style="display:flex;align-items:center;gap:10px;">
-              <div style="flex:1;background:#f0eee6;border-radius:6px;overflow:hidden;height:16px;">
+              <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:16px;">
                 <div style="width:${(sp.revenue/maxSupplierRevenue*100).toFixed(0)}%;background:linear-gradient(90deg, #f2a154, #e08585);height:100%;border-radius:6px;"></div>
               </div>
-              <div style="width:55px;text-align:right;font-size:11px;color:#8a8d94;white-space:nowrap;">${sp.count} PO</div>
+              <div style="width:55px;text-align:right;font-size:11px;color:#7d92b3;white-space:nowrap;">${sp.count} PO</div>
               <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;">$${sp.revenue.toFixed(2)}</div>
             </div>
           </div>`).join('')}
