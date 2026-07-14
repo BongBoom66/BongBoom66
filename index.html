@@ -722,7 +722,6 @@ function showApp(){
   loadCategories();
   loadBankList();
   loadDarkMode();
-  loadDashboardBgColor();
   loadFontScale();
   loadFontStyle();
   loadOwnCategories();
@@ -749,7 +748,7 @@ function renderNav(){
       <span class="dot"></span>${n.label}
     </button>`).join('');
 }
-function goNav(key){ if(key!==activeNav && key==='settings') settingsSubPage = null; activeNav = key; renderNav(); applyDashboardBgColor(); renderPage(); }
+function goNav(key){ if(key!==activeNav && key==='settings') settingsSubPage = null; activeNav = key; renderNav(); renderPage(); }
 
 function renderPage(){
   const c = document.getElementById('content');
@@ -1299,42 +1298,6 @@ async function setAppTheme(themeId){
   await sb.from('app_settings').upsert({key:'app_theme', value: themeId});
   renderSettings(document.getElementById('content'));
 }
-const DASHBOARD_PAGES = [
-  {key:'pos', label:'ការលក់'},
-  {key:'stock', label:'ស្តុក'},
-  {key:'customers', label:'អតិថិជន'},
-  {key:'purchase', label:'បញ្ជាទិញ'},
-  {key:'history', label:'ប្រវត្តិឯកសារ'},
-  {key:'reports', label:'របាយការណ៍'},
-  {key:'shared_revenue', label:'ចំណូលរួម'},
-  {key:'settings', label:'ការកំណត់'}
-];
-let pageBgColors = {};
-async function loadDashboardBgColor(){
-  try{
-    const {data} = await sb.from('app_settings').select('value').eq('key','page_bg_colors').single();
-    pageBgColors = data && data.value ? JSON.parse(data.value) : {};
-  }catch(e){ pageBgColors = {}; }
-  applyDashboardBgColor();
-}
-function applyDashboardBgColor(){
-  const contentEl = document.getElementById('content');
-  if(!contentEl) return;
-  const color = pageBgColors[activeNav];
-  contentEl.style.background = (typeof color === 'string' && color) ? color : '';
-}
-async function setPageBgColor(navKey, color){
-  pageBgColors[navKey] = color;
-  applyDashboardBgColor();
-  await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
-}
-async function resetPageBgColor(navKey){
-  delete pageBgColors[navKey];
-  applyDashboardBgColor();
-  await sb.from('app_settings').upsert({key:'page_bg_colors', value: JSON.stringify(pageBgColors)});
-  renderSettings(document.getElementById('content'));
-}
-
 /* ================= DASHBOARD ARRANGE MODE (▲▼ buttons to reorder, S/M/L buttons to resize) ================= */
 let arrangeMode = false;
 let cardLayouts = {}; // { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'} } }
@@ -4636,20 +4599,6 @@ async function renderSettings(c){
                style="cursor:pointer;padding:12px 10px;border-radius:8px;border:2px solid ${appFontStyle===f.id?'var(--spark)':'var(--paper-dim)'};background:${appFontStyle===f.id?'var(--paper-dim)':'#fff'};text-align:center;">
             <div style="font-family:'${f.id}';font-size:17px;">អក្សរខ្មែរ ABC</div>
             <div style="font-size:11px;color:#8a8d94;margin-top:4px;">${f.label}</div>
-          </div>`).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <b>ពណ៌ផ្ទៃខាងក្រោយ តាមទំព័រនីមួយៗ (Per-Page Background)</b>
-      <p style="font-size:13px;color:#6b6f76;margin-top:4px;">ជ្រើសរើសពណ៌ផ្ទៃខាងក្រោយផ្ទាល់ខ្លួនសម្រាប់ទំព័រនីមួយៗ (មិនប៉ះពាល់ Dark Mode)</p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
-        ${DASHBOARD_PAGES.map(pg=>`
-          <div style="border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;width:130px;flex:none;">
-            <div style="font-size:12px;font-weight:700;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${pg.label}">${pg.label}</div>
-            <div class="row-inline" style="gap:6px;flex-wrap:nowrap;">
-              <input type="color" value="${pageBgColors[pg.key] || '#fdf6e8'}" style="width:30px;height:26px;padding:1px;border-radius:5px;border:1px solid var(--paper-dim);cursor:pointer;flex:none;" onchange="setPageBgColor('${pg.key}', this.value)">
-              <button class="btn small" onclick="resetPageBgColor('${pg.key}')" title="ត្រឡប់ទៅលំនាំដើម" style="font-size:11px;padding:4px 7px;">↺</button>
-            </div>
           </div>`).join('')}
       </div>
     </div>
