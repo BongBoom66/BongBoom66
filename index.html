@@ -56,7 +56,7 @@
     --ink-muted:#6b6f76;
     --danger:#e08585;
     --good:#4a9a6c;
-    --radius:10px;
+    --radius:14px;
     --fscale:1;
     --app-font:'Noto Sans Khmer';
   }
@@ -148,7 +148,7 @@
   h2.page-title{margin:0 0 4px;font-size:20px;font-weight:800;}
   p.page-sub{margin:0 0 18px;color:var(--ink-muted);font-size:13px;}
 
-  .card{background:#fff;border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);}
+  .card{background:linear-gradient(150deg, #ffffff, #f5f5f5);border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
@@ -166,7 +166,8 @@
   .report-dashboard .card{background:var(--rt-card);border:1px solid var(--rt-border);color:var(--rt-ink);box-shadow:0 4px 14px rgba(0,0,0,0.1);}
   .report-dashboard .card:hover{box-shadow:0 6px 18px rgba(0,0,0,0.14);}
   .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
-  .kpi-tile{background:var(--rt-card);border:1px solid var(--rt-border);border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.1);}
+  .kpi-tile{background:var(--rt-card);border:1px solid var(--rt-border);border-radius:14px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,0.1);}
+  .kpi-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;}
   .kpi-label{font-size:11px;color:var(--rt-muted);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
   .kpi-value{font-size:25px;font-weight:800;color:var(--rt-ink);margin-top:8px;}
   .kpi-sub{font-size:12px;color:var(--rt-muted);margin-top:3px;}
@@ -318,7 +319,7 @@
   body.dark-mode nav.bottom{ background:#222827 !important; border-top-color:#333a38; box-shadow:none; }
   body.dark-mode nav.bottom button{ color:#8a9694; }
   body.dark-mode p.page-sub{ color:#9aa6a4; }
-  body.dark-mode .card{ background:#222827; border-color:#333a38; }
+  body.dark-mode .card{ background:linear-gradient(150deg, #2c3231, #1a201f); border-color:#333a38; }
   body.dark-mode .btn{ background:#2a302f; border-color:#3a4240; color:#e8ecec; }
   body.dark-mode .btn:hover{ border-color:var(--spark); }
   body.dark-mode input.inp, body.dark-mode select.inp{ background:#1a1e1e; border-color:#3a4240; color:#e8ecec; }
@@ -348,7 +349,7 @@
   body.theme-navy nav.bottom{ background:#16273f !important; border-top-color:#24405f; box-shadow:none; }
   body.theme-navy nav.bottom button{ color:#7d92b3; }
   body.theme-navy p.page-sub{ color:#7d92b3; }
-  body.theme-navy .card{ background:#16273f; border-color:#24405f; }
+  body.theme-navy .card{ background:linear-gradient(150deg, #203149, #0e1f37); border-color:#24405f; }
   body.theme-navy .btn{ background:#1b2c47; border-color:#24405f; color:#eef3fa; }
   body.theme-navy .btn:hover{ border-color:var(--spark); }
   body.theme-navy input.inp, body.theme-navy select.inp{ background:#0f1c30; border-color:#24405f; color:#eef3fa; }
@@ -377,7 +378,7 @@
   body.theme-darkgray nav.bottom{ background:#242426 !important; border-top-color:#3a3a3c; box-shadow:none; }
   body.theme-darkgray nav.bottom button{ color:#9a9a9e; }
   body.theme-darkgray p.page-sub{ color:#9a9a9e; }
-  body.theme-darkgray .card{ background:#242426; border-color:#3a3a3c; }
+  body.theme-darkgray .card{ background:linear-gradient(150deg, #2e2e30, #1c1c1e); border-color:#3a3a3c; }
   body.theme-darkgray .btn{ background:#2c2c2e; border-color:#3a3a3c; color:#f0f0f0; }
   body.theme-darkgray .btn:hover{ border-color:var(--spark); }
   body.theme-darkgray input.inp, body.theme-darkgray select.inp{ background:#1c1c1e; border-color:#3a3a3c; color:#f0f0f0; }
@@ -406,7 +407,7 @@
   body.theme-fbblue nav.bottom{ background:#1e3a68 !important; border-top-color:#3573c9; box-shadow:none; }
   body.theme-fbblue nav.bottom button{ color:#a8c0e0; }
   body.theme-fbblue p.page-sub{ color:#a8c0e0; }
-  body.theme-fbblue .card{ background:#1e3a68; border-color:#3573c9; }
+  body.theme-fbblue .card{ background:linear-gradient(150deg, #284472, #163260); border-color:#3573c9; }
   body.theme-fbblue .btn{ background:#1877f2; border-color:#1877f2; color:#ffffff; }
   body.theme-fbblue .btn:hover{ border-color:#fff; }
   body.theme-fbblue input.inp, body.theme-fbblue select.inp{ background:#13294d; border-color:#3573c9; color:#eaf2ff; }
@@ -3986,26 +3987,30 @@ async function renderReports(c){
     <div id="reportCapture" class="report-dashboard">
 
     <div class="kpi-row">
-      <div class="kpi-tile" style="border-left:3px solid #4fc3f7;">
-        <p class="kpi-label">💰 សរុបលក់</p>
+      <div class="kpi-tile">
+        <div class="kpi-icon" style="background:rgba(79,195,247,0.16);color:#4fc3f7;">💰</div>
+        <p class="kpi-label">សរុបលក់</p>
         <div class="kpi-value">$${totalSales.toFixed(2)}</div>
         <p class="kpi-sub">${invoices.length} វិក្កយបត្រ</p>
         ${salesChangePct!==null ? `
         <span class="kpi-trend ${salesChangePct>=0?'up':'down'}">${salesChangePct>=0?'▲':'▼'} ${Math.abs(salesChangePct).toFixed(1)}%</span>
         <span class="kpi-sub" style="display:block;margin-top:2px;">ធៀបនឹងកំឡុងពេលមុន</span>` : ''}
       </div>
-      <div class="kpi-tile" style="border-left:3px solid var(--rt-good);">
-        <p class="kpi-label">✅ បានទទួល</p>
+      <div class="kpi-tile">
+        <div class="kpi-icon" style="background:rgba(120,120,120,0.14);color:var(--rt-good);">✅</div>
+        <p class="kpi-label">បានទទួល</p>
         <div class="kpi-value" style="color:var(--rt-good);">$${totalDeposit.toFixed(2)}</div>
         <p class="kpi-sub">${paidCount}/${invoices.length} បង់រួច</p>
       </div>
-      <div class="kpi-tile" style="border-left:3px solid var(--rt-bad);">
-        <p class="kpi-label">⏳ នៅខ្វះ</p>
+      <div class="kpi-tile">
+        <div class="kpi-icon" style="background:rgba(120,120,120,0.14);color:var(--rt-bad);">⏳</div>
+        <p class="kpi-label">នៅខ្វះ</p>
         <div class="kpi-value" style="color:var(--rt-bad);">$${totalBalance.toFixed(2)}</div>
         <p class="kpi-sub">${invoices.length-paidCount} Invoice</p>
       </div>
-      <div class="kpi-tile" style="border-left:3px solid #d4b8f5;">
-        <p class="kpi-label">📑 ឯកសារសរុប</p>
+      <div class="kpi-tile">
+        <div class="kpi-icon" style="background:rgba(212,184,245,0.18);color:#d4b8f5;">📑</div>
+        <p class="kpi-label">ឯកសារសរុប</p>
         <div class="kpi-value">${(docs||[]).length}</div>
         <p class="kpi-sub">គ្រប់ប្រភេទ</p>
       </div>
