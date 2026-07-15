@@ -1668,14 +1668,15 @@ async function renderPOS(c){
           <div class="tbl-wrap" style="margin-top:8px;">
             <table>
               <thead><tr>
-                <th style="width:28px;">ល.រ</th><th style="text-align:left;width:auto;">ឈ្មោះ</th><th style="width:75px;">ចំនួន</th><th style="width:55px;">ឯកតា</th>
-                ${showPrice?'<th style="width:90px;">តម្លៃរាយ</th><th style="width:85px;">តម្លៃសរុប</th>':''}
+                <th style="width:28px;">ល.រ</th><th style="text-align:left;width:auto;">ឈ្មោះ</th>
+                ${docType!=='payment_request'?'<th style="width:75px;">ចំនួន</th><th style="width:55px;">ឯកតា</th>':''}
+                ${showPrice?(docType==='payment_request'?'<th style="width:100px;">ទឹកប្រាក់ជំពាក់</th>':'<th style="width:90px;">តម្លៃរាយ</th><th style="width:85px;">តម្លៃសរុប</th>'):''}
                 <th style="width:36px;"></th>
               </tr></thead>
               <tbody>
-                ${cart.length===0?`<tr><td colspan="7" class="empty">មិនទាន់មានទំនិញ</td></tr>`:
+                ${cart.length===0?`<tr><td colspan="7" class="empty">${docType==='payment_request'?'មិនទាន់មានវិក្កយបត្រ':'មិនទាន់មានទំនិញ'}</td></tr>`:
                 cart.map((it,i)=>`
-                  <tr ondblclick="onCartRowDblClick(event, ${i})" title="ចុចទ្វេដងលើជួរ ដើម្បីទាញមកកែក្នុងប្រអប់ខាងលើ">
+                  <tr ${docType==='payment_request'?'':`ondblclick="onCartRowDblClick(event, ${i})" title="ចុចទ្វេដងលើជួរ ដើម្បីទាញមកកែក្នុងប្រអប់ខាងលើ"`}>
                     <td>
                       <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
                         <span>${i+1}</span>
@@ -1685,11 +1686,11 @@ async function renderPOS(c){
                         </div>
                       </div>
                     </td>
-                    <td class="left" style="cursor:pointer;">${escapeHtml(it.name)}</td>
-                    ${docType==='payment_request' ? `<td>1</td><td></td>` : `
+                    <td class="left">${escapeHtml(it.name)}</td>
+                    ${docType!=='payment_request' ? `
                     <td><input class="inp" style="width:65px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updateQty(${i}, this.value)"></td>
-                    <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>`}
-                    ${showPrice?(docType==='payment_request' ? `<td style="text-align:right;">$${it.price.toFixed(2)}</td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>` : `<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`):''}
+                    <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>` : ''}
+                    ${showPrice?(docType==='payment_request' ? `<td style="text-align:right;font-weight:700;color:var(--danger);">$${it.price.toFixed(2)}</td>` : `<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`):''}
                     <td><button class="btn small danger" onclick="removeItem(${i})">✕</button></td>
                   </tr>`).join('')}
               </tbody>
@@ -2278,6 +2279,7 @@ function onRecallInvoiceSearch(val){
 function buildInvoiceHTML(doc, items){
   const showPrice = doc.doc_type !== 'delivery';
   const showDeposit = doc.doc_type === 'invoice';
+  const hideQtyUnit = doc.doc_type === 'payment_request';
   const d = new Date(doc.doc_date);
   const pad2 = n => String(n).padStart(2,'0');
   const dateStr = `${pad2(d.getDate())} ខែ ${pad2(d.getMonth()+1)} ឆ្នាំ ${d.getFullYear()}`;
@@ -2298,16 +2300,15 @@ function buildInvoiceHTML(doc, items){
       <tr>
         <td class="c">${rowNum}</td>
         <td class="left">${escapeHtml(it.name)}</td>
-        <td class="c">${it.qty}</td>
-        <td class="c">${escapeHtml(it.unit||'')}</td>
-        ${showPrice?`<td class="num">$${it.price.toFixed(2)}</td><td class="num">$${(it.qty*it.price).toFixed(2)}</td>`:''}
+        ${!hideQtyUnit?`<td class="c">${it.qty}</td><td class="c">${escapeHtml(it.unit||'')}</td>`:''}
+        ${showPrice?(hideQtyUnit?`<td class="num">$${(it.qty*it.price).toFixed(2)}</td>`:`<td class="num">$${it.price.toFixed(2)}</td><td class="num">$${(it.qty*it.price).toFixed(2)}</td>`):''}
       </tr>`;
     }).join('');
 
     const fillTarget = isLastPage ? 10 : ROWS_PER_PAGE;
     const emptyCount = Math.max(0, fillTarget - pageItems.length);
     const emptyRows = Array.from({length: emptyCount}).map(()=>`
-      <tr><td class="c">&nbsp;</td><td></td><td></td><td></td>${showPrice?'<td></td><td></td>':''}</tr>`).join('');
+      <tr><td class="c">&nbsp;</td><td></td>${!hideQtyUnit?'<td></td><td></td>':''}${showPrice?(hideQtyUnit?'<td></td>':'<td></td><td></td>'):''}</tr>`).join('');
 
     return `
     <div class="inv-page">
@@ -2329,8 +2330,9 @@ function buildInvoiceHTML(doc, items){
       </div>
       <table class="inv-table">
         <thead><tr>
-          <th style="width:32px">ល.រ</th><th>ឈ្មោះ</th><th style="width:55px">ចំនួន</th><th style="width:60px">ឯកតា</th>
-          ${showPrice?'<th style="width:80px">តម្លៃរាយ</th><th style="width:90px">តម្លៃសរុប</th>':''}
+          <th style="width:32px">ល.រ</th><th>ឈ្មោះ</th>
+          ${!hideQtyUnit?'<th style="width:55px">ចំនួន</th><th style="width:60px">ឯកតា</th>':''}
+          ${showPrice?(hideQtyUnit?'<th style="width:110px">ចំនួនទឹកប្រាក់</th>':'<th style="width:80px">តម្លៃរាយ</th><th style="width:90px">តម្លៃសរុប</th>'):''}
         </tr></thead>
         <tbody>${rows}${emptyRows}</tbody>
       </table>
