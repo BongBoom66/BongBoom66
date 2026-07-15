@@ -153,6 +153,12 @@
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
+
+  .debt-alert-banner{background:linear-gradient(135deg,#fdecea,#fbd9d6);border-bottom:2px solid var(--danger);color:#7a1f1a;font-size:13px;font-weight:700;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .debt-alert-banner .dab-text{display:flex;align-items:center;gap:8px;}
+  .debt-alert-banner .dab-actions{display:flex;gap:8px;align-items:center;}
+  .debt-alert-banner button.dab-view{background:var(--danger);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+  .debt-alert-banner button.dab-close{background:transparent;border:none;color:#7a1f1a;font-size:16px;font-weight:800;cursor:pointer;line-height:1;padding:2px 4px;}
   .arrange-toolbar .btn{padding:3px 9px;font-size:11px;}
 
   /* Reports page — dark analytics-dashboard styling */
@@ -456,6 +462,8 @@
     <button class="icon-btn" onclick="doLogout()">ចេញ</button>
   </div>
 
+  <div id="debtAlertBanner" style="display:none;"></div>
+
   <div class="layout">
     <nav class="side" id="sideNav"></nav>
 
@@ -732,6 +740,44 @@ function showApp(){
   renderNav();
   renderPage();
   subscribeRealtime();
+  if(isOwner()) checkDebtAlert();
+}
+
+/* ================= DEBT ALERT (ជំពាក់ពីខែមុន) ================= */
+async function checkDebtAlert(){
+  try{
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const {data} = await sb.from('documents').select('customer_id, balance')
+      .eq('doc_type','invoice').gt('balance', 0.001).lt('doc_date', monthStart).not('customer_id','is',null);
+    const banner = document.getElementById('debtAlertBanner');
+    if(!data || !data.length){ banner.style.display = 'none'; banner.innerHTML=''; return; }
+    const grouped = {};
+    data.forEach(d=>{
+      if(!grouped[d.customer_id]) grouped[d.customer_id] = {count:0, total:0};
+      grouped[d.customer_id].count++;
+      grouped[d.customer_id].total += Number(d.balance);
+    });
+    const custCount = Object.keys(grouped).length;
+    const totalOwed = Object.values(grouped).reduce((s,g)=>s+g.total,0);
+    banner.innerHTML = `
+      <span class="dab-text">⚠️ អតិថិជន <b>${custCount}</b> នាក់ ជំពាក់ប្រាក់ពីខែមុន មិនទាន់ទូទាត់ សរុប <b>$${totalOwed.toFixed(2)}</b></span>
+      <span class="dab-actions">
+        <button class="dab-view" onclick="goToDebtAlert()">មើលលម្អិត</button>
+        <button class="dab-close" onclick="dismissDebtAlert()">✕</button>
+      </span>`;
+    banner.style.display = 'flex';
+  }catch(e){ /* silent — non-critical UX enhancement */ }
+}
+function dismissDebtAlert(){
+  const banner = document.getElementById('debtAlertBanner');
+  if(banner){ banner.style.display = 'none'; }
+}
+function goToDebtAlert(){
+  dismissDebtAlert();
+  activeNav = 'pos';
+  renderNav();
+  setDocType('payment_request');
 }
 
 /* ================= NAV ================= */
