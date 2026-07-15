@@ -642,7 +642,8 @@ let activeNav = 'pos';
 const DOC_LABELS = {
   invoice: {title:'វិក្កយបត្រ / Invoice', short:'INV'},
   quotation: {title:'សម្រង់តម្លៃ / Quotation', short:'QUO'},
-  delivery: {title:'ប័ណ្ណដឹកជញ្ជូន / Delivery Note', short:'DEL'}
+  delivery: {title:'ប័ណ្ណដឹកជញ្ជូន / Delivery Note', short:'DEL'},
+  payment_request: {title:'លិខិតស្នើសុំទូទាត់បំណុល / Payment Request', short:'PR'}
 };
 
 /* ================= AUTH ================= */
@@ -1477,6 +1478,14 @@ async function renderPOS(c){
     sourceDocsCache = srcDocs || [];
   }
 
+  let unpaidInvoicesCache = [];
+  if(docType==='payment_request' && selectedCustomer?.id){
+    const {data: unpaidDocs} = await sb.from('documents').select('*')
+      .eq('doc_type','invoice').eq('customer_id', selectedCustomer.id).gt('balance', 0.001)
+      .order('doc_date', {ascending:false});
+    unpaidInvoicesCache = unpaidDocs || [];
+  }
+
   const showPrice = docType !== 'delivery';
   const showDeposit = docType === 'invoice';
 
@@ -1485,7 +1494,7 @@ async function renderPOS(c){
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth()+1);
-    const prefix = {invoice:'Y', quotation:'Q', delivery:'D'}[docType] || '';
+    const prefix = {invoice:'Y', quotation:'Q', delivery:'D', payment_request:'P'}[docType] || '';
     const {data: counterRow} = await sb.from('doc_counters').select('counter').eq('doc_type', docType).eq('yy', yy).eq('mm', mm).maybeSingle();
     const nextNum = (counterRow?.counter || 0) + 1;
     nextDocNoPreview = `${prefix}${yy}-${mm}-${String(nextNum).padStart(4,'0')}`;
@@ -1508,11 +1517,12 @@ async function renderPOS(c){
       <button class="${docType==='invoice'?'active invoice':''}" onclick="setDocType('invoice')">វិក្កយបត្រ</button>
       <button class="${docType==='quotation'?'active quotation':''}" onclick="setDocType('quotation')">សម្រង់តម្លៃ</button>
       <button class="${docType==='delivery'?'active delivery':''}" onclick="setDocType('delivery')">ប័ណ្ណដឹកជញ្ជូន</button>
+      <button class="${docType==='payment_request'?'active':''}" style="${docType==='payment_request'?'background:var(--danger);color:#fff;border-color:var(--danger);':''}" onclick="setDocType('payment_request')">ស្នើសុំទូទាត់បំណុល</button>
     </div>
 
     <div style="position:sticky;top:0;z-index:30;margin:0 0 14px;padding:10px 16px;border-radius:8px;font-weight:800;font-size:15px;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,0.12);
-      ${docType==='invoice' ? 'background:var(--graphite);color:#173947;' : docType==='quotation' ? 'background:var(--laser);color:#1a3a52;' : 'background:var(--spark);color:#1a2f42;'}">
-      ${docType==='invoice' ? '🧾 កំពុងបង្កើត វិក្កយបត្រ (Invoice)' : docType==='quotation' ? '📋 កំពុងបង្កើត សម្រង់តម្លៃ (Quotation)' : '🚚 កំពុងបង្កើត ប័ណ្ណដឹកជញ្ជូន (Delivery Note)'}
+      ${docType==='invoice' ? 'background:var(--graphite);color:#173947;' : docType==='quotation' ? 'background:var(--laser);color:#1a3a52;' : docType==='delivery' ? 'background:var(--spark);color:#1a2f42;' : 'background:var(--danger);color:#fff;'}">
+      ${docType==='invoice' ? '🧾 កំពុងបង្កើត វិក្កយបត្រ (Invoice)' : docType==='quotation' ? '📋 កំពុងបង្កើត សម្រង់តម្លៃ (Quotation)' : docType==='delivery' ? '🚚 កំពុងបង្កើត ប័ណ្ណដឹកជញ្ជូន (Delivery Note)' : '📢 កំពុងបង្កើត លិខិតស្នើសុំទូទាត់បំណុល (Payment Request)'}
     </div>
 
     ${docType==='invoice' && canAccess('history_edit') ? `
@@ -1572,6 +1582,7 @@ async function renderPOS(c){
           </div>
         </div>
 
+        ${docType!=='payment_request' ? `
         <div class="card pos-big-30" style="border-color:var(--spark);" data-card-key="pos_manual">
           <b>វាយបញ្ចូលទំនិញផ្ទាល់ (មិនចាំបាច់មានក្នុងស្តុក)</b>
           <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញ Custom តាមស្នាមអតិថិជន — វាយឈ្មោះ ចំនួន ឯកតា និងតម្លៃ រួចចុចបន្ថែម</p>
@@ -1600,12 +1611,32 @@ async function renderPOS(c){
             </select>
           </div>
           <div id="prodList" class="tbl-wrap" data-resizable style="max-height:420px;overflow-y:auto;"></div>
-        </div>
+        </div>` : `
+        <div class="card pos-big-50" style="border-color:var(--danger);" data-card-key="pos_debts">
+          <b>វិក្កយបត្រនៅខ្វះនៃអតិថិជននេះ</b>
+          <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">ជ្រើសរើសអតិថិជនខាងលើ រួចធីកវិក្កយបត្រណាដែលចង់ដាក់ក្នុងលិខិតស្នើសុំទូទាត់</p>
+          ${!selectedCustomer?.id ? `
+          <p class="empty" style="padding:20px 0;">សូមជ្រើសរើសអតិថិជន (មិនមែនអតិថិជនទូទៅ) ជាមុនសិន</p>` :
+          unpaidInvoicesCache.length===0 ? `
+          <p class="empty" style="padding:20px 0;">អតិថិជននេះមិនមានវិក្កយបត្រនៅខ្វះទេ</p>` : `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${unpaidInvoicesCache.map(inv=>{
+              const checked = cart.some(it=>it.sourceInvoiceId===inv.id);
+              return `
+              <label class="row-inline" style="justify-content:space-between;border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;cursor:pointer;">
+                <span class="row-inline" style="gap:8px;">
+                  <input type="checkbox" ${checked?'checked':''} onchange="toggleDebtInvoice('${inv.id}','${inv.doc_no}',${Number(inv.balance)}, this.checked)">
+                  <span style="font-size:13px;"><b>${inv.doc_no}</b> — ${inv.doc_date}</span>
+                </span>
+                <b style="color:var(--danger);">$${Number(inv.balance).toFixed(2)}</b>
+              </label>`;}).join('')}
+          </div>`}
+        </div>`}
       </div>
 
       <div>
-        <div class="card pos-big-50" style="border-color:${docType==='invoice' ? 'var(--graphite)' : docType==='quotation' ? 'var(--laser)' : 'var(--spark)'};border-width:2px;" data-card-key="pos_cart">
-          <b>របស់ក្នុងកន្ត្រក — ${docType==='invoice' ? 'វិក្កយបត្រ' : docType==='quotation' ? 'សម្រង់តម្លៃ' : 'ប័ណ្ណដឹកជញ្ជូន'}</b>
+        <div class="card pos-big-50" style="border-color:${docType==='invoice' ? 'var(--graphite)' : docType==='quotation' ? 'var(--laser)' : docType==='delivery' ? 'var(--spark)' : 'var(--danger)'};border-width:2px;" data-card-key="pos_cart">
+          <b>${docType==='payment_request' ? 'វិក្កយបត្រដែលបានជ្រើស — លិខិតស្នើសុំទូទាត់' : 'របស់ក្នុងកន្ត្រក'} — ${docType==='invoice' ? 'វិក្កយបត្រ' : docType==='quotation' ? 'សម្រង់តម្លៃ' : docType==='delivery' ? 'ប័ណ្ណដឹកជញ្ជូន' : 'ស្នើសុំទូទាត់បំណុល'}</b>
           ${editingDocId ? `<span style="font-size:13px;margin-left:8px;background:#fff5f6;color:var(--danger);padding:3px 10px;border-radius:20px;font-weight:700;">កំពុងកែ #${editingDocNo}</span>` : ''}
           ${(!editingDocId && nextDocNoPreview) ? `<span style="font-size:12.5px;color:var(--ink-muted);margin-left:8px;">(លេខបន្ទាប់៖ <b style="color:var(--spark-dim);">${nextDocNoPreview}</b>)</span>` : ''}
           <div class="tbl-wrap" style="margin-top:8px;">
@@ -1629,9 +1660,10 @@ async function renderPOS(c){
                       </div>
                     </td>
                     <td class="left" style="cursor:pointer;">${escapeHtml(it.name)}</td>
+                    ${docType==='payment_request' ? `<td>1</td><td></td>` : `
                     <td><input class="inp" style="width:65px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updateQty(${i}, this.value)"></td>
-                    <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>
-                    ${showPrice?`<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`:''}
+                    <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>`}
+                    ${showPrice?(docType==='payment_request' ? `<td style="text-align:right;">$${it.price.toFixed(2)}</td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>` : `<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`):''}
                     <td><button class="btn small danger" onclick="removeItem(${i})">✕</button></td>
                   </tr>`).join('')}
               </tbody>
@@ -1720,7 +1752,18 @@ function renderProdList(){
 
 function setDocType(t){
   if(editingDocId){ alert('សូមបោះបង់ការកែសម្រួលមុននឹងប្តូរប្រភេទឯកសារ'); return; }
+  if(t==='payment_request' || docType==='payment_request'){ cart = []; }
   docType = t; renderPOS(document.getElementById('content'));
+}
+function toggleDebtInvoice(invoiceId, docNo, balance, isChecked){
+  if(isChecked){
+    if(!cart.some(it=>it.sourceInvoiceId===invoiceId)){
+      cart.push({name:`វិក្កយបត្រលេខ ${docNo}`, qty:1, unit:'', price:balance, product_id:null, sourceInvoiceId:invoiceId});
+    }
+  } else {
+    cart = cart.filter(it=>it.sourceInvoiceId!==invoiceId);
+  }
+  renderPOS(document.getElementById('content'));
 }
 function cancelEdit(){
   editingDocId = null; editingDocNo=''; cart = []; depositVal = 0; selectedCustomer = null;
@@ -1926,6 +1969,7 @@ function closeCustSuggestions(){
 }
 function selectCustomerFromSuggestion(id){
   selectedCustomer = customersCache.find(c=>c.id===id) || null;
+  if(docType==='payment_request') cart = [];
   closeCustSuggestions();
   const input = document.getElementById('custPickerSearch');
   if(input) input.value = '';
@@ -1934,6 +1978,7 @@ function selectCustomerFromSuggestion(id){
 }
 function clearSelectedCustomer(){
   selectedCustomer = null;
+  if(docType==='payment_request') cart = [];
   renderPOS(document.getElementById('content'));
 }
 document.addEventListener('click', (e)=>{
@@ -1967,7 +2012,8 @@ async function saveNewCustomer(){
 let lastSavedDoc = null;
 let lastSavedItems = null;
 async function saveDocument(shouldPrint){
-  if(cart.length===0){ alert('សូមបន្ថែមទំនិញយ៉ាងតិចមួយ'); return; }
+  if(cart.length===0){ alert(docType==='payment_request' ? 'សូមជ្រើសរើសវិក្កយបត្រយ៉ាងតិចមួយ' : 'សូមបន្ថែមទំនិញយ៉ាងតិចមួយ'); return; }
+  if(docType==='payment_request' && !selectedCustomer?.id){ alert('សូមជ្រើសរើសអតិថិជន (មិនមែនអតិថិជនទូទៅ)'); return; }
 
   const sub = subtotal();
   const dep = docType==='invoice' ? depositVal : 0;
@@ -2140,7 +2186,7 @@ function viewLastDocument(){
   openViewModalDirect(lastSavedDoc, lastSavedItems);
 }
 function previewCurrentDocument(){
-  if(cart.length===0){ alert('សូមបន្ថែមទំនិញយ៉ាងតិចមួយសិន'); return; }
+  if(cart.length===0){ alert(docType==='payment_request' ? 'សូមជ្រើសរើសវិក្កយបត្រយ៉ាងតិចមួយសិន' : 'សូមបន្ថែមទំនិញយ៉ាងតិចមួយសិន'); return; }
   const sub = subtotal();
   const dep = docType==='invoice' ? depositVal : 0;
   const bal = docType==='invoice' ? (sub-dep) : 0;
@@ -2233,6 +2279,7 @@ function buildInvoiceHTML(doc, items){
         <div><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
         <div><b>លេខទូរស័ព្ទ</b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
       </div>
+      ${doc.doc_type==='payment_request' ? `<p style="font-size:10pt;margin:2mm 0;">សូមអញ្ជើញលោក/លោកស្រី មេត្តាមកទូទាត់ប្រាក់ដែលនៅជំពាក់លើវិក្កយបត្រខាងក្រោមនេះ។ សូមអរគុណ។</p>` : ''}
       <table class="inv-table">
         <thead><tr>
           <th style="width:32px">ល.រ</th><th>ឈ្មោះ</th><th style="width:55px">ចំនួន</th><th style="width:60px">ឯកតា</th>
@@ -3475,6 +3522,7 @@ async function renderHistory(c){
       <button class="${historyFilter==='invoice'?'active invoice':''}" onclick="setHistoryFilter('invoice')">វិក្កយបត្រ</button>
       <button class="${historyFilter==='quotation'?'active quotation':''}" onclick="setHistoryFilter('quotation')">សម្រង់តម្លៃ</button>
       <button class="${historyFilter==='delivery'?'active delivery':''}" onclick="setHistoryFilter('delivery')">ប័ណ្ណដឹកជញ្ជូន</button>
+      <button class="${historyFilter==='payment_request'?'active':''}" style="${historyFilter==='payment_request'?'background:var(--danger);color:#fff;border-color:var(--danger);':''}" onclick="setHistoryFilter('payment_request')">ស្នើសុំទូទាត់</button>
     </div>
     <div class="doctabs" style="margin-top:8px;">
       <button class="${historyPaymentFilter==='all'?'active invoice':''}" onclick="setHistoryPaymentFilter('all')">ស្ថានភាព៖ ទាំងអស់</button>
