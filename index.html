@@ -1479,11 +1479,25 @@ async function renderPOS(c){
   }
 
   let unpaidInvoicesCache = [];
-  if(docType==='payment_request' && selectedCustomer?.id){
-    const {data: unpaidDocs} = await sb.from('documents').select('*')
-      .eq('doc_type','invoice').eq('customer_id', selectedCustomer.id).gt('balance', 0.001)
-      .order('doc_date', {ascending:false});
-    unpaidInvoicesCache = unpaidDocs || [];
+  let debtorsCache = [];
+  if(docType==='payment_request'){
+    const {data: unpaidAll} = await sb.from('documents').select('customer_id, customer_name, customer_phone, balance')
+      .eq('doc_type','invoice').gt('balance', 0.001).not('customer_id','is',null);
+    const grouped = {};
+    (unpaidAll||[]).forEach(d=>{
+      if(!grouped[d.customer_id]) grouped[d.customer_id] = {customer_id:d.customer_id, name:d.customer_name, phone:d.customer_phone, total:0, count:0};
+      grouped[d.customer_id].total += Number(d.balance);
+      grouped[d.customer_id].count += 1;
+    });
+    debtorsCache = Object.values(grouped).sort((a,b)=>b.total-a.total);
+    window._debtorsCache = debtorsCache;
+
+    if(selectedCustomer?.id){
+      const {data: unpaidDocs} = await sb.from('documents').select('*')
+        .eq('doc_type','invoice').eq('customer_id', selectedCustomer.id).gt('balance', 0.001)
+        .order('doc_date', {ascending:false});
+      unpaidInvoicesCache = unpaidDocs || [];
+    }
   }
 
   const showPrice = docType !== 'delivery';
@@ -1559,6 +1573,18 @@ async function renderPOS(c){
     <div class="grid-2">
       <div>
         <div class="card pos-big-30" data-card-key="pos_customer">
+          ${docType==='payment_request' ? `
+          <b>អតិថិជនជាប់ជំពាក់</b>
+          <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">ជ្រើសរើសពីបញ្ជីខាងក្រោម (មានតែអតិថិជនជាប់ជំពាក់ប៉ុណ្ណោះ)</p>
+          ${selectedCustomer?`
+          <div class="row-inline" style="justify-content:space-between;margin-bottom:8px;background:var(--paper-dim);padding:8px 10px;border-radius:8px;">
+            <span style="font-size:13px;">✓ ${cCode(selectedCustomer)} — <b>${escapeHtml(selectedCustomer.name)}</b>${selectedCustomer.phone?' — '+escapeHtml(selectedCustomer.phone):''}</span>
+            <button class="btn small" onclick="clearSelectedCustomer()">✕</button>
+          </div>`:''}
+          <input class="inp" id="debtorFilterSearch" autocomplete="off" placeholder="វាយឈ្មោះ/ទូរស័ព្ទ ដើម្បីត្រង..." style="width:100%;margin-bottom:8px;" value="${escapeHtml(custPickerSearch)}" oninput="onDebtorFilterInput(this.value)">
+          <div id="debtorListContainer" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;">
+            ${renderDebtorListHTML(debtorsCache, custPickerSearch)}
+          </div>` : `
           <div class="row-inline" style="justify-content:space-between;margin-bottom:8px;">
             <b>អតិថិជន</b>
             <button class="btn small" onclick="toggleNewCust()">+ អតិថិជនថ្មី</button>
@@ -1579,7 +1605,7 @@ async function renderPOS(c){
               <input class="inp" id="newCustLoc" placeholder="ទីតាំង" style="flex:1;min-width:120px">
               <button class="btn accent small" onclick="saveNewCustomer()">រក្សាទុក</button>
             </div>
-          </div>
+          </div>`}
         </div>
 
         ${docType!=='payment_request' ? `
@@ -1752,7 +1778,7 @@ function renderProdList(){
 
 function setDocType(t){
   if(editingDocId){ alert('សូមបោះបង់ការកែសម្រួលមុននឹងប្តូរប្រភេទឯកសារ'); return; }
-  if(t==='payment_request' || docType==='payment_request'){ cart = []; }
+  if(t==='payment_request' || docType==='payment_request'){ cart = []; custPickerSearch = ''; }
   docType = t; renderPOS(document.getElementById('content'));
 }
 function toggleDebtInvoice(invoiceId, docNo, balance, isChecked){
@@ -1979,6 +2005,28 @@ function selectCustomerFromSuggestion(id){
 function clearSelectedCustomer(){
   selectedCustomer = null;
   if(docType==='payment_request') cart = [];
+  renderPOS(document.getElementById('content'));
+}
+function renderDebtorListHTML(debtors, search){
+  if(debtors.length===0) return `<p class="empty" style="padding:14px 0;">មិនមានអតិថិជនជាប់ជំពាក់ទេ</p>`;
+  const q = (search||'').trim().toLowerCase();
+  const filtered = debtors.filter(deb=>!q || (deb.name||'').toLowerCase().includes(q) || (deb.phone||'').toLowerCase().includes(q));
+  if(filtered.length===0) return `<p class="empty" style="padding:14px 0;">រកមិនឃើញ</p>`;
+  return filtered.map(deb=>`
+    <div class="row-inline" style="justify-content:space-between;border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;cursor:pointer;${selectedCustomer?.id===deb.customer_id?'border-color:var(--danger);background:var(--paper-dim);':''}" onclick="selectDebtorCustomer('${deb.customer_id}')">
+      <span style="font-size:13px;"><b>${escapeHtml(deb.name||'')}</b>${deb.phone?' — '+escapeHtml(deb.phone):''}<br><span style="font-size:11px;color:var(--ink-muted);">${deb.count} វិក្កយបត្រ</span></span>
+      <b style="color:var(--danger);">$${deb.total.toFixed(2)}</b>
+    </div>`).join('');
+}
+function onDebtorFilterInput(val){
+  custPickerSearch = val;
+  const container = document.getElementById('debtorListContainer');
+  if(container) container.innerHTML = renderDebtorListHTML(window._debtorsCache || [], val);
+}
+function selectDebtorCustomer(customerId){
+  const cu = customersCache.find(c=>c.id===customerId);
+  selectedCustomer = cu || null;
+  cart = [];
   renderPOS(document.getElementById('content'));
 }
 document.addEventListener('click', (e)=>{
