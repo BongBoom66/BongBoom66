@@ -643,7 +643,7 @@ const DOC_LABELS = {
   invoice: {title:'វិក្កយបត្រ / Invoice', short:'INV'},
   quotation: {title:'សម្រង់តម្លៃ / Quotation', short:'QUO'},
   delivery: {title:'ប័ណ្ណដឹកជញ្ជូន / Delivery Note', short:'DEL'},
-  payment_request: {title:'លិខិតស្នើសុំទូទាត់បំណុល / Payment Request', short:'PR'}
+  payment_request: {title:'លិខិតស្នើសុំទូទាត់ / Payment Request', short:'PR'}
 };
 
 /* ================= AUTH ================= */
@@ -2327,7 +2327,6 @@ function buildInvoiceHTML(doc, items){
         <div><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
         <div><b>លេខទូរស័ព្ទ</b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
       </div>
-      ${doc.doc_type==='payment_request' ? `<p style="font-size:10pt;margin:2mm 0;">សូមអញ្ជើញលោក/លោកស្រី មេត្តាមកទូទាត់ប្រាក់ដែលនៅជំពាក់លើវិក្កយបត្រខាងក្រោមនេះ។ សូមអរគុណ។</p>` : ''}
       <table class="inv-table">
         <thead><tr>
           <th style="width:32px">ល.រ</th><th>ឈ្មោះ</th><th style="width:55px">ចំនួន</th><th style="width:60px">ឯកតា</th>
@@ -2346,12 +2345,16 @@ function buildInvoiceHTML(doc, items){
           </table>
         </div>`: (!isLastPage ? `<div style="font-size:9pt;color:#666;align-self:flex-end;">សូមមើលទំព័របន្ទាប់សម្រាប់សរុប...</div>` : '')}
       </div>
-      ${isLastPage ? `
+      ${isLastPage ? (doc.doc_type==='payment_request' ? `
+      <div class="inv-sign">
+        <div><div class="name">អ្នកប្រគល់</div></div>
+        <div><div class="name">អ្នកទទួល</div></div>
+      </div>` : `
       <div class="inv-sign">
         <div><div class="name">អតិថិជន</div></div>
         <div><div class="name">អ្នកដឹកជញ្ជូន</div></div>
         <div><div class="name">អ្នកលក់</div></div>
-      </div>` : ''}
+      </div>`) : ''}
     </div>`;
   };
 
