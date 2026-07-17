@@ -1546,6 +1546,28 @@ async function renderPOS(c){
     }
   }
 
+  let customerPastItemsCache = [];
+  if(docType!=='payment_request' && selectedCustomer?.id){
+    const {data: custDocs} = await sb.from('documents').select('id, doc_date')
+      .eq('doc_type','invoice').eq('customer_id', selectedCustomer.id)
+      .order('doc_date', {ascending:false}).limit(20);
+    const docIds = (custDocs||[]).map(d=>d.id);
+    if(docIds.length){
+      const {data: pastCustItems} = await sb.from('document_items').select('document_id, item_name, qty, unit, unit_price, product_id').in('document_id', docIds);
+      const orderIndex = {};
+      (custDocs||[]).forEach((d,idx)=>{ orderIndex[d.id]=idx; });
+      const seen = {};
+      (pastCustItems||[]).forEach(it=>{
+        const idx = orderIndex[it.document_id];
+        if(!(it.item_name in seen) || idx < seen[it.item_name].idx){
+          seen[it.item_name] = {idx, name:it.item_name, qty:Number(it.qty), unit:it.unit, price:Number(it.unit_price), product_id:it.product_id};
+        }
+      });
+      customerPastItemsCache = Object.values(seen).sort((a,b)=>a.idx-b.idx);
+    }
+  }
+  window._customerPastItemsCache = customerPastItemsCache;
+
   const showPrice = docType !== 'delivery';
   const showDeposit = docType === 'invoice';
 
@@ -1643,6 +1665,14 @@ async function renderPOS(c){
           <div class="row-inline" style="justify-content:space-between;margin-top:8px;background:var(--paper-dim);padding:8px 10px;border-radius:8px;">
             <span style="font-size:13px;">✓ ${cCode(selectedCustomer)} — <b>${escapeHtml(selectedCustomer.name)}</b>${selectedCustomer.phone?' — '+escapeHtml(selectedCustomer.phone):''}${selectedCustomer.location?' — '+escapeHtml(selectedCustomer.location):''}</span>
             <button class="btn small" onclick="clearSelectedCustomer()">✕</button>
+          </div>`:''}
+          ${selectedCustomer && customerPastItemsCache.length>0 ? `
+          <div style="margin-top:10px;">
+            <p style="margin:0 0 6px;font-size:12px;color:var(--ink-muted);">ទំនិញធ្លាប់ទិញ — ចុចដើម្បីបន្ថែមចូលកន្ត្រក់</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              ${customerPastItemsCache.map(it=>`
+              <button class="btn small" style="border-color:var(--spark);" onclick="addPastItemToCart('${it.name.replace(/'/g,"\\'")}')" title="${escapeHtml(it.qty+' '+(it.unit||'')+' — $'+it.price.toFixed(2))}">+ ${escapeHtml(it.name)}</button>`).join('')}
+            </div>
           </div>`:''}
           <div id="newCustBox" style="display:none;margin-top:10px;">
             <div class="row-inline">
@@ -1957,6 +1987,16 @@ function addManualItem(){
   if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
   cart.push({product_id:null, name, unit, price, qty});
   customItemsCache[name] = {unit, unit_price:price};
+  renderPOS(document.getElementById('content'));
+}
+function addPastItemToCart(name){
+  const it = (window._customerPastItemsCache||[]).find(x=>x.name===name);
+  if(!it) return;
+  if(it.product_id){ addToCart(it.product_id); return; }
+  const existing = cart.find(c=>!c.product_id && c.name===name);
+  if(existing){ existing.qty += it.qty || 1; }
+  else{ cart.push({product_id:null, name, unit:it.unit, price:it.price, qty: it.qty || 1}); }
+  customItemsCache[name] = {unit: it.unit, unit_price: it.price};
   renderPOS(document.getElementById('content'));
 }
 function updateQty(i, val){
