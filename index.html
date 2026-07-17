@@ -4279,8 +4279,8 @@ async function renderReports(c){
               <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:16px;">
                 <div style="width:${(p.revenue/maxProductRevenue*100).toFixed(0)}%;background:linear-gradient(90deg, #c3a8e8, #f2a154);height:100%;border-radius:6px;"></div>
               </div>
-              <div style="width:55px;text-align:right;font-size:11px;color:var(--ink-muted);white-space:nowrap;">x${p.qty}</div>
-              <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;">$${p.revenue.toFixed(2)}</div>
+              <div style="width:55px;text-align:right;font-size:11px;color:var(--ink-muted);white-space:nowrap;flex:none;">x${fmtQty(p.qty)}</div>
+              <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;flex:none;">$${p.revenue.toFixed(2)}</div>
             </div>
           </div>`).join('')}
       </div>
@@ -4306,11 +4306,11 @@ async function renderReports(c){
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
             <div class="row-inline" style="gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f2a154;display:inline-block;"></span><b style="font-size:13px;">Custom Size</b></div>
-            <p style="font-size:12px;color:var(--ink-muted);margin:2px 0 0 18px;">$${customRevenue.toFixed(2)} • ${customCount} ជួរ • x${customQty}</p>
+            <p style="font-size:12px;color:var(--ink-muted);margin:2px 0 0 18px;">$${customRevenue.toFixed(2)} • ${customCount} ជួរ • x${fmtQty(customQty)}</p>
           </div>
           <div>
             <div class="row-inline" style="gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#3fa9dc;display:inline-block;"></span><b style="font-size:13px;">ស្តុក (List)</b></div>
-            <p style="font-size:12px;color:var(--ink-muted);margin:2px 0 0 18px;">$${catalogRevenue.toFixed(2)} • ${catalogCount} ជួរ • x${catalogQty}</p>
+            <p style="font-size:12px;color:var(--ink-muted);margin:2px 0 0 18px;">$${catalogRevenue.toFixed(2)} • ${catalogCount} ជួរ • x${fmtQty(catalogQty)}</p>
           </div>
         </div>
       </div>
@@ -4327,8 +4327,8 @@ async function renderReports(c){
             <div style="flex:1;background:var(--report-track,#f0eee6);border-radius:6px;overflow:hidden;height:18px;">
               <div style="width:${(cat.revenue/maxCategoryRevenue*100).toFixed(0)}%;background:${CAT_COLORS[i%CAT_COLORS.length]};height:100%;border-radius:6px;"></div>
             </div>
-            <div style="width:55px;text-align:right;font-size:11px;color:var(--ink-muted);">x${cat.qty}</div>
-            <div style="width:70px;text-align:right;font-size:12px;font-weight:700;">$${cat.revenue.toFixed(2)}</div>
+            <div style="width:55px;text-align:right;font-size:11px;color:var(--ink-muted);white-space:nowrap;flex:none;">x${fmtQty(cat.qty)}</div>
+            <div style="width:70px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap;flex:none;">$${cat.revenue.toFixed(2)}</div>
           </div>`).join('')}
       </div>
     </div>`:''}
@@ -5300,6 +5300,9 @@ async function downloadBackup(){
 /* ================= HELPERS ================= */
 function pCode(p){ return p.code && p.code.trim() ? p.code : 'P'+String(p.seq||0).padStart(4,'0'); }
 function cCode(c){ return c.code && c.code.trim() ? c.code : 'C'+String(c.seq||0).padStart(4,'0'); }
+function fmtQty(n){
+  return Number((Number(n)||0).toFixed(2));
+}
 function escapeHtml(s){
   if(s===null||s===undefined) return '';
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
