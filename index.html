@@ -736,6 +736,7 @@ function showApp(){
   loadLocations();
   loadShopInfo();
   loadCardLayouts();
+  loadBarcodeLabelSettings();
   if(isOwner()) document.getElementById('arrangeModeBtn').style.display = 'inline-block';
   renderNav();
   renderPage();
@@ -2521,6 +2522,44 @@ function toggleTransferHistory(){
   if(icon) icon.textContent = transferHistOpen ? '▲' : '▼';
 }
 let stockSearchQuery = '';
+
+/* ---- Barcode label print settings (size + paper type) ---- */
+let barcodeLabelSettings = {width:60, height:60, paper:'a5'};
+let barcodeLabelSettingsOpen = false;
+async function loadBarcodeLabelSettings(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','barcode_label_settings').single();
+    if(data?.value) barcodeLabelSettings = {...barcodeLabelSettings, ...JSON.parse(data.value)};
+  }catch(e){}
+}
+function toggleBarcodeLabelSettings(){
+  barcodeLabelSettingsOpen = !barcodeLabelSettingsOpen;
+  const box = document.getElementById('barcodeLabelSettingsContent');
+  const icon = document.getElementById('barcodeLabelSettingsToggleIcon');
+  if(box) box.style.display = barcodeLabelSettingsOpen ? 'block' : 'none';
+  if(icon) icon.textContent = barcodeLabelSettingsOpen ? '▲' : '▼';
+}
+async function saveBarcodeLabelSettings(){
+  const w = parseFloat(document.getElementById('blsWidth').value) || 60;
+  const h = parseFloat(document.getElementById('blsHeight').value) || 60;
+  const paper = document.getElementById('blsPaper').value;
+  barcodeLabelSettings = {width:w, height:h, paper};
+  await sb.from('app_settings').upsert({key:'barcode_label_settings', value: JSON.stringify(barcodeLabelSettings)});
+  alert('រក្សាទុកការកំណត់ស្លាកបារកូដរួចរាល់');
+}
+function setPrintPageSize(wMm, hMm, marginMm){
+  let styleEl = document.getElementById('dynamicPageSizeStyle');
+  if(!styleEl){
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamicPageSizeStyle';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = `@page{ size:${wMm}mm ${hMm}mm; margin:${marginMm}mm; }`;
+}
+function clearPrintPageSize(){
+  const styleEl = document.getElementById('dynamicPageSizeStyle');
+  if(styleEl) styleEl.remove();
+}
 async function renderStock(c){
   if(locationsCache.length===0) await loadLocations();
   await loadStockMap(currentLocationId);
@@ -2620,6 +2659,34 @@ async function renderStock(c){
         </table>
       </div>
     </div>` : ''}
+    <div class="card" data-card-key="stock_barcode_settings" style="padding:10px 16px;">
+      <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="toggleBarcodeLabelSettings()">
+        <b style="font-size:14px;">🏷️ ការកំណត់ទំហំ & ក្រដាស់ស្លាកបារកូដ</b>
+        <span id="barcodeLabelSettingsToggleIcon">${barcodeLabelSettingsOpen?'▲':'▼'}</span>
+      </div>
+      <div id="barcodeLabelSettingsContent" style="display:${barcodeLabelSettingsOpen?'block':'none'};margin-top:10px;">
+        <p style="margin:0 0 8px;font-size:12px;color:var(--ink-muted);">កំណត់ទំហំស្លាក (mm) និងប្រភេទក្រដាស់ដែលនឹងប្រើពេលបោះពុម្ព — អនុវត្តទាំងស្លាកតែមួយ និងស្លាកច្រើនក្នុងពេលតែមួយ</p>
+        <div class="row-inline">
+          <div style="flex:1;min-width:100px;">
+            <label style="font-size:11px;color:var(--ink-muted);">ទទឹងស្លាក (mm)</label>
+            <input class="inp" id="blsWidth" type="number" step="1" min="10" value="${barcodeLabelSettings.width}" style="width:100%;margin-top:2px;">
+          </div>
+          <div style="flex:1;min-width:100px;">
+            <label style="font-size:11px;color:var(--ink-muted);">កម្ពស់ស្លាក (mm)</label>
+            <input class="inp" id="blsHeight" type="number" step="1" min="10" value="${barcodeLabelSettings.height}" style="width:100%;margin-top:2px;">
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <label style="font-size:11px;color:var(--ink-muted);">ប្រភេទក្រដាស់ (សម្រាប់បោះពុម្ពច្រើន)</label>
+            <select class="inp" id="blsPaper" style="width:100%;margin-top:2px;">
+              <option value="a5" ${barcodeLabelSettings.paper==='a5'?'selected':''}>A5 (សន្លឹក — ច្រើនស្លាក/ទំព័រ)</option>
+              <option value="a4" ${barcodeLabelSettings.paper==='a4'?'selected':''}>A4 (សន្លឹក — ច្រើនស្លាក/ទំព័រ)</option>
+              <option value="roll" ${barcodeLabelSettings.paper==='roll'?'selected':''}>ស្លាករមូរ (Roll — មួយស្លាកម្តងៗ)</option>
+            </select>
+          </div>
+          <button class="btn accent" style="align-self:flex-end;" onclick="saveBarcodeLabelSettings()">រក្សាទុក</button>
+        </div>
+      </div>
+    </div>
     <div class="card" data-card-key="stock_filters">
       <div class="row-inline">
         <input class="inp" id="stockSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:2;min-width:180px" value="${escapeHtml(stockSearchQuery)}" oninput="onStockSearchInput(this.value)">
@@ -2766,23 +2833,40 @@ function printSelectedBarcodeLabels(){
   if(prods.length===0){ alert('ទំនិញដែលបានជ្រើសរើសមិនមានបារកូដទេ'); return; }
   document.getElementById('printArea').innerHTML = ''; // clear any stale invoice content
   const area = document.getElementById('barcodeLabelPrintArea');
+  const w = barcodeLabelSettings.width, h = barcodeLabelSettings.height;
+  const paper = barcodeLabelSettings.paper || 'a5';
 
-  const PER_PAGE = 6; // 2 columns x 3 rows — safely fits one A5 page with margin for error
-  const pages = [];
-  for(let i=0; i<prods.length; i+=PER_PAGE){ pages.push(prods.slice(i, i+PER_PAGE)); }
-
-  area.innerHTML = pages.map((pageProds, pi)=>`
-    <div class="label-page" style="width:138mm;height:200mm;overflow:hidden;box-sizing:border-box;padding:3mm;font-size:0;${pi<pages.length-1?'page-break-after:always;':''}">
-      ${pageProds.map((p,localI)=>{
-        const globalI = pi*PER_PAGE + localI;
-        return `
-        <div style="display:inline-block;width:48%;margin:0 1% 3mm;vertical-align:top;box-sizing:border-box;padding:3mm;font-size:8.5pt;font-family:'Noto Sans Khmer',sans-serif;text-align:center;border:0.2mm dashed #ccc;">
-          <div style="font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
-          <svg id="bulkBarcodeSvg_${globalI}"></svg>
-          <div style="font-weight:700;margin-top:1mm;">$${Number(p.price).toFixed(2)}</div>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
+  if(paper==='roll'){
+    setPrintPageSize(w, h, 0);
+    area.innerHTML = prods.map((p,i)=>`
+      <div style="width:${w}mm;height:${h}mm;padding:2mm;box-sizing:border-box;font-family:'Noto Sans Khmer',sans-serif;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;${i<prods.length-1?'page-break-after:always;':''}">
+        <div style="font-size:9pt;font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(p.name)}</div>
+        <svg id="bulkBarcodeSvg_${i}"></svg>
+        <div style="font-size:9pt;font-weight:700;margin-top:1mm;">$${Number(p.price).toFixed(2)}</div>
+      </div>`).join('');
+  } else {
+    const pageW = paper==='a4' ? 210 : 148;
+    const pageH = paper==='a4' ? 297 : 210;
+    const usableW = pageW - 10, usableH = pageH - 10;
+    const cols = Math.max(1, Math.floor(usableW / w));
+    const rows = Math.max(1, Math.floor(usableH / h));
+    const perPage = cols * rows;
+    setPrintPageSize(pageW, pageH, 5);
+    const pages = [];
+    for(let i=0; i<prods.length; i+=perPage){ pages.push(prods.slice(i, i+perPage)); }
+    area.innerHTML = pages.map((pageProds, pi)=>`
+      <div class="label-page" style="width:${usableW}mm;height:${usableH}mm;overflow:hidden;box-sizing:border-box;font-size:0;${pi<pages.length-1?'page-break-after:always;':''}">
+        ${pageProds.map((p,localI)=>{
+          const globalI = pi*perPage + localI;
+          return `
+          <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:${w}mm;height:${h}mm;vertical-align:top;box-sizing:border-box;padding:2mm;font-size:8.5pt;font-family:'Noto Sans Khmer',sans-serif;text-align:center;border:0.2mm dashed #ccc;">
+            <div style="font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(p.name)}</div>
+            <svg id="bulkBarcodeSvg_${globalI}"></svg>
+            <div style="font-weight:700;margin-top:1mm;">$${Number(p.price).toFixed(2)}</div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+  }
   area.style.display = 'block';
   try{
     prods.forEach((p,i)=>{
@@ -2792,6 +2876,7 @@ function printSelectedBarcodeLabels(){
     alert('មិនអាចបង្កើតបារកូដបានទេ៖ '+e.message);
     area.style.display = 'none';
     area.innerHTML = '';
+    clearPrintPageSize();
     return;
   }
   const overlay = document.getElementById('viewModalOverlay');
@@ -2802,6 +2887,7 @@ function printSelectedBarcodeLabels(){
     setTimeout(()=>{
       area.style.display = 'none';
       area.innerHTML = '';
+      clearPrintPageSize();
       if(wasOverlayOpen) overlay.style.display = 'flex';
     }, 500);
   }, 150);
@@ -2811,9 +2897,10 @@ function printBarcodeLabel(productId){
   if(!p || !p.barcode){ alert('ផលិតផលនេះមិនទាន់មានបារកូដទេ'); return; }
   document.getElementById('printArea').innerHTML = ''; // clear any stale invoice content
   const area = document.getElementById('barcodeLabelPrintArea');
+  const w = barcodeLabelSettings.width, h = barcodeLabelSettings.height;
   area.innerHTML = `
-    <div style="width:60mm;padding:4mm;box-sizing:border-box;font-family:'Noto Sans Khmer',sans-serif;text-align:center;margin:0 auto;">
-      <div style="font-size:9pt;font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+    <div style="width:${w}mm;height:${h}mm;padding:2mm;box-sizing:border-box;font-family:'Noto Sans Khmer',sans-serif;text-align:center;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <div style="font-size:9pt;font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${escapeHtml(p.name)}</div>
       <svg id="barcodeSvgLabel"></svg>
       <div style="font-size:9pt;font-weight:700;margin-top:1mm;">$${Number(p.price).toFixed(2)}</div>
     </div>`;
@@ -2826,6 +2913,7 @@ function printBarcodeLabel(productId){
     area.innerHTML = '';
     return;
   }
+  setPrintPageSize(w, h, 0);
   const overlay = document.getElementById('viewModalOverlay');
   const wasOverlayOpen = overlay && overlay.style.display !== 'none';
   if(wasOverlayOpen) overlay.style.display = 'none';
@@ -2834,6 +2922,7 @@ function printBarcodeLabel(productId){
     setTimeout(()=>{
       area.style.display = 'none';
       area.innerHTML = '';
+      clearPrintPageSize();
       if(wasOverlayOpen) overlay.style.display = 'flex';
     }, 500);
   }, 150);
