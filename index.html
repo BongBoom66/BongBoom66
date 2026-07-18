@@ -1896,8 +1896,20 @@ function handleBarcodeScan(code){
   }
   addToCart(p.id);
 }
+function handlePOBarcodeScan(code){
+  code = (code||'').trim();
+  if(!code) return;
+  const p = productsCache.find(x=>x.barcode && x.barcode===code);
+  if(!p){
+    alert(`រកមិនឃើញផលិតផលដែលមានបារកូដ "${code}" ទេ`);
+    return;
+  }
+  addToPOCart(p.id);
+}
 let cameraScanInstance = null;
-function openCameraScan(){
+let cameraScanTarget = 'pos';
+function openCameraScan(target){
+  cameraScanTarget = target || 'pos';
   document.getElementById('cameraScanOverlay').style.display = 'flex';
   const statusEl = document.getElementById('cameraScanStatus');
   statusEl.textContent = 'កំពុងបើក Camera...';
@@ -1908,7 +1920,8 @@ function openCameraScan(){
     (decodedText)=>{
       statusEl.textContent = `រកឃើញ៖ ${decodedText}`;
       closeCameraScan();
-      handleBarcodeScan(decodedText);
+      if(cameraScanTarget==='po') handlePOBarcodeScan(decodedText);
+      else handleBarcodeScan(decodedText);
     },
     ()=>{}
   ).then(()=>{ statusEl.textContent = 'ដាក់បារកូដ/QR ចូលក្នុងស៊ុម'; })
@@ -3287,6 +3300,10 @@ async function renderPurchase(c){
     <div class="grid-2">
       <div>
         <div class="card" data-card-key="purchase_prodlist">
+          <div class="row-inline" style="margin-bottom:8px;">
+            <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
+            <button class="btn accent" onclick="openCameraScan('po')" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
+          </div>
           <div class="row-inline" style="margin-bottom:8px;">
             <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:1;min-width:160px" oninput="renderPOProdList()">
             <select class="inp" id="poProdCatFilter" style="flex:1;min-width:140px" onchange="renderPOProdList()">
