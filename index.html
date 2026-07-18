@@ -737,6 +737,7 @@ function showApp(){
   loadShopInfo();
   loadCardLayouts();
   loadBarcodeLabelSettings();
+  loadPOFxRates();
   if(isOwner()) document.getElementById('arrangeModeBtn').style.display = 'inline-block';
   renderNav();
   renderPage();
@@ -3367,6 +3368,30 @@ let selectedSupplier = null;
 let poHistoryFilter = 'all';
 let poShippingTotal = 0;
 let poShippingMethod = 'value';
+let poCurrency = 'usd'; // 'usd' | 'cny' | 'vnd' — currency this whole PO's costs are entered in
+let poFxRate = 1; // foreign currency units per $1 (only relevant when poCurrency != 'usd')
+let poFxRatesCache = {cny:0, vnd:0}; // last-used rate per currency, remembered across sessions
+async function loadPOFxRates(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','po_fx_rates').single();
+    if(data?.value) poFxRatesCache = {...poFxRatesCache, ...JSON.parse(data.value)};
+  }catch(e){}
+}
+function poCurrencySymbol(){ return poCurrency==='cny' ? '¥' : poCurrency==='vnd' ? '₫' : '$'; }
+function poToUsd(val){ return poCurrency==='usd' ? val : (poFxRate>0 ? val/poFxRate : 0); }
+function usdToPo(val){ return poCurrency==='usd' ? val : val*poFxRate; }
+function setPOCurrency(cur){
+  poCurrency = cur;
+  poFxRate = cur==='usd' ? 1 : (poFxRatesCache[cur] || 0);
+  renderPurchase(document.getElementById('content'));
+}
+async function updatePOFxRate(val){
+  const rate = parseFloat(val) || 0;
+  poFxRate = rate;
+  poFxRatesCache[poCurrency] = rate;
+  await sb.from('app_settings').upsert({key:'po_fx_rates', value: JSON.stringify(poFxRatesCache)});
+  renderPurchase(document.getElementById('content'));
+}
 
 async function renderPurchase(c){
   if(locationsCache.length===0) await loadLocations();
@@ -3386,6 +3411,23 @@ async function renderPurchase(c){
     ${locationSwitcherHTML()}
 
     ${canAccess('purchase_edit') ? `
+    <div class="card" data-card-key="purchase_currency" style="border-color:var(--laser);">
+      <b>រូបិយប័ណ្ណបញ្ជាទិញនេះ</b>
+      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បើវិក្កយបត្រពីអ្នកផ្គត់ផ្គង់ជាបរទេស (ចិន, វៀតណាម) សូមជ្រើសរើសរូបិយប័ណ្ណ និងបញ្ចូលអត្រាប្តូរប្រាក់ជាមុនសិន មុននឹងបញ្ចូលទំនិញខាងក្រោម — ថ្លៃដើមទាំងអស់នឹងគិតជារូបិយប័ណ្ណនេះ ហើយប្រព័ន្ធបម្លែងទៅដុល្លារស្វ័យប្រវត្តិ</p>
+      <div class="row-inline">
+        <select class="inp" id="poCurrencySelect" style="flex:1;min-width:180px" onchange="setPOCurrency(this.value)">
+          <option value="usd" ${poCurrency==='usd'?'selected':''}>💵 ដុល្លារ ($) — ខ្មែរ</option>
+          <option value="cny" ${poCurrency==='cny'?'selected':''}>🇨🇳 យន់ (¥) — ចិន</option>
+          <option value="vnd" ${poCurrency==='vnd'?'selected':''}>🇻🇳 ដុង (₫) — វៀតណាម</option>
+        </select>
+        ${poCurrency!=='usd'?`
+        <div class="row-inline" style="flex:1;min-width:220px;">
+          <span style="font-size:13px;white-space:nowrap;">1 $ =</span>
+          <input class="inp" id="poFxRateInput" type="number" step="0.01" value="${poFxRate||''}" placeholder="អត្រាប្តូរប្រាក់" style="flex:1;" onchange="updatePOFxRate(this.value)">
+          <span style="font-size:13px;white-space:nowrap;">${poCurrencySymbol()}</span>
+        </div>`:''}
+      </div>
+    </div>
     <div class="grid-2">
       <div>
         <div class="card" data-card-key="purchase_prodlist">
@@ -3416,11 +3458,11 @@ async function renderPurchase(c){
               <input class="inp" id="poNewQty" type="number" step="any" value="1" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:100px;">
-              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម $/ឯកតា</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម ${poCurrencySymbol()}/ឯកតា</label>
               <input class="inp" id="poNewBaseCost" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:100px;">
-              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដឹកសរុប $</label>
+              <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដឹកសរុប ${poCurrencySymbol()}</label>
               <input class="inp" id="poNewShipping" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
             </div>
             <div style="flex:1;min-width:90px;">
@@ -3462,7 +3504,7 @@ async function renderPurchase(c){
           <b>ថ្លៃដឹកជញ្ជូនរួម (បែងចែកទៅតាមមុខទំនិញ)</b>
           <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បញ្ចូលថ្លៃដឹកសរុបលើកនេះ ១ដង ជ្រើសរើសវិធីបែងចែក រួចចុច "អនុវត្ត" — ប្រព័ន្ធនឹងបូកចូលទៅតម្លៃចូលរបស់ទំនិញនីមួយៗតាមសមាមាត្រ</p>
           <div class="row-inline">
-            <input class="inp" id="poShippingInput" type="number" step="0.01" placeholder="ថ្លៃដឹកសរុប $" value="${poShippingTotal||''}" style="flex:1;min-width:120px">
+            <input class="inp" id="poShippingInput" type="number" step="0.01" placeholder="ថ្លៃដឹកសរុប ${poCurrencySymbol()}" value="${poShippingTotal||''}" style="flex:1;min-width:120px">
             <select class="inp" id="poShippingMethod" style="flex:1;min-width:160px">
               <option value="value" ${poShippingMethod==='value'?'selected':''}>តាមតម្លៃ (Value)</option>
               <option value="qty" ${poShippingMethod==='qty'?'selected':''}>តាមចំនួន (Qty)</option>
@@ -3478,7 +3520,7 @@ async function renderPurchase(c){
             <table>
               <thead><tr>
                 <th>ល.រ</th><th style="text-align:left">ឈ្មោះ</th><th>ចំនួន</th><th>ឯកតា</th>
-                <th>ថ្លៃដើម</th>
+                <th>ថ្លៃដើម${poCurrency!=='usd'?' ('+poCurrencySymbol()+')':''}</th>
                 ${poShippingMethod==='weight'?'<th>ទម្ងន់/គ្រឿង (Kg)</th>':''}
                 ${poShippingMethod==='volume'?'<th>ម៉ែត្រគូប/គ្រឿង</th>':''}
                 <th>ថ្លៃដឹក/គ្រឿង</th><th>តម្លៃចូលសរុប/គ្រឿង</th><th>សរុប</th><th></th>
@@ -3493,7 +3535,7 @@ async function renderPurchase(c){
                     <td class="left">${escapeHtml(it.name)}</td>
                     <td><input class="inp" style="width:60px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)"></td>
                     <td>${escapeHtml(it.unit||'')}</td>
-                    <td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.baseCost}" onchange="updatePOBaseCost(${i}, this.value)"></td>
+                    <td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)"></td>
                     ${poShippingMethod==='weight'?`<td><input class="inp" style="width:70px;text-align:right" type="number" min="0" step="0.01" value="${it.weight||0}" onchange="updatePOAttr(${i},'weight',this.value)"></td>`:''}
                     ${poShippingMethod==='volume'?`<td><input class="inp" style="width:70px;text-align:right" type="number" min="0" step="0.001" value="${it.volume||0}" onchange="updatePOAttr(${i},'volume',this.value)"></td>`:''}
                     <td>$${(it.shipAlloc||0).toFixed(2)}</td>
@@ -3570,8 +3612,8 @@ function renderPOProdList(){
 
 function recalcPONewCost(){
   const qty = parseFloat(document.getElementById('poNewQty')?.value) || 0;
-  const baseCost = parseFloat(document.getElementById('poNewBaseCost')?.value) || 0;
-  const shipping = parseFloat(document.getElementById('poNewShipping')?.value) || 0;
+  const baseCost = poToUsd(parseFloat(document.getElementById('poNewBaseCost')?.value) || 0);
+  const shipping = poToUsd(parseFloat(document.getElementById('poNewShipping')?.value) || 0);
   const profitPct = parseFloat(document.getElementById('poNewProfitPct')?.value) || 0;
   const shipPerUnit = qty>0 ? shipping/qty : 0;
   const costPerUnit = baseCost + shipPerUnit;
@@ -3609,16 +3651,17 @@ function addToPOCart(pid){
   renderPurchase(document.getElementById('content'));
 }
 function updatePOQty(i, val){ poCart[i].qty = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
-function updatePOBaseCost(i, val){ poCart[i].baseCost = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
+function updatePOBaseCost(i, val){ poCart[i].baseCost = poToUsd(parseFloat(val)||0); renderPurchase(document.getElementById('content')); }
 function updatePOAttr(i, field, val){ poCart[i][field] = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(it.baseCost+(it.shipAlloc||0)),0); }
 
 function applyShippingAllocation(){
-  const total = parseFloat(document.getElementById('poShippingInput').value) || 0;
+  const totalRaw = parseFloat(document.getElementById('poShippingInput').value) || 0;
+  const total = poToUsd(totalRaw);
   const method = document.getElementById('poShippingMethod').value;
-  poShippingTotal = total;
+  poShippingTotal = totalRaw;
   poShippingMethod = method;
   if(poCart.length===0){ alert('សូមបន្ថែមទំនិញជាមុនសិន'); return; }
 
@@ -3695,7 +3738,7 @@ async function savePO(){
   }
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
-  poCart=[]; selectedSupplier=null; poShippingTotal=0;
+  poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1;
   renderPurchase(document.getElementById('content'));
 }
 
