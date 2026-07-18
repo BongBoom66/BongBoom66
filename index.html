@@ -3460,6 +3460,12 @@ async function renderPurchase(c){
             <div style="flex:1;min-width:100px;">
               <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម ${poCurrencySymbol()}/ឯកតា</label>
               <input class="inp" id="poNewBaseCost" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
+              <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:10.5px;color:var(--spark-dim);padding:2px 0 0;" onclick="togglePONewWeightCalc()">⚖️ ពីទំងន់</button>
+              ${poNewWeightCalcOpen?`
+              <div style="display:flex;flex-direction:column;gap:3px;margin-top:2px;">
+                <input class="inp" id="poNewTotalWeight" style="width:100%;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" oninput="calcPONewWeightCost()">
+                <input class="inp" id="poNewPricePerKg" style="width:100%;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" oninput="calcPONewWeightCost()">
+              </div>`:''}
             </div>
             <div style="flex:1;min-width:100px;">
               <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដឹកសរុប ${poCurrencySymbol()}</label>
@@ -3535,7 +3541,15 @@ async function renderPurchase(c){
                     <td class="left">${escapeHtml(it.name)}</td>
                     <td><input class="inp" style="width:60px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)"></td>
                     <td>${escapeHtml(it.unit||'')}</td>
-                    <td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)"></td>
+                    <td>
+                      <input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">
+                      <div><button type="button" style="border:none;background:transparent;cursor:pointer;font-size:10.5px;color:var(--spark-dim);padding:0;" onclick="togglePOWeightCalc(${i})">⚖️ ពីទំងន់</button></div>
+                      ${it.wcMode?`
+                      <div style="display:flex;flex-direction:column;gap:3px;margin-top:2px;">
+                        <input class="inp" style="width:80px;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
+                        <input class="inp" style="width:80px;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
+                      </div>`:''}
+                    </td>
                     ${poShippingMethod==='weight'?`<td><input class="inp" style="width:70px;text-align:right" type="number" min="0" step="0.01" value="${it.weight||0}" onchange="updatePOAttr(${i},'weight',this.value)"></td>`:''}
                     ${poShippingMethod==='volume'?`<td><input class="inp" style="width:70px;text-align:right" type="number" min="0" step="0.001" value="${it.volume||0}" onchange="updatePOAttr(${i},'volume',this.value)"></td>`:''}
                     <td>$${(it.shipAlloc||0).toFixed(2)}</td>
@@ -3610,6 +3624,17 @@ function renderPOProdList(){
     </table>`;
 }
 
+let poNewWeightCalcOpen = false;
+function togglePONewWeightCalc(){ poNewWeightCalcOpen = !poNewWeightCalcOpen; renderPurchase(document.getElementById('content')); }
+function calcPONewWeightCost(){
+  const qty = parseFloat(document.getElementById('poNewQty')?.value) || 0;
+  const totalWeight = parseFloat(document.getElementById('poNewTotalWeight')?.value) || 0;
+  const pricePerKg = parseFloat(document.getElementById('poNewPricePerKg')?.value) || 0;
+  if(qty>0 && totalWeight>0 && pricePerKg>0){
+    document.getElementById('poNewBaseCost').value = ((totalWeight*pricePerKg)/qty).toFixed(2);
+  }
+  recalcPONewCost();
+}
 function recalcPONewCost(){
   const qty = parseFloat(document.getElementById('poNewQty')?.value) || 0;
   const baseCost = poToUsd(parseFloat(document.getElementById('poNewBaseCost')?.value) || 0);
@@ -3640,6 +3665,7 @@ async function addNewPOProduct(){
 
   productsCache.push(newProd);
   poCart.push({product_id:newProd.id, name:newProd.name, unit:newProd.unit, baseCost:costPerUnit, shipAlloc:0, weight:0, volume:0, qty});
+  poNewWeightCalcOpen = false;
   renderPurchase(document.getElementById('content'));
 }
 function addToPOCart(pid){
@@ -3653,8 +3679,20 @@ function addToPOCart(pid){
 function updatePOQty(i, val){ poCart[i].qty = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
 function updatePOBaseCost(i, val){ poCart[i].baseCost = poToUsd(parseFloat(val)||0); renderPurchase(document.getElementById('content')); }
 function updatePOAttr(i, field, val){ poCart[i][field] = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
+function togglePOWeightCalc(i){ poCart[i].wcMode = !poCart[i].wcMode; renderPurchase(document.getElementById('content')); }
+function updatePOWeightCalc(i, field, val){
+  const it = poCart[i];
+  it[field] = parseFloat(val)||0;
+  const totalWeight = it.wcTotalWeight||0;
+  const pricePerKg = it.wcPricePerKg||0;
+  if(it.qty>0 && totalWeight>0 && pricePerKg>0){
+    it.baseCost = poToUsd((totalWeight*pricePerKg)/it.qty);
+    it.weight = totalWeight/it.qty; // reuse for weight-based shipping allocation too
+  }
+  renderPurchase(document.getElementById('content'));
+}
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(it.baseCost+(it.shipAlloc||0)),0); }
 
 function applyShippingAllocation(){
