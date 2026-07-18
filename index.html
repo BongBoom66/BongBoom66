@@ -2594,10 +2594,14 @@ async function renderStock(c){
         <input class="inp" id="pName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:160px" value="${editProd?escapeHtml(editProd.name):''}">
         ${categorySelectHTML('pCategory', editProd?(editProd.category||''):'')}
         ${unitSelectHTML('pUnit', editProd?editProd.unit:'')}
-        <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃ $" style="flex:1;min-width:100px" value="${editProd?Number(editProd.price):''}">
+        <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃលក់ $" style="flex:1;min-width:100px" value="${editProd?Number(editProd.price):''}">
         <input class="inp" id="pQty" type="number" step="any" placeholder="ចំនួនស្តុក (ទីតាំងបច្ចុប្បន្ន)" style="flex:1;min-width:160px" value="${editProd?getStockFor(editProd.id):''}">
         ${(editProd ? canAccess('stock_edit') : canAccess('stock_add')) ? `<button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>` : ''}
         ${editProd?`<button class="btn small" onclick="cancelEditProduct()">✕ បោះបង់</button>`:''}
+      </div>
+      <div class="row-inline" style="margin-top:8px;">
+        <input class="inp" id="pWeight" type="number" step="0.01" placeholder="ទំងន់/ឯកតា Kg (ស្រេចចិត្ត — សម្រាប់គណនាបញ្ជាទិញតាមទំងន់)" style="flex:1;min-width:160px" value="${editProd&&editProd.weight?Number(editProd.weight):''}">
+        <input class="inp" id="pCostPrice" type="number" step="0.01" placeholder="តម្លៃទិញចូលចុងក្រោយ $/ឯកតា (ស្រេចចិត្ត)" style="flex:1;min-width:160px" value="${editProd&&editProd.cost_price?Number(editProd.cost_price):''}">
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="pBarcode" placeholder="បារកូដ (ស្រេចចិត្ត — ស្កេន ឬវាយផ្ទាល់)" style="flex:2;min-width:180px" value="${editProd?escapeHtml(editProd.barcode||''):''}">
@@ -2798,16 +2802,18 @@ async function addProduct(){
   const unit = getUnitValue('pUnit');
   const price = parseFloat(document.getElementById('pPrice').value)||0;
   const qty = parseFloat(document.getElementById('pQty').value)||0;
+  const weight = parseFloat(document.getElementById('pWeight')?.value) || null;
+  const cost_price = parseFloat(document.getElementById('pCostPrice')?.value) || null;
   const barcodeEl = document.getElementById('pBarcode');
   const barcode = barcodeEl ? (barcodeEl.value.trim() || null) : null;
   if(!name || !unit){ alert('សូមបញ្ចូលឈ្មោះ និងឯកតា'); return; }
   let productId = editingProductId;
   if(editingProductId){
-    const {error} = await sb.from('products').update({code, name, category, unit, price, barcode}).eq('id', editingProductId);
+    const {error} = await sb.from('products').update({code, name, category, unit, price, weight, cost_price, barcode}).eq('id', editingProductId);
     if(error){ alert(error.message); return; }
     editingProductId = null;
   } else {
-    const {data, error} = await sb.from('products').insert({code, name, category, unit, price, stock_qty:0, barcode}).select().single();
+    const {data, error} = await sb.from('products').insert({code, name, category, unit, price, weight, cost_price, stock_qty:0, barcode}).select().single();
     if(error){ alert(error.message); return; }
     productId = data.id;
   }
@@ -3680,11 +3686,14 @@ async function addNewPOProduct(){
   if(!name || !unit){ alert('សូមបញ្ចូលឈ្មោះ និងឯកតា'); return; }
   if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
 
-  const {data: newProd, error} = await sb.from('products').insert({name, category, unit, price, stock_qty:0}).select().single();
+  const totalWeight = poNewWeightCalcOpen ? (parseFloat(document.getElementById('poNewTotalWeight')?.value) || 0) : 0;
+  const weightPerUnit = totalWeight>0 ? totalWeight/qty : null;
+
+  const {data: newProd, error} = await sb.from('products').insert({name, category, unit, price, weight:weightPerUnit, cost_price:costPerUnit, stock_qty:0}).select().single();
   if(error){ alert('មិនអាចបង្កើតទំនិញថ្មីបានទេ៖ '+error.message); return; }
 
   productsCache.push(newProd);
-  poCart.push({product_id:newProd.id, name:newProd.name, unit:newProd.unit, baseCost:costPerUnit, shipAlloc:0, weight:0, volume:0, qty});
+  poCart.push({product_id:newProd.id, name:newProd.name, unit:newProd.unit, baseCost:costPerUnit, shipAlloc:0, weight:weightPerUnit||0, volume:0, qty});
   poNewWeightCalcOpen = false;
   renderPurchase(document.getElementById('content'));
 }
@@ -3692,8 +3701,20 @@ function addToPOCart(pid){
   const p = productsCache.find(x=>x.id===pid);
   if(!p) return;
   const existing = poCart.find(c=>c.product_id===pid);
-  if(existing){ existing.qty += 1; }
-  else{ poCart.push({product_id:p.id, name:p.name, unit:p.unit, baseCost:Number(p.price), shipAlloc:0, weight:0, volume:0, qty:1}); }
+  if(existing){
+    existing.qty += 1;
+    if(existing.wcMode) existing.wcTotalWeight = existing.qty * (existing.weight||0);
+  } else {
+    const knownWeight = Number(p.weight) || 0;
+    const knownCost = Number(p.cost_price) || Number(p.price) || 0;
+    const item = {product_id:p.id, name:p.name, unit:p.unit, baseCost:knownCost, shipAlloc:0, weight:knownWeight, volume:0, qty:1};
+    if(knownWeight>0){
+      item.wcMode = true;
+      item.wcTotalWeight = knownWeight;
+      item.wcPricePerKg = knownCost>0 ? usdToPo(knownCost)/knownWeight : 0;
+    }
+    poCart.push(item);
+  }
   renderPurchase(document.getElementById('content'));
 }
 function updatePOQty(i, val){ poCart[i].qty = parseFloat(val)||0; renderPurchase(document.getElementById('content')); }
@@ -3793,6 +3814,14 @@ async function savePO(){
   if(itemsErr){
     alert('បញ្ហាធ្ងន់ធ្ងរ៖ បញ្ជាទិញលេខ '+po.po_no+' បានរក្សាទុករួច ប៉ុន្តែធាតុទំនិញរក្សាទុកមិនបានទេ៖ '+itemsErr.message+' — សូមចូលកែបញ្ជាទិញនេះឡើងវិញ');
     return;
+  }
+
+  // Remember each product's latest weight/cost so the next PO auto-fills without retyping
+  for(const it of poCart){
+    if(!it.product_id) continue;
+    const patch = {cost_price: it.baseCost};
+    if(it.weight>0) patch.weight = it.weight;
+    await sb.from('products').update(patch).eq('id', it.product_id);
   }
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
