@@ -3287,7 +3287,13 @@ async function renderPurchase(c){
     <div class="grid-2">
       <div>
         <div class="card" data-card-key="purchase_prodlist">
-          <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="width:100%;margin-bottom:8px;" oninput="renderPOProdList()">
+          <div class="row-inline" style="margin-bottom:8px;">
+            <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:1;min-width:160px" oninput="renderPOProdList()">
+            <select class="inp" id="poProdCatFilter" style="flex:1;min-width:140px" onchange="renderPOProdList()">
+              <option value="">-- គ្រប់ប្រភេទ --</option>
+              ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
+            </select>
+          </div>
           <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:260px;overflow-y:auto;"></div>
         </div>
         <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
@@ -3436,7 +3442,8 @@ async function renderPurchase(c){
 
 function renderPOProdList(){
   const q = (document.getElementById('poProdSearch')?.value || '').toLowerCase();
-  const filtered = productsCache.filter(p => p.name.toLowerCase().includes(q));
+  const cat = document.getElementById('poProdCatFilter')?.value || '';
+  const filtered = productsCache.filter(p => p.name.toLowerCase().includes(q) && (!cat || p.category===cat));
   const el = document.getElementById('poProdList');
   if(!el) return;
   el.innerHTML = `
