@@ -1833,9 +1833,9 @@ async function renderPOS(c){
 }
 
 function renderProdList(){
-  const q = (document.getElementById('prodSearch')?.value || '').toLowerCase();
+  const q = normText(document.getElementById('prodSearch')?.value || '');
   const cat = document.getElementById('prodCatFilter')?.value || '';
-  const filtered = productsCache.filter(p => p.name.toLowerCase().includes(q) && (!cat || p.category===cat));
+  const filtered = productsCache.filter(p => normText(p.name).includes(q) && (!cat || p.category===cat));
   const el = document.getElementById('prodList');
   if(!el) return;
   el.innerHTML = `
@@ -2069,15 +2069,15 @@ function onCustPickerSearch(val){
   custPickerSearch = val;
   const box = document.getElementById('custSuggestions');
   if(!box) return;
-  const q = val.trim().toLowerCase();
+  const q = normText(val.trim());
   let matches;
   if(!q){
     matches = customersCache.slice(0, 20);
   } else {
     matches = customersCache.filter(cu=>
-      cu.name.toLowerCase().includes(q) ||
-      (cu.phone||'').toLowerCase().includes(q) ||
-      (cu.location||'').toLowerCase().includes(q)
+      normText(cu.name).includes(q) ||
+      normText(cu.phone||'').includes(q) ||
+      normText(cu.location||'').includes(q)
     ).slice(0, 20);
   }
   if(matches.length===0){
@@ -2111,8 +2111,8 @@ function clearSelectedCustomer(){
 }
 function renderDebtorListHTML(debtors, search){
   if(debtors.length===0) return `<p class="empty" style="padding:14px 0;">មិនមានអតិថិជនជាប់ជំពាក់ទេ</p>`;
-  const q = (search||'').trim().toLowerCase();
-  const filtered = debtors.filter(deb=>!q || (deb.name||'').toLowerCase().includes(q) || (deb.phone||'').toLowerCase().includes(q));
+  const q = normText((search||'').trim());
+  const filtered = debtors.filter(deb=>!q || normText(deb.name||'').includes(q) || normText(deb.phone||'').includes(q));
   if(filtered.length===0) return `<p class="empty" style="padding:14px 0;">រកមិនឃើញ</p>`;
   return filtered.map(deb=>`
     <div class="row-inline" style="justify-content:space-between;border:1px solid var(--paper-dim);border-radius:8px;padding:8px 10px;cursor:pointer;${selectedCustomer?.id===deb.customer_id?'border-color:var(--danger);background:var(--paper-dim);':''}" onclick="selectDebtorCustomer('${deb.customer_id}')">
@@ -2145,11 +2145,11 @@ async function saveNewCustomer(){
   if(!name && !phone){ alert('សូមបញ្ចូលឈ្មោះ ឬយ៉ាងតិចលេខទូរស័ព្ទ'); return; }
   const finalName = name || phone;
   const dup = customersCache.find(cu =>
-    cu.name.trim().toLowerCase()===finalName.toLowerCase() ||
+    normText(cu.name.trim())===normText(finalName) ||
     (phone && cu.phone && cu.phone.trim()===phone)
   );
   if(dup){
-    const matchedOn = dup.name.trim().toLowerCase()===finalName.toLowerCase() ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
+    const matchedOn = normText(dup.name.trim())===normText(finalName) ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
     if(!confirm(`អតិថិជន "${dup.name}" (${cCode(dup)}) មាន${matchedOn}ដូចគ្នារួចហើយ។ អ្នកចង់បន្ថែមជាអតិថិជនថ្មីទៀតឬទេ? (ចុច "បោះបង់" ដើម្បីជ្រើសរើសអតិថិជនចាស់វិញ)`)) return;
   }
   const {data, error} = await sb.from('customers').insert({name:finalName, phone, location:loc}).select().single();
@@ -2578,7 +2578,7 @@ async function renderStock(c){
 
   const filtered = productsCache.filter(p=>{
     const matchCat = !stockCategoryFilter || p.category===stockCategoryFilter;
-    const matchSearch = !stockSearchQuery || p.name.toLowerCase().includes(stockSearchQuery.toLowerCase());
+    const matchSearch = !stockSearchQuery || normText(p.name).includes(normText(stockSearchQuery));
     return matchCat && matchSearch;
   });
 
@@ -2753,7 +2753,7 @@ function cancelEditProduct(){
 function applyStockFilter(){
   const filtered = productsCache.filter(p=>{
     const matchCat = !stockCategoryFilter || p.category===stockCategoryFilter;
-    const matchSearch = !stockSearchQuery || p.name.toLowerCase().includes(stockSearchQuery.toLowerCase());
+    const matchSearch = !stockSearchQuery || normText(p.name).includes(normText(stockSearchQuery));
     return matchCat && matchSearch;
   });
   const wrap = document.getElementById('stockTableWrap');
@@ -3048,12 +3048,12 @@ async function renderCustomers(c){
   const {data: custs} = await sb.from('customers').select('*').order('seq');
   customersCache = custs || [];
   const editCust = editingCustomerId ? customersCache.find(cu=>cu.id===editingCustomerId) : null;
-  const q = customerSearchQuery.toLowerCase();
+  const q = normText(customerSearchQuery);
   const filtered = customersCache.filter(cu =>
-    cu.name.toLowerCase().includes(q) ||
-    (cu.phone||'').toLowerCase().includes(q) ||
-    (cu.location||'').toLowerCase().includes(q) ||
-    cCode(cu).toLowerCase().includes(q)
+    normText(cu.name).includes(q) ||
+    normText(cu.phone||'').includes(q) ||
+    normText(cu.location||'').includes(q) ||
+    normText(cCode(cu)).includes(q)
   );
 
   c.innerHTML = `
@@ -3112,12 +3112,12 @@ function renderCustomerRows(filtered){
 }
 function onCustomerSearchInput(val){
   customerSearchQuery = val;
-  const q = val.toLowerCase();
+  const q = normText(val);
   const filtered = customersCache.filter(cu =>
-    cu.name.toLowerCase().includes(q) ||
-    (cu.phone||'').toLowerCase().includes(q) ||
-    (cu.location||'').toLowerCase().includes(q) ||
-    cCode(cu).toLowerCase().includes(q)
+    normText(cu.name).includes(q) ||
+    normText(cu.phone||'').includes(q) ||
+    normText(cu.location||'').includes(q) ||
+    normText(cCode(cu)).includes(q)
   );
   const tbody = document.getElementById('custTableBody');
   if(tbody) tbody.innerHTML = renderCustomerRows(filtered);
@@ -3340,11 +3340,11 @@ async function addCustomer(){
     editingCustomerId = null;
   } else {
     const dup = customersCache.find(cu =>
-      cu.name.trim().toLowerCase()===finalName.toLowerCase() ||
+      normText(cu.name.trim())===normText(finalName) ||
       (phone && cu.phone && cu.phone.trim()===phone)
     );
     if(dup){
-      const matchedOn = dup.name.trim().toLowerCase()===finalName.toLowerCase() ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
+      const matchedOn = normText(dup.name.trim())===normText(finalName) ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
       if(!confirm(`អតិថិជន "${dup.name}" (${cCode(dup)}) មាន${matchedOn}ដូចគ្នារួចហើយ។ អ្នកចង់បន្ថែមជាអតិថិជនថ្មីទៀតឬទេ?`)) return;
     }
     const {error} = await sb.from('customers').insert({name:finalName, phone, location:loc});
@@ -3629,9 +3629,9 @@ async function renderPurchase(c){
 }
 
 function renderPOProdList(){
-  const q = (document.getElementById('poProdSearch')?.value || '').toLowerCase();
+  const q = normText(document.getElementById('poProdSearch')?.value || '');
   const cat = document.getElementById('poProdCatFilter')?.value || '';
-  const filtered = productsCache.filter(p => p.name.toLowerCase().includes(q) && (!cat || p.category===cat));
+  const filtered = productsCache.filter(p => normText(p.name).includes(q) && (!cat || p.category===cat));
   const el = document.getElementById('poProdList');
   if(!el) return;
   el.innerHTML = `
@@ -3945,12 +3945,12 @@ async function renderHistory(c){
 }
 function setHistoryPaymentFilter(v){ historyPaymentFilter = v; renderHistory(document.getElementById('content')); }
 function filterHistoryDocs(docs, query){
-  const q = (query||'').toLowerCase().trim();
+  const q = normText((query||'').trim());
   if(!q) return docs;
   return docs.filter(d =>
-    (d.doc_no||'').toLowerCase().includes(q) ||
-    (d.customer_name||'').toLowerCase().includes(q) ||
-    (d.customer_phone||'').toLowerCase().includes(q)
+    normText(d.doc_no||'').includes(q) ||
+    normText(d.customer_name||'').includes(q) ||
+    normText(d.customer_phone||'').includes(q)
   );
 }
 function renderHistoryRows(docs){
@@ -5549,6 +5549,13 @@ function fmtQty(n){
 function escapeHtml(s){
   if(s===null||s===undefined) return '';
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+// Khmer (and other) text can be typed via different keyboards/IMEs that produce
+// Unicode-equivalent but byte-different sequences for the same visible glyphs
+// (e.g. coeng/vowel diacritic ordering) — normalize before comparing so search
+// isn't silently defeated by encoding differences the user can't see.
+function normText(s){
+  return (s===null||s===undefined?'':String(s)).normalize('NFC').toLowerCase();
 }
 
 checkSession();
