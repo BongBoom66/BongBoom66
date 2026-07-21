@@ -1748,7 +1748,7 @@ async function renderPOS(c){
               <thead><tr>
                 <th style="width:28px;">ល.រ</th><th style="text-align:left;width:auto;">ឈ្មោះ</th>
                 ${docType!=='payment_request'?'<th style="width:75px;">ចំនួន</th><th style="width:55px;">ឯកតា</th>':''}
-                ${showPrice?(docType==='payment_request'?'<th style="width:100px;">ទឹកប្រាក់ជំពាក់</th>':'<th style="width:90px;">តម្លៃរាយ</th><th style="width:85px;">តម្លៃសរុប</th>'):''}
+                ${showPrice?(docType==='payment_request'?'<th style="width:100px;">ទឹកប្រាក់ជំពាក់</th>':'<th style="width:120px;">តម្លៃរាយ</th><th style="width:95px;">តម្លៃសរុប</th>'):''}
                 <th style="width:36px;"></th>
               </tr></thead>
               <tbody>
@@ -1768,7 +1768,7 @@ async function renderPOS(c){
                     ${docType!=='payment_request' ? `
                     <td><input class="inp" style="width:65px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onchange="updateQty(${i}, this.value)"></td>
                     <td style="cursor:pointer;">${escapeHtml(it.unit||'')}</td>` : ''}
-                    ${showPrice?(docType==='payment_request' ? `<td style="text-align:right;font-weight:700;color:var(--danger);">$${it.price.toFixed(2)}</td>` : `<td><input class="inp" style="width:80px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`):''}
+                    ${showPrice?(docType==='payment_request' ? `<td style="text-align:right;font-weight:700;color:var(--danger);">$${it.price.toFixed(2)}</td>` : `<td><input class="inp" style="width:110px;text-align:right" type="number" min="0" step="0.01" value="${it.price}" onchange="updatePrice(${i}, this.value)"></td><td style="cursor:pointer;">$${(it.qty*it.price).toFixed(2)}</td>`):''}
                     <td><button class="btn small danger" onclick="removeItem(${i})">✕</button></td>
                   </tr>`).join('')}
               </tbody>
