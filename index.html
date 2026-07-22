@@ -2381,6 +2381,9 @@ function buildInvoiceHTML(doc, items){
   const showPrice = doc.doc_type !== 'delivery';
   const showDeposit = doc.doc_type === 'invoice';
   const hideQtyUnit = doc.doc_type === 'payment_request';
+  // Header row color distinguishes doc type at a glance: Invoice stays the
+  // original blue; Quotation reuses the "ខ្វះ" green; Delivery reuses the "កក់" orange.
+  const headerBg = doc.doc_type==='quotation' ? '#DAF2D0' : doc.doc_type==='delivery' ? '#FBE2D5' : '#A6C9EC';
   const d = new Date(doc.doc_date);
   const pad2 = n => String(n).padStart(2,'0');
   const dateStr = `${pad2(d.getDate())} ខែ ${pad2(d.getMonth()+1)} ឆ្នាំ ${d.getFullYear()}`;
@@ -2431,9 +2434,9 @@ function buildInvoiceHTML(doc, items){
       </div>
       <table class="inv-table">
         <thead><tr>
-          <th style="width:32px">ល.រ</th><th>ឈ្មោះ</th>
-          ${!hideQtyUnit?'<th style="width:55px">ចំនួន</th><th style="width:60px">ឯកតា</th>':''}
-          ${showPrice?(hideQtyUnit?'<th style="width:110px">ចំនួនទឹកប្រាក់</th>':'<th style="width:80px">តម្លៃរាយ</th><th style="width:90px">តម្លៃសរុប</th>'):''}
+          <th style="width:32px;background:${headerBg};">ល.រ</th><th style="background:${headerBg};">ឈ្មោះ</th>
+          ${!hideQtyUnit?`<th style="width:55px;background:${headerBg};">ចំនួន</th><th style="width:60px;background:${headerBg};">ឯកតា</th>`:''}
+          ${showPrice?(hideQtyUnit?`<th style="width:110px;background:${headerBg};">ចំនួនទឹកប្រាក់</th>`:`<th style="width:80px;background:${headerBg};">តម្លៃរាយ</th><th style="width:90px;background:${headerBg};">តម្លៃសរុប</th>`):''}
         </tr></thead>
         <tbody>${rows}${emptyRows}</tbody>
       </table>
