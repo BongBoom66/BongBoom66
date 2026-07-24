@@ -4031,7 +4031,8 @@ function renderHistoryRows(docs){
 }
 async function resetQuotationProcessing(id){
   if(!confirm('សម្រង់តម្លៃនេះជាប់គាំងក្នុងស្ថានភាព "កំពុងធ្វើ Invoice" (ប្រហែលជាបានចាកចេញដោយមិនទាន់រក្សាទុក Invoice)។ ដាក់មកវិញជា "រង់ចាំ" ដើម្បីអាចជ្រើសរើសបានម្តងទៀត?')) return;
-  await sb.from('documents').update({status:null}).eq('id', id);
+  const {error} = await sb.from('documents').update({status:'pending'}).eq('id', id);
+  if(error){ alert('មិនអាចដាក់មកវិញបានទេ៖ '+error.message); return; }
   renderHistory(document.getElementById('content'));
 }
 function toggleLinkQuotation(invoiceId){
