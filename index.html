@@ -300,8 +300,9 @@
   .inv-totals tr.row-deposit td:first-child{background:#FBE2D5;}
   .inv-totals tr.row-balance td:first-child{background:#DAF2D0;}
   .inv-sign{display:flex;justify-content:space-between;margin-top:auto;padding-top:3mm;text-align:center;font-size:10pt;}
-  .inv-sign div{flex:1;}
-  .inv-sign .name{margin:22px auto 0;border-top:1px solid #000;padding-top:4px;width:36mm;}
+  .inv-sign>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-height:20mm;}
+  .inv-sign .name{margin:0 auto;border-top:1px solid #000;padding-top:4px;width:36mm;}
+  .inv-sign .sig-img{max-height:15mm;max-width:34mm;object-fit:contain;margin-bottom:2px;}
 
   /* ---------- DARK MODE ---------- */
   body.dark-mode{ --paper:#1a1e1e; --paper-dim:#2a302f; --ink:#e8ecec; --ink-muted:#8a9694; --good:#7bd6a0; --danger:#f29b9b; }
@@ -2501,8 +2502,8 @@ function buildInvoiceHTML(doc, items){
         <div><div class="name">អតិថិជន</div></div>
         <div><div class="name">អ្នកដឹកជញ្ជូន</div></div>
         <div>
-          ${sellerSignatureUrl ? `<img src="${sellerSignatureUrl}" style="height:18mm;max-width:34mm;object-fit:contain;">` : ''}
-          <div class="name" style="${sellerSignatureUrl?'margin-top:0;':''}">អ្នកលក់</div>
+          ${sellerSignatureUrl ? `<img src="${sellerSignatureUrl}" class="sig-img">` : ''}
+          <div class="name">អ្នកលក់</div>
         </div>
       </div>`) : ''}
     </div>`;
