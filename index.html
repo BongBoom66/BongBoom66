@@ -1185,7 +1185,8 @@ let shopInfo = {
   desc1: 'ហាងយើងខ្ញុំមានលក់ ប៊ូឡុង អុីណុក ស្កាន់ អាលុយមីញ៉ូម ដែក ជ័រ តំណភ្ជាប់ គ្រឿងទឹកអុីណុក ដែក',
   desc2: 'មានទទួលកាត់សន្លឹក ដោយម៉ាស៊ីន CNC Fiber Laser',
   phone: '011 373 378',
-  logoUrl: ''
+  logoUrl: '',
+  signatureUrl: ''
 };
 async function loadShopInfo(){
   try{
@@ -1322,6 +1323,30 @@ async function removeShopLogo(){
   applyShopInfoToUI();
   renderSettings(document.getElementById('content'));
 }
+let pendingSignatureDataUrl = null;
+function onShopSignatureFileSelected(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 500*1024){
+    document.getElementById('shopSignatureStatus').textContent = 'រូបភាពធំពេក (អតិបរមា 500KB) សូមជ្រើសរើសរូបតូចជាងនេះ';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingSignatureDataUrl = e.target.result;
+    document.getElementById('shopSignatureStatus').textContent = 'រូបភាពរួចរាល់! ចុច "រក្សាទុក" ខាងក្រោមដើម្បីអនុវត្ត';
+  };
+  reader.readAsDataURL(file);
+}
+async function removeShopSignature(){
+  if(!confirm('លុបហត្ថលេខានេះ?')) return;
+  pendingSignatureDataUrl = '';
+  const newInfo = Object.assign({}, shopInfo, {signatureUrl:''});
+  await sb.from('app_settings').upsert({key:'shop_info', value: JSON.stringify(newInfo)});
+  shopInfo = newInfo;
+  applyShopInfoToUI();
+  renderSettings(document.getElementById('content'));
+}
 async function saveShopInfo(){
   const statusEl = document.getElementById('shopInfoStatus');
   const newInfo = {
@@ -1331,13 +1356,15 @@ async function saveShopInfo(){
     phone: document.getElementById('shopPhoneInput').value.trim(),
     desc1: document.getElementById('shopDesc1Input').value.trim(),
     desc2: document.getElementById('shopDesc2Input').value.trim(),
-    logoUrl: pendingLogoDataUrl !== null ? pendingLogoDataUrl : (shopInfo.logoUrl || '')
+    logoUrl: pendingLogoDataUrl !== null ? pendingLogoDataUrl : (shopInfo.logoUrl || ''),
+    signatureUrl: pendingSignatureDataUrl !== null ? pendingSignatureDataUrl : (shopInfo.signatureUrl || '')
   };
   if(!newInfo.name || !newInfo.nameShort){ statusEl.textContent = 'សូមបញ្ចូលឈ្មោះហាង'; return; }
   const {error} = await sb.from('app_settings').upsert({key:'shop_info', value: JSON.stringify(newInfo)});
   if(error){ statusEl.textContent = 'មានបញ្ហា៖ '+error.message; return; }
   shopInfo = newInfo;
   pendingLogoDataUrl = null;
+  pendingSignatureDataUrl = null;
   applyShopInfoToUI();
   statusEl.textContent = 'រក្សាទុកជោគជ័យ!';
   renderSettings(document.getElementById('content'));
@@ -2459,7 +2486,10 @@ function buildInvoiceHTML(doc, items){
       <div class="inv-sign">
         <div><div class="name">អតិថិជន</div></div>
         <div><div class="name">អ្នកដឹកជញ្ជូន</div></div>
-        <div><div class="name">អ្នកលក់</div></div>
+        <div>
+          ${shopInfo.signatureUrl ? `<img src="${shopInfo.signatureUrl}" style="height:18mm;max-width:34mm;object-fit:contain;">` : ''}
+          <div class="name" style="${shopInfo.signatureUrl?'margin-top:0;':''}">អ្នកលក់</div>
+        </div>
       </div>`) : ''}
     </div>`;
   };
@@ -5092,6 +5122,18 @@ async function renderSettings(c){
         <div style="text-align:center;">
           <img src="${shopInfo.logoUrl}" style="height:50px;width:50px;object-fit:contain;border:1px solid var(--paper-dim);border-radius:8px;padding:4px;">
           <div><button class="btn small" style="margin-top:4px;" onclick="removeShopLogo()">✕ លុប Logo</button></div>
+        </div>`:''}
+      </div>
+      <div class="row-inline" style="margin-top:8px;align-items:flex-start;">
+        <div style="flex:1;min-width:220px;">
+          <label style="font-size:12px;color:var(--ink-muted);">ហត្ថលេខាអ្នកលក់ (បង្ហាញលើ Invoice/Quotation/Delivery)</label>
+          <input type="file" accept="image/*" id="shopSignatureFile" style="width:100%;margin-top:4px;" onchange="onShopSignatureFileSelected(event)">
+          <p id="shopSignatureStatus" style="font-size:11px;color:var(--ink-muted);margin-top:4px;"></p>
+        </div>
+        ${shopInfo.signatureUrl ? `
+        <div style="text-align:center;">
+          <img src="${shopInfo.signatureUrl}" style="height:50px;max-width:90px;object-fit:contain;border:1px solid var(--paper-dim);border-radius:8px;padding:4px;">
+          <div><button class="btn small" style="margin-top:4px;" onclick="removeShopSignature()">✕ លុបហត្ថលេខា</button></div>
         </div>`:''}
       </div>
       <button class="btn accent small" style="margin-top:10px;" onclick="saveShopInfo()">រក្សាទុក</button>
