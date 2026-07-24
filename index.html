@@ -735,6 +735,7 @@ function showApp(){
   loadOwnCategories();
   loadLocations();
   loadShopInfo();
+  loadProfileSignatures();
   loadCardLayouts();
   loadBarcodeLabelSettings();
   loadPOFxRates();
@@ -1210,6 +1211,17 @@ function applyShopInfoToUI(){
     if(shopInfo.logoUrl){ logoEl.src = shopInfo.logoUrl; logoEl.style.display = 'block'; }
     else { logoEl.style.display = 'none'; }
   }
+}
+let profileSignatures = {}; // profile id -> signature_url
+async function loadProfileSignatures(){
+  try{
+    const {data} = await sb.from('profiles').select('id, signature_url');
+    profileSignatures = {};
+    (data||[]).forEach(p=>{ profileSignatures[p.id] = p.signature_url || ''; });
+  }catch(e){ /* keep whatever was loaded before */ }
+}
+function sellerSignatureFor(createdBy){
+  return (createdBy && profileSignatures[createdBy]) || shopInfo.signatureUrl || '';
 }
 let settingsSubPage = null;
 function openSettingsSub(key){ settingsSubPage = key; renderSettings(document.getElementById('content')); window.scrollTo(0,0); }
@@ -2374,7 +2386,8 @@ function previewCurrentDocument(){
     customer_phone: selectedCustomer?.phone || '',
     customer_location: selectedCustomer?.location || '',
     doc_date: new Date().toISOString().slice(0,10),
-    subtotal: sub, deposit: dep, balance: bal
+    subtotal: sub, deposit: dep, balance: bal,
+    created_by: currentProfile.id
   };
   openViewModalDirect(previewDoc, cart, true);
 }
@@ -2411,6 +2424,7 @@ function buildInvoiceHTML(doc, items){
   // Header row color distinguishes doc type at a glance: Invoice stays the
   // original blue; Quotation reuses the "ខ្វះ" green; Delivery reuses the "កក់" orange.
   const headerBg = doc.doc_type==='quotation' ? '#DAF2D0' : doc.doc_type==='delivery' ? '#FBE2D5' : '#A6C9EC';
+  const sellerSignatureUrl = sellerSignatureFor(doc.created_by);
   const d = new Date(doc.doc_date);
   const pad2 = n => String(n).padStart(2,'0');
   const dateStr = `${pad2(d.getDate())} ខែ ${pad2(d.getMonth()+1)} ឆ្នាំ ${d.getFullYear()}`;
@@ -2487,8 +2501,8 @@ function buildInvoiceHTML(doc, items){
         <div><div class="name">អតិថិជន</div></div>
         <div><div class="name">អ្នកដឹកជញ្ជូន</div></div>
         <div>
-          ${shopInfo.signatureUrl ? `<img src="${shopInfo.signatureUrl}" style="height:18mm;max-width:34mm;object-fit:contain;">` : ''}
-          <div class="name" style="${shopInfo.signatureUrl?'margin-top:0;':''}">អ្នកលក់</div>
+          ${sellerSignatureUrl ? `<img src="${sellerSignatureUrl}" style="height:18mm;max-width:34mm;object-fit:contain;">` : ''}
+          <div class="name" style="${sellerSignatureUrl?'margin-top:0;':''}">អ្នកលក់</div>
         </div>
       </div>`) : ''}
     </div>`;
@@ -4959,6 +4973,22 @@ async function renderMyAccount(c){
       <p id="myProfileStatus" style="font-size:12px;color:var(--ink-muted);margin-top:6px;"></p>
     </div>
     <div class="card">
+      <b>ហត្ថលេខាផ្ទាល់ខ្លួន</b>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:6px;">បង្ហាញលើ Invoice/Quotation/Delivery ដែលបងជាអ្នកបង្កើត — បើមិនទាន់ Upload ប្រព័ន្ធនឹងប្រើហត្ថលេខាទូទៅរបស់ហាងជំនួសវិញ</p>
+      <div class="row-inline" style="margin-top:8px;align-items:flex-start;">
+        <div style="flex:1;min-width:220px;">
+          <input type="file" accept="image/*" id="mySignatureFile" style="width:100%;" onchange="onMySignatureFileSelected(event)">
+          <p id="mySignatureStatus" style="font-size:11px;color:var(--ink-muted);margin-top:4px;"></p>
+          <button class="btn accent small" style="margin-top:8px;" onclick="saveMySignature()">រក្សាទុកហត្ថលេខា</button>
+        </div>
+        ${currentProfile.signature_url ? `
+        <div style="text-align:center;">
+          <img src="${currentProfile.signature_url}" style="height:50px;max-width:90px;object-fit:contain;border:1px solid var(--paper-dim);border-radius:8px;padding:4px;">
+          <div><button class="btn small" style="margin-top:4px;" onclick="removeMySignature()">✕ លុបហត្ថលេខា</button></div>
+        </div>`:''}
+      </div>
+    </div>
+    <div class="card">
       <b>ប្តូរលេខសម្ងាត់</b>
       <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">ទុកទទេបើមិនចង់ប្តូរ — លេខសម្ងាត់ជាលេខ 4 ខ្ទង់</p>
       <div class="row-inline">
@@ -4979,6 +5009,41 @@ async function saveMyProfile(){
   currentProfile.full_name = name;
   document.getElementById('whoLabel').textContent = name;
   statusEl.textContent = 'រក្សាទុកជោគជ័យ!';
+}
+let pendingMySignatureDataUrl = null;
+function onMySignatureFileSelected(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 500*1024){
+    document.getElementById('mySignatureStatus').textContent = 'រូបភាពធំពេក (អតិបរមា 500KB) សូមជ្រើសរើសរូបតូចជាងនេះ';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingMySignatureDataUrl = e.target.result;
+    document.getElementById('mySignatureStatus').textContent = 'រូបភាពរួចរាល់! ចុច "រក្សាទុកហត្ថលេខា" ដើម្បីអនុវត្ត';
+  };
+  reader.readAsDataURL(file);
+}
+async function saveMySignature(){
+  const statusEl = document.getElementById('mySignatureStatus');
+  if(pendingMySignatureDataUrl===null){ statusEl.textContent = 'សូមជ្រើសរើសរូបភាពជាមុន'; return; }
+  const {error} = await sb.from('profiles').update({signature_url: pendingMySignatureDataUrl}).eq('id', currentProfile.id);
+  if(error){ statusEl.textContent = 'មានបញ្ហា៖ '+error.message; return; }
+  currentProfile.signature_url = pendingMySignatureDataUrl;
+  profileSignatures[currentProfile.id] = pendingMySignatureDataUrl;
+  pendingMySignatureDataUrl = null;
+  statusEl.textContent = 'រក្សាទុកជោគជ័យ!';
+  renderMyAccount(document.getElementById('content'));
+}
+async function removeMySignature(){
+  if(!confirm('លុបហត្ថលេខានេះ?')) return;
+  const {error} = await sb.from('profiles').update({signature_url:''}).eq('id', currentProfile.id);
+  if(error){ document.getElementById('mySignatureStatus').textContent = 'មានបញ្ហា៖ '+error.message; return; }
+  currentProfile.signature_url = '';
+  profileSignatures[currentProfile.id] = '';
+  pendingMySignatureDataUrl = null;
+  renderMyAccount(document.getElementById('content'));
 }
 async function saveMyPassword(){
   const p1 = document.getElementById('myNewPass').value;
