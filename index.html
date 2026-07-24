@@ -4011,6 +4011,7 @@ function renderHistoryRows(docs){
                   ? `<button class="btn small" style="border-color:var(--danger);color:var(--danger);" onclick="setDeliveryStatus('${d.id}', 'pending')">លុបសម្គាល់ដឹក</button>`
                   : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="setDeliveryStatus('${d.id}', 'delivered')">សម្គាល់ដឹករួច</button>`) : ''}
                 ${canAccess('history_edit') && d.doc_type==='invoice' && !d.source_doc_id ? `<button class="btn small" style="border-color:var(--laser);color:#6a4fb0;" onclick="toggleLinkQuotation('${d.id}')">ភ្ជាប់ Quotation</button>` : ''}
+                ${canAccess('history_edit') && d.doc_type==='quotation' && d.status==='processing' ? `<button class="btn small" style="border-color:var(--danger);color:var(--danger);" onclick="resetQuotationProcessing('${d.id}')">ដាក់មកវិញ (រង់ចាំ)</button>` : ''}
               </td>
             </tr>
             ${d.doc_type==='invoice' && !d.source_doc_id ? `
@@ -4027,6 +4028,11 @@ function renderHistoryRows(docs){
                 </div>
               </td>
             </tr>` : ''}`).join('');
+}
+async function resetQuotationProcessing(id){
+  if(!confirm('សម្រង់តម្លៃនេះជាប់គាំងក្នុងស្ថានភាព "កំពុងធ្វើ Invoice" (ប្រហែលជាបានចាកចេញដោយមិនទាន់រក្សាទុក Invoice)។ ដាក់មកវិញជា "រង់ចាំ" ដើម្បីអាចជ្រើសរើសបានម្តងទៀត?')) return;
+  await sb.from('documents').update({status:null}).eq('id', id);
+  renderHistory(document.getElementById('content'));
 }
 function toggleLinkQuotation(invoiceId){
   const row = document.getElementById('linkQuoRow_'+invoiceId);
