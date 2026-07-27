@@ -721,6 +721,7 @@ function showApp(){
   loadDarkMode();
   loadFontScale();
   loadFontStyle();
+  loadPrintFontStyle();
   loadOwnCategories();
   loadLocations();
   loadShopInfo();
@@ -1300,6 +1301,17 @@ async function setFontStyle(fontId){
   appFontStyle = fontId;
   applyFontStyle();
   await sb.from('app_settings').upsert({key:'app_font_style', value: appFontStyle});
+}
+let printFontStyle = 'Noto Sans Khmer';
+async function loadPrintFontStyle(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','print_font_style').single();
+    printFontStyle = data && data.value ? data.value : 'Noto Sans Khmer';
+  }catch(e){ printFontStyle = 'Noto Sans Khmer'; }
+}
+async function setPrintFontStyle(fontId){
+  printFontStyle = fontId;
+  await sb.from('app_settings').upsert({key:'print_font_style', value: printFontStyle});
 }
 let pendingLogoDataUrl = null;
 function onShopLogoFileSelected(event){
@@ -2485,7 +2497,7 @@ function buildInvoiceHTML(doc, items){
       <tr><td class="c">&nbsp;</td><td></td>${!hideQtyUnit?'<td></td><td></td>':''}${showPrice?(hideQtyUnit?'<td></td>':'<td></td><td></td>'):''}</tr>`).join('');
 
     return `
-    <div class="inv-page">
+    <div class="inv-page" style="font-family:'${printFontStyle}','Noto Sans Khmer','Khmer OS',sans-serif;">
       <div class="inv-head">
         ${shopInfo.logoUrl ? `<img src="${shopInfo.logoUrl}" style="max-height:16mm;max-width:40mm;display:block;margin:0 auto 2mm;object-fit:contain;">` : ''}
         <h1>${escapeHtml(shopInfo.nameShort)}</h1>
@@ -5173,6 +5185,18 @@ async function renderSettings(c){
           <div onclick="setFontStyle('${f.id}'); renderSettings(document.getElementById('content'));"
                style="cursor:pointer;padding:12px 10px;border-radius:8px;border:2px solid ${appFontStyle===f.id?'var(--spark)':'var(--paper-dim)'};background:${appFontStyle===f.id?'var(--paper-dim)':'#fff'};text-align:center;">
             <div style="font-family:'${f.id}';font-size:17px;">អក្សរខ្មែរ ABC</div>
+            <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">${f.label}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <b>រចនាប័ទ្មអក្សរលើឯកសារបោះពុម្ព (Invoice/Quotation/Delivery)</b>
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:4px;">ជ្រើសរើសពុម្ពអក្សរដែលមើលច្បាស់បំផុតសម្រាប់ Print — មិនប៉ះពាល់ការបង្ហាញលើទំព័រធម្មតាទេ</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:12px;">
+        ${FONT_STYLES.map(f=>`
+          <div onclick="setPrintFontStyle('${f.id}'); renderSettings(document.getElementById('content'));"
+               style="cursor:pointer;padding:12px 10px;border-radius:8px;border:2px solid ${printFontStyle===f.id?'var(--spark)':'var(--paper-dim)'};background:${printFontStyle===f.id?'var(--paper-dim)':'#fff'};text-align:center;">
+            <div style="font-family:'${f.id}';font-size:15px;">សន្លឹកអ៊ីណុក (304)</div>
             <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">${f.label}</div>
           </div>`).join('')}
       </div>
