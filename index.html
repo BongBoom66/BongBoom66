@@ -3983,13 +3983,35 @@ let historyPaymentFilter = 'all';
 let historySearchQuery = '';
 let historyDateFrom = '';
 let historyDateTo = '';
-function onHistorySearchInput(val){
+let historySearchDebounce = null;
+async function onHistorySearchInput(val){
   historySearchQuery = val;
-  let filtered = filterHistoryDocs(window._historyDocsCache||[], val);
-  if(historyPaymentFilter==='unpaid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)>0.001);
-  else if(historyPaymentFilter==='paid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)<=0.001);
+  clearTimeout(historySearchDebounce);
   const tbody = document.getElementById('historyTableBody');
-  if(tbody) tbody.innerHTML = renderHistoryRows(filtered);
+
+  if(!val.trim()){
+    // empty query -> back to the normal tab-scoped cached view
+    let filtered = filterHistoryDocs(window._historyDocsCache||[], val);
+    if(historyPaymentFilter==='unpaid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)>0.001);
+    else if(historyPaymentFilter==='paid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)<=0.001);
+    if(tbody) tbody.innerHTML = renderHistoryRows(filtered);
+    return;
+  }
+
+  historySearchDebounce = setTimeout(async ()=>{
+    // While searching, look across ALL document types (Invoice/Quotation/Delivery/
+    // Payment Request) regardless of which tab is active — the whole point of typing
+    // a document number is to jump straight to it without hunting through tabs first.
+    let q = sb.from('documents').select('*').order('created_at', {ascending:false});
+    if(historyDateFrom) q = q.gte('doc_date', historyDateFrom);
+    if(historyDateTo) q = q.lte('doc_date', historyDateTo);
+    if(!historyDateFrom && !historyDateTo) q = q.limit(300);
+    const {data: docs} = await q;
+    let filtered = filterHistoryDocs(docs||[], val);
+    if(historyPaymentFilter==='unpaid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)>0.001);
+    else if(historyPaymentFilter==='paid') filtered = filtered.filter(d=>d.doc_type==='invoice' && Number(d.balance)<=0.001);
+    if(tbody) tbody.innerHTML = renderHistoryRows(filtered);
+  }, 250);
 }
 function applyHistoryDateFilter(){
   historyDateFrom = document.getElementById('historyDateFrom').value;
