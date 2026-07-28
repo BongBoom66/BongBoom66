@@ -2552,7 +2552,7 @@ function buildInvoiceHTML(doc, items){
       <div class="inv-cust">
         <div><b>ឈ្មោះអ្នកទទួល</b>${escapeHtml(doc.recipient_name)||'&nbsp;'}</div>
         <div></div>
-        <div><b>លេខទូរស័ព្ទអ្នកទទួល</b>${escapeHtml(doc.recipient_phone)||'&nbsp;'}</div>
+        <div><b>Tel : </b>${escapeHtml(doc.recipient_phone)||'&nbsp;'}</div>
       </div>` : ''}
       ${doc.doc_type==='delivery' && doc.related_invoice_nos ? `<div style="font-size:9.5pt;margin:1px 0 3px;"><b style="font-weight:600;">សម្រាប់វិក្កយបត្រលេខ៖ </b>${escapeHtml(doc.related_invoice_nos)}</div>` : ''}
       <table class="inv-table">
