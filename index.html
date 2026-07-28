@@ -821,6 +821,8 @@ let loadedRelatedInvoiceNos = []; // doc_nos of invoices merged into a delivery 
 let nextDocNoPreview = '';
 let docType = 'invoice';
 let docDateVal = new Date().toISOString().slice(0,10);
+let deliveryRecipientName = '';
+let deliveryRecipientPhone = '';
 let selectedCustomer = null; // {id, name, phone, location} or null for walk-in typed
 let custPickerSearch = '';
 let recallBoxOpen = false;
@@ -1732,6 +1734,16 @@ async function renderPOS(c){
           </div>`}
         </div>
 
+        ${docType==='delivery' ? `
+        <div class="card pos-big-30" style="border-color:var(--spark);" data-card-key="pos_recipient">
+          <b>អ្នកទទួល (បើខុសពីម្ចាស់គណនី)</b>
+          <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">ទុកទទេបើអ្នកទទួលគឺជាអតិថិជនខាងលើផ្ទាល់ — បើបំពេញ លេខទូរស័ព្ទទាំងពីរនឹងបង្ហាញលើប័ណ្ណដឹកជញ្ជូន</p>
+          <div class="row-inline">
+            <input class="inp" id="deliveryRecipientNameInput" placeholder="ឈ្មោះអ្នកទទួល" value="${escapeHtml(deliveryRecipientName)}" oninput="deliveryRecipientName=this.value" style="flex:1;min-width:140px;">
+            <input class="inp" id="deliveryRecipientPhoneInput" placeholder="លេខទូរស័ព្ទអ្នកទទួល" value="${escapeHtml(deliveryRecipientPhone)}" oninput="deliveryRecipientPhone=this.value" style="flex:1;min-width:140px;">
+          </div>
+        </div>` : ''}
+
         ${docType!=='payment_request' ? `
         <div class="card pos-big-30" style="border-color:var(--spark);" data-card-key="pos_manual">
           <b>វាយបញ្ចូលទំនិញផ្ទាល់ (មិនចាំបាច់មានក្នុងស្តុក)</b>
@@ -1928,6 +1940,7 @@ function toggleDebtInvoice(invoiceId, docNo, balance, isChecked){
 function cancelEdit(){
   editingDocId = null; editingDocNo=''; cart = []; depositVal = 0; selectedCustomer = null;
   docDateVal = new Date().toISOString().slice(0,10);
+  deliveryRecipientName=''; deliveryRecipientPhone='';
   renderPOS(document.getElementById('content'));
 }
 
@@ -2307,6 +2320,7 @@ async function saveDocument(shouldPrint){
       subtotal: sub, deposit: dep, balance: bal, payment_method: paymentMethod, bank_name: bankName || null,
       cheque_number: chequeNumber || null,
       payment_currency: paymentCurrency, payment_riel_amount: rielAmountToSave,
+      ...(docType==='delivery' ? {recipient_name: deliveryRecipientName.trim()||null, recipient_phone: deliveryRecipientPhone.trim()||null} : {}),
       ...(loadedRelatedInvoiceNos.length ? {related_invoice_nos: loadedRelatedInvoiceNos.join(', ')} : {})
     }).eq('id', editingDocId).select().single();
     if(error){ alert('មិនអាចរក្សាទុកការកែប្រែ៖ '+error.message); return; }
@@ -2335,6 +2349,7 @@ async function saveDocument(shouldPrint){
     else alert('រក្សាទុកជោគជ័យ! លេខ: ' + doc.doc_no);
     editingDocId=null; editingDocNo=''; cart=[]; depositVal=0; selectedCustomer=null; loadedRelatedInvoiceNos=[];
     docDateVal = new Date().toISOString().slice(0,10);
+    deliveryRecipientName=''; deliveryRecipientPhone='';
     paymentCurrency='usd'; paymentRielAmount=0; chequeNumber='';
     renderPOS(document.getElementById('content'));
     return;
@@ -2373,6 +2388,8 @@ async function saveDocument(shouldPrint){
     customer_location: selectedCustomer?.location || '',
     doc_date: docDateVal,
     subtotal: sub, deposit: dep, balance: bal,
+    recipient_name: docType==='delivery' ? (deliveryRecipientName.trim()||null) : null,
+    recipient_phone: docType==='delivery' ? (deliveryRecipientPhone.trim()||null) : null,
     payment_method: paymentMethod, bank_name: bankName || null,
     cheque_number: chequeNumber || null,
     payment_currency: paymentCurrency, payment_riel_amount: rielAmountToSave,
@@ -2413,6 +2430,7 @@ async function saveDocument(shouldPrint){
   else alert('រក្សាទុកជោគជ័យ! លេខ: ' + doc.doc_no);
   cart=[]; depositVal=0; selectedCustomer=null;
   docDateVal = new Date().toISOString().slice(0,10);
+  deliveryRecipientName=''; deliveryRecipientPhone='';
   paymentCurrency='usd'; paymentRielAmount=0; chequeNumber='';
   renderPOS(document.getElementById('content'));
 }
@@ -2441,6 +2459,8 @@ function previewCurrentDocument(){
     customer_location: selectedCustomer?.location || '',
     doc_date: docDateVal,
     subtotal: sub, deposit: dep, balance: bal,
+    recipient_name: docType==='delivery' ? deliveryRecipientName.trim() : '',
+    recipient_phone: docType==='delivery' ? deliveryRecipientPhone.trim() : '',
     created_by: currentProfile.id,
     related_invoice_nos: loadedRelatedInvoiceNos.length ? loadedRelatedInvoiceNos.join(', ') : null
   };
@@ -2526,8 +2546,14 @@ function buildInvoiceHTML(doc, items){
       <div class="inv-cust">
         <div><b>ឈ្មោះអតិថិជន</b>${escapeHtml(doc.customer_name)||'&nbsp;'}</div>
         <div><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
-        <div><b>លេខទូរស័ព្ទ</b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
+        <div><b>${doc.doc_type==='delivery' && (doc.recipient_name||doc.recipient_phone) ? 'លេខទូរស័ព្ទម្ចាស់' : 'លេខទូរស័ព្ទ'}</b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
       </div>
+      ${doc.doc_type==='delivery' && (doc.recipient_name||doc.recipient_phone) ? `
+      <div class="inv-cust">
+        <div><b>ឈ្មោះអ្នកទទួល</b>${escapeHtml(doc.recipient_name)||'&nbsp;'}</div>
+        <div></div>
+        <div><b>លេខទូរស័ព្ទអ្នកទទួល</b>${escapeHtml(doc.recipient_phone)||'&nbsp;'}</div>
+      </div>` : ''}
       ${doc.doc_type==='delivery' && doc.related_invoice_nos ? `<div style="font-size:9.5pt;margin:1px 0 3px;"><b style="font-weight:600;">សម្រាប់វិក្កយបត្រលេខ៖ </b>${escapeHtml(doc.related_invoice_nos)}</div>` : ''}
       <table class="inv-table">
         <thead><tr>
@@ -4278,6 +4304,8 @@ async function editDocument(docId){
   editingDocId = doc.id;
   editingDocNo = doc.doc_no;
   docDateVal = doc.doc_date || new Date().toISOString().slice(0,10);
+  deliveryRecipientName = doc.recipient_name || '';
+  deliveryRecipientPhone = doc.recipient_phone || '';
 
   activeNav = 'pos';
   renderNav();
