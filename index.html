@@ -2546,7 +2546,7 @@ function buildInvoiceHTML(doc, items){
       <div class="inv-cust">
         <div><b>ឈ្មោះអតិថិជន</b>${escapeHtml(doc.customer_name)||'&nbsp;'}</div>
         <div><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
-        <div><b>${doc.doc_type==='delivery' && (doc.recipient_name||doc.recipient_phone) ? 'លេខទូរស័ព្ទម្ចាស់' : 'លេខទូរស័ព្ទ'}</b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
+        <div><b>Tel : </b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
       </div>
       ${doc.doc_type==='delivery' && (doc.recipient_name||doc.recipient_phone) ? `
       <div class="inv-cust">
