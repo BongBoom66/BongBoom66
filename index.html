@@ -2544,15 +2544,15 @@ function buildInvoiceHTML(doc, items){
         <div class="docno">No. ${doc.doc_no}</div>
       </div>
       <div class="inv-cust">
-        <div><b>ឈ្មោះអតិថិជន</b>${escapeHtml(doc.customer_name)||'&nbsp;'}</div>
-        <div><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
-        <div><b>Tel : </b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
+        <div style="flex:2.4;"><b>ឈ្មោះអតិថិជន</b>${escapeHtml(doc.customer_name)||'&nbsp;'}</div>
+        <div style="flex:1.3;"><b>ទីតាំង</b>${escapeHtml(doc.customer_location)||'&nbsp;'}</div>
+        <div style="flex:1;text-align:right;"><b>Tel : </b>${escapeHtml(doc.customer_phone)||'&nbsp;'}</div>
       </div>
       ${doc.doc_type==='delivery' && (doc.recipient_name||doc.recipient_phone) ? `
       <div class="inv-cust">
-        <div><b>ឈ្មោះអ្នកទទួល</b>${escapeHtml(doc.recipient_name)||'&nbsp;'}</div>
-        <div></div>
-        <div><b>Tel : </b>${escapeHtml(doc.recipient_phone)||'&nbsp;'}</div>
+        <div style="flex:2.4;"><b>ឈ្មោះអ្នកទទួល</b>${escapeHtml(doc.recipient_name)||'&nbsp;'}</div>
+        <div style="flex:1.3;"></div>
+        <div style="flex:1;text-align:right;"><b>Tel : </b>${escapeHtml(doc.recipient_phone)||'&nbsp;'}</div>
       </div>` : ''}
       ${doc.doc_type==='delivery' && doc.related_invoice_nos ? `<div style="font-size:9.5pt;margin:1px 0 3px;"><b style="font-weight:600;">សម្រាប់វិក្កយបត្រលេខ៖ </b>${escapeHtml(doc.related_invoice_nos)}</div>` : ''}
       <table class="inv-table">
