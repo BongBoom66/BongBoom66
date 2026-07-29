@@ -4784,6 +4784,8 @@ function setReportRange(r){ reportRange = r; renderReports(document.getElementBy
 let sharedRevRange = 'month';
 let sharedRevOwnerFilter = 'all';
 let sharedRevReviewFilter = 'unreviewed'; // 'unreviewed' | 'all' | 'reviewed'
+let sharedRevReviewedDateFrom = '';
+let sharedRevReviewedDateTo = '';
 async function renderSharedRevenue(c){
   const today = new Date();
   let startDate;
@@ -4842,7 +4844,18 @@ async function renderSharedRevenue(c){
   const reviewedCount = displayRows.filter(m=>m.doc.shared_revenue_reviewed).length;
 
   if(sharedRevReviewFilter==='unreviewed') displayRows = displayRows.filter(m=>!m.doc.shared_revenue_reviewed);
-  else if(sharedRevReviewFilter==='reviewed') displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed);
+  else if(sharedRevReviewFilter==='reviewed'){
+    displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed);
+    if(sharedRevReviewedDateFrom || sharedRevReviewedDateTo){
+      displayRows = displayRows.filter(m=>{
+        if(!m.doc.shared_revenue_reviewed_at) return false;
+        const d = m.doc.shared_revenue_reviewed_at.slice(0,10);
+        if(sharedRevReviewedDateFrom && d < sharedRevReviewedDateFrom) return false;
+        if(sharedRevReviewedDateTo && d > sharedRevReviewedDateTo) return false;
+        return true;
+      });
+    }
+  }
 
   const filteredTotal = displayRows.reduce((s,m)=>s+m.items.reduce((s2,it)=>s2+it.total,0), 0);
 
@@ -4872,6 +4885,21 @@ async function renderSharedRevenue(c){
         <button class="${sharedRevReviewFilter==='reviewed'?'active invoice':''}" onclick="setSharedRevReviewFilter('reviewed')">ពិនិត្យរួច (${reviewedCount})</button>
         <button class="${sharedRevReviewFilter==='all'?'active invoice':''}" onclick="setSharedRevReviewFilter('all')">ទាំងអស់</button>
       </div>
+      ${sharedRevReviewFilter==='reviewed' ? `
+      <div style="margin-top:12px;">
+        <label style="font-size:12.5px;color:var(--ink-muted);">ត្រងតាមថ្ងៃដែលបានពិនិត្យ</label>
+        <div class="row-inline" style="margin-top:6px;">
+          <button class="btn small" onclick="setSharedRevReviewedToday()">ថ្ងៃនេះ</button>
+          <div style="flex:1;min-width:140px;">
+            <input class="inp" type="date" id="sharedRevReviewedDateFrom" value="${sharedRevReviewedDateFrom}" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <input class="inp" type="date" id="sharedRevReviewedDateTo" value="${sharedRevReviewedDateTo}" style="width:100%;">
+          </div>
+          <button class="btn accent small" onclick="applySharedRevReviewedDateFilter()">អនុវត្ត</button>
+          ${(sharedRevReviewedDateFrom||sharedRevReviewedDateTo) ? `<button class="btn small" onclick="clearSharedRevReviewedDateFilter()">សម្អាត</button>` : ''}
+        </div>
+      </div>` : ''}
     </div>
     ${canAccess('shared_revenue_export') ? `
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:14px;">
@@ -4940,7 +4968,7 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
+              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>${m.doc.shared_revenue_reviewed_at?`<br><span style="font-size:11px;color:var(--ink-muted);">${m.doc.shared_revenue_reviewed_at.slice(0,10)}</span>`:''}` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
                 ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
@@ -4957,8 +4985,22 @@ async function renderSharedRevenue(c){
 }
 function setSharedRevOwnerFilter(v){ sharedRevOwnerFilter = v; renderSharedRevenue(document.getElementById('content')); }
 function setSharedRevReviewFilter(v){ sharedRevReviewFilter = v; renderSharedRevenue(document.getElementById('content')); }
+function applySharedRevReviewedDateFilter(){
+  sharedRevReviewedDateFrom = document.getElementById('sharedRevReviewedDateFrom').value;
+  sharedRevReviewedDateTo = document.getElementById('sharedRevReviewedDateTo').value;
+  renderSharedRevenue(document.getElementById('content'));
+}
+function clearSharedRevReviewedDateFilter(){
+  sharedRevReviewedDateFrom = ''; sharedRevReviewedDateTo = '';
+  renderSharedRevenue(document.getElementById('content'));
+}
+function setSharedRevReviewedToday(){
+  const today = new Date().toISOString().slice(0,10);
+  sharedRevReviewedDateFrom = today; sharedRevReviewedDateTo = today;
+  renderSharedRevenue(document.getElementById('content'));
+}
 async function setSharedRevReviewed(docId, val, note){
-  const update = {shared_revenue_reviewed: val};
+  const update = {shared_revenue_reviewed: val, shared_revenue_reviewed_at: val ? new Date().toISOString() : null};
   if(!val) update.shared_revenue_note = null;
   else if(note!==undefined) update.shared_revenue_note = note || null;
   const {error} = await sb.from('documents').update(update).eq('id', docId);
