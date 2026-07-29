@@ -4853,10 +4853,15 @@ async function renderSharedRevenue(c){
 
   // Day-by-day reviewed count, built from the full reviewed set (before the
   // specific-day filter narrows the table) so the chart shows the whole trend.
+  // Older reviews (marked before this feature existed) have no real reviewed_at —
+  // for those we fall back to the invoice's own doc_date as a best-effort estimate
+  // (per owner's choice), flagged with reviewedDateIsEstimate so it isn't confused
+  // with an actual recorded review date.
+  const reviewedDateOf = (doc) => doc.shared_revenue_reviewed_at ? doc.shared_revenue_reviewed_at.slice(0,10) : doc.doc_date;
   const reviewedByDay = {};
   if(sharedRevReviewFilter==='reviewed'){
-    displayRows.filter(m=>m.doc.shared_revenue_reviewed && m.doc.shared_revenue_reviewed_at).forEach(m=>{
-      const day = m.doc.shared_revenue_reviewed_at.slice(0,10);
+    displayRows.filter(m=>m.doc.shared_revenue_reviewed).forEach(m=>{
+      const day = reviewedDateOf(m.doc);
       reviewedByDay[day] = (reviewedByDay[day]||0) + 1;
     });
   }
@@ -4867,7 +4872,7 @@ async function renderSharedRevenue(c){
   else if(sharedRevReviewFilter==='reviewed'){
     displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed);
     if(sharedRevReviewedDate){
-      displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed_at && m.doc.shared_revenue_reviewed_at.slice(0,10)===sharedRevReviewedDate);
+      displayRows = displayRows.filter(m=>reviewedDateOf(m.doc)===sharedRevReviewedDate);
     }
   }
 
@@ -4915,7 +4920,7 @@ async function renderSharedRevenue(c){
     <div class="card" data-card-key="sharedrev_reviewed_chart">
       <b>ចំនួន Invoice ដែលបានពិនិត្យ តាមថ្ងៃ</b>
       ${reviewedDays.length>0 ? `
-      <p style="font-size:12px;color:var(--ink-muted);margin-top:4px;">ចុចលើសសរណាមួយ ដើម្បីមើលលម្អិតថ្ងៃនោះ</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:4px;">ចុចលើសសរណាមួយ ដើម្បីមើលលម្អិតថ្ងៃនោះ — ថ្ងៃណាគ្មាន "~" គឺជាកាលបរិច្ឆេទពិនិត្យពិតប្រាកដ, ថ្ងៃណាមាន "~" គឺជាការប៉ាន់ស្មានពីថ្ងៃលក់ (ទិន្នន័យចាស់មុនមុខងារនេះមាន)</p>
       <div style="display:flex;align-items:flex-end;gap:10px;margin-top:20px;height:180px;overflow-x:auto;padding-bottom:4px;">
         ${reviewedDays.map(d=>`
           <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:48px;height:100%;justify-content:flex-end;cursor:pointer;" onclick="setSharedRevReviewedDate('${d}')" title="ចុចដើម្បីត្រងទៅថ្ងៃ ${d}">
@@ -4924,10 +4929,7 @@ async function renderSharedRevenue(c){
             <div style="font-size:10.5px;color:var(--ink-muted);margin-top:6px;white-space:nowrap;">${d.slice(5)}</div>
           </div>`).join('')}
       </div>` : `
-      <p style="font-size:13px;color:var(--ink-muted);margin-top:8px;line-height:1.6;">
-        មិនទាន់មានទិន្នន័យសម្រាប់ក្រាបនេះទេ។ Invoice ដែលធ្លាប់សម្គាល់ "ពិនិត្យរួច" ពីមុន (មុននឹងមុខងារនេះមាន) មិនមានកត់ត្រាកាលបរិច្ឆេទទេ។
-        <br>សូមប្រាកដថាបាន Run migration <b>add_shared_revenue_reviewed_at.sql</b> ក្នុង Supabase ជាមុន — ក្រាបនេះនឹងចាប់ផ្តើមបង្ហាញទិន្នន័យពីការសម្គាល់ "ត្រួតពិនិត្យ" ថ្មីៗចាប់ពីពេលនេះតទៅ។
-      </p>`}
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:8px;">មិនទាន់មាន Invoice ណាបានពិនិត្យទេ។</p>`}
     </div>` : ''}
     ${canAccess('shared_revenue_export') ? `
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:14px;">
@@ -4996,7 +4998,7 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span>${m.doc.shared_revenue_reviewed_at?`<br><span style="font-size:11px;color:var(--ink-muted);">${m.doc.shared_revenue_reviewed_at.slice(0,10)}</span>`:''}` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
+              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span><br><span style="font-size:11px;color:var(--ink-muted);" title="${m.doc.shared_revenue_reviewed_at?'កាលបរិច្ឆេទពិនិត្យពិតប្រាកដ':'ព្រោះមិនធ្លាប់កត់ត្រា ប្រព័ន្ធប៉ាន់ស្មានពីថ្ងៃលក់'}">${m.doc.shared_revenue_reviewed_at?'':'~'}${reviewedDateOf(m.doc)}</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
                 ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
