@@ -4788,10 +4788,11 @@ let sharedRevReviewedDate = ''; // single day filter — "what did I review on t
 async function renderSharedRevenue(c){
   const today = new Date();
   let startStr;
-  if(sharedRevReviewFilter==='reviewed' && sharedRevReviewedDate){
-    // Searching by "which invoices did I review on day X" is unrelated to the
-    // invoice's own transaction date — search across everything, not just
-    // whatever window sharedRevRange happens to be set to.
+  if(sharedRevReviewFilter==='reviewed'){
+    // Review activity (when something was reviewed) is unrelated to the invoice's
+    // own transaction date — search across everything, not just whatever window
+    // sharedRevRange happens to be set to, so the day-by-day chart and the
+    // specific-day filter both see the full reviewed history.
     startStr = '2020-01-01';
   } else {
     let startDate;
@@ -4850,6 +4851,18 @@ async function renderSharedRevenue(c){
   const unreviewedCount = displayRows.filter(m=>!m.doc.shared_revenue_reviewed).length;
   const reviewedCount = displayRows.filter(m=>m.doc.shared_revenue_reviewed).length;
 
+  // Day-by-day reviewed count, built from the full reviewed set (before the
+  // specific-day filter narrows the table) so the chart shows the whole trend.
+  const reviewedByDay = {};
+  if(sharedRevReviewFilter==='reviewed'){
+    displayRows.filter(m=>m.doc.shared_revenue_reviewed && m.doc.shared_revenue_reviewed_at).forEach(m=>{
+      const day = m.doc.shared_revenue_reviewed_at.slice(0,10);
+      reviewedByDay[day] = (reviewedByDay[day]||0) + 1;
+    });
+  }
+  const reviewedDays = Object.keys(reviewedByDay).sort();
+  const maxReviewedDay = Math.max(1, ...reviewedDays.map(d=>reviewedByDay[d]));
+
   if(sharedRevReviewFilter==='unreviewed') displayRows = displayRows.filter(m=>!m.doc.shared_revenue_reviewed);
   else if(sharedRevReviewFilter==='reviewed'){
     displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed);
@@ -4898,6 +4911,19 @@ async function renderSharedRevenue(c){
         </div>
       </div>` : ''}
     </div>
+    ${sharedRevReviewFilter==='reviewed' && reviewedDays.length>0 ? `
+    <div class="card" data-card-key="sharedrev_reviewed_chart">
+      <b>ចំនួន Invoice ដែលបានពិនិត្យ តាមថ្ងៃ</b>
+      <p style="font-size:12px;color:var(--ink-muted);margin-top:4px;">ចុចលើសសរណាមួយ ដើម្បីមើលលម្អិតថ្ងៃនោះ</p>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-top:20px;height:180px;overflow-x:auto;padding-bottom:4px;">
+        ${reviewedDays.map(d=>`
+          <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:48px;height:100%;justify-content:flex-end;cursor:pointer;" onclick="setSharedRevReviewedDate('${d}')" title="ចុចដើម្បីត្រងទៅថ្ងៃ ${d}">
+            <div style="font-size:10px;color:var(--ink-muted);margin-bottom:4px;white-space:nowrap;">${reviewedByDay[d]}</div>
+            <div style="width:28px;background:${sharedRevReviewedDate===d?'linear-gradient(180deg, #3fa9dc, #1f6fa3)':'linear-gradient(180deg, #5fb082, #2e7d52)'};border-radius:5px 5px 0 0;height:${Math.max(4,(reviewedByDay[d]/maxReviewedDay*130)).toFixed(0)}px;box-shadow:0 2px 4px rgba(46,125,82,0.25);"></div>
+            <div style="font-size:10.5px;color:var(--ink-muted);margin-top:6px;white-space:nowrap;">${d.slice(5)}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
     ${canAccess('shared_revenue_export') ? `
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:14px;">
       <button class="btn accent" onclick="exportSharedRevenueExcel()">ទាញយក Excel (Export)</button>
