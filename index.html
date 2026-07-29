@@ -4911,9 +4911,10 @@ async function renderSharedRevenue(c){
         </div>
       </div>` : ''}
     </div>
-    ${sharedRevReviewFilter==='reviewed' && reviewedDays.length>0 ? `
+    ${sharedRevReviewFilter==='reviewed' ? `
     <div class="card" data-card-key="sharedrev_reviewed_chart">
       <b>ចំនួន Invoice ដែលបានពិនិត្យ តាមថ្ងៃ</b>
+      ${reviewedDays.length>0 ? `
       <p style="font-size:12px;color:var(--ink-muted);margin-top:4px;">ចុចលើសសរណាមួយ ដើម្បីមើលលម្អិតថ្ងៃនោះ</p>
       <div style="display:flex;align-items:flex-end;gap:10px;margin-top:20px;height:180px;overflow-x:auto;padding-bottom:4px;">
         ${reviewedDays.map(d=>`
@@ -4922,7 +4923,11 @@ async function renderSharedRevenue(c){
             <div style="width:28px;background:${sharedRevReviewedDate===d?'linear-gradient(180deg, #3fa9dc, #1f6fa3)':'linear-gradient(180deg, #5fb082, #2e7d52)'};border-radius:5px 5px 0 0;height:${Math.max(4,(reviewedByDay[d]/maxReviewedDay*130)).toFixed(0)}px;box-shadow:0 2px 4px rgba(46,125,82,0.25);"></div>
             <div style="font-size:10.5px;color:var(--ink-muted);margin-top:6px;white-space:nowrap;">${d.slice(5)}</div>
           </div>`).join('')}
-      </div>
+      </div>` : `
+      <p style="font-size:13px;color:var(--ink-muted);margin-top:8px;line-height:1.6;">
+        មិនទាន់មានទិន្នន័យសម្រាប់ក្រាបនេះទេ។ Invoice ដែលធ្លាប់សម្គាល់ "ពិនិត្យរួច" ពីមុន (មុននឹងមុខងារនេះមាន) មិនមានកត់ត្រាកាលបរិច្ឆេទទេ។
+        <br>សូមប្រាកដថាបាន Run migration <b>add_shared_revenue_reviewed_at.sql</b> ក្នុង Supabase ជាមុន — ក្រាបនេះនឹងចាប់ផ្តើមបង្ហាញទិន្នន័យពីការសម្គាល់ "ត្រួតពិនិត្យ" ថ្មីៗចាប់ពីពេលនេះតទៅ។
+      </p>`}
     </div>` : ''}
     ${canAccess('shared_revenue_export') ? `
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:14px;">
