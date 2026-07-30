@@ -3505,6 +3505,33 @@ let poStep = 1; // 1=supplier/currency, 2=products, 3=shipping, 4=review
 function setPOStep(n){ poStep = n; renderPurchase(document.getElementById('content')); window.scrollTo(0,0); }
 let poShippingTotal = 0;
 let poShippingMethod = 'value';
+function newPOBulkRow(){ return {name:'', qty:1, unit:'សន្លឹក', totalWeight:'', pricePerKg:''}; }
+let poBulkRows = [newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
+function addPOBulkRow(){ poBulkRows.push(newPOBulkRow()); renderPurchase(document.getElementById('content')); }
+function removePOBulkRow(i){ poBulkRows.splice(i,1); if(poBulkRows.length===0) poBulkRows.push(newPOBulkRow()); renderPurchase(document.getElementById('content')); }
+function updatePOBulkRow(i, field, val){
+  poBulkRows[i][field] = (field==='name'||field==='unit') ? val : (parseFloat(val)||0);
+  const rowTotalEl = document.getElementById('poBulkRowTotal_'+i);
+  if(rowTotalEl){
+    const r = poBulkRows[i];
+    rowTotalEl.textContent = poCurrencySymbol()+((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2);
+  }
+}
+function submitPOBulkRows(){
+  const validRows = poBulkRows.filter(r=>r.name.trim() && r.totalWeight>0 && r.pricePerKg>0);
+  if(validRows.length===0){ alert('សូមបំពេញយ៉ាងតិចមួយជួរ (ឈ្មោះ, ទំងន់សរុប, តម្លៃ/Kg)'); return; }
+  validRows.forEach(r=>{
+    const qty = r.qty>0 ? r.qty : 1;
+    poCart.push({
+      product_id: null, name: r.name.trim(), unit: r.unit||'', qty,
+      baseCost: poToUsd((r.totalWeight*r.pricePerKg)/qty), shipAlloc: 0,
+      weight: r.totalWeight/qty, volume: 0,
+      wcMode: true, wcTotalWeight: r.totalWeight, wcPricePerKg: r.pricePerKg
+    });
+  });
+  poBulkRows = [newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
+  renderPurchase(document.getElementById('content'));
+}
 let poCurrency = 'usd'; // 'usd' | 'cny' | 'vnd' — currency this whole PO's costs are entered in
 let poFxRate = 1; // foreign currency units per $1 (only relevant when poCurrency != 'usd')
 let poFxRatesCache = {cny:0, vnd:0}; // last-used rate per currency, remembered across sessions
@@ -3601,6 +3628,39 @@ async function renderPurchase(c){
     </div>` : ''}
 
     ${poStep===2?`
+    <div class="card" style="border-color:var(--good);" data-card-key="purchase_bulk">
+      <b>បញ្ចូលរហ័សពីវិក្កយបត្រអ្នកផ្គត់ផ្គង់ (គិតតាមទំងន់)</b>
+      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">សម្រាប់វិក្កយបត្រចិន/វៀតណាមដែលមានច្រើនជួរ — សរសេរតាមតារាងវិក្កយបត្រផ្ទាល់ (ឈ្មោះ+ខ្នាត, ចំនួនដុំ, ទំងន់សរុប Kg, តម្លៃ/Kg) រួចចុច "បន្ថែមទាំងអស់ចូលកន្ត្រក" ម្តងតែម្តង</p>
+      <div class="tbl-wrap" style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th style="text-align:left;min-width:180px;">ឈ្មោះ + ខ្នាត</th>
+            <th style="width:70px;">ចំនួន(ដុំ)</th>
+            <th style="width:90px;">ឯកតា</th>
+            <th style="width:100px;">ទំងន់សរុប(Kg)</th>
+            <th style="width:100px;">តម្លៃ/Kg(${poCurrencySymbol()})</th>
+            <th style="width:100px;">សរុប</th>
+            <th style="width:32px;"></th>
+          </tr></thead>
+          <tbody>
+            ${poBulkRows.map((r,i)=>`
+            <tr>
+              <td><input class="inp" style="width:100%;min-width:160px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
+              <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)"></td>
+              <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
+              <td><button class="btn small danger" onclick="removePOBulkRow(${i})">✕</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="row-inline" style="justify-content:space-between;margin-top:10px;">
+        <button class="btn small" onclick="addPOBulkRow()">+ បន្ថែមជួរ</button>
+        <button class="btn accent" onclick="submitPOBulkRows()">បន្ថែមទាំងអស់ចូលកន្ត្រក →</button>
+      </div>
+    </div>
     <div class="card" data-card-key="purchase_prodlist">
       <div class="row-inline" style="margin-bottom:8px;">
         <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
@@ -3925,7 +3985,7 @@ function updatePOWeightCalc(i, field, val){
   renderPurchase(document.getElementById('content'));
 }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; poBulkRows=[newPOBulkRow(), newPOBulkRow(), newPOBulkRow()]; renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(Math.round((it.baseCost+(it.shipAlloc||0))*100)/100),0); }
 
 function applyShippingAllocation(){
@@ -4019,6 +4079,7 @@ async function savePO(){
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
   poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poStep=1;
+  poBulkRows=[newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
   renderPurchase(document.getElementById('content'));
 }
 
