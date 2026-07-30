@@ -2652,6 +2652,25 @@ function toggleTransferHistory(){
   if(icon) icon.textContent = transferHistOpen ? '▲' : '▼';
 }
 let stockSearchQuery = '';
+let stockCostCalcOpen = false;
+function toggleStockCostCalc(){ stockCostCalcOpen = !stockCostCalcOpen; renderStock(document.getElementById('content')); }
+function calcStockCostPerUnit(){
+  const total = parseFloat(document.getElementById('pCostTotal')?.value) || 0;
+  const qty = parseFloat(document.getElementById('pCostQty')?.value) || 0;
+  if(total>0 && qty>0){
+    const costEl = document.getElementById('pCostPrice');
+    if(costEl) costEl.value = (total/qty).toFixed(2);
+  }
+}
+function suggestSellPrice(){
+  const cost = parseFloat(document.getElementById('pCostPrice')?.value) || 0;
+  if(cost<=0){ alert('សូមបញ្ចូល តម្លៃទិញចូល/ឯកតា ជាមុនសិន'); return; }
+  const pctStr = prompt('ចំណេញប៉ុន្មាន % ពីតម្លៃទិញចូល?', '20');
+  if(pctStr===null) return;
+  const pct = parseFloat(pctStr) || 0;
+  const priceEl = document.getElementById('pPrice');
+  if(priceEl) priceEl.value = (cost*(1+pct/100)).toFixed(2);
+}
 
 /* ---- Barcode label print settings (size + paper type) ---- */
 let barcodeLabelSettings = {width:60, height:60, paper:'a5'};
@@ -2723,14 +2742,26 @@ async function renderStock(c){
         <input class="inp" id="pName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:160px" value="${editProd?escapeHtml(editProd.name):''}">
         ${categorySelectHTML('pCategory', editProd?(editProd.category||''):'')}
         ${unitSelectHTML('pUnit', editProd?editProd.unit:'')}
-        <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃលក់ $" style="flex:1;min-width:100px" value="${editProd?Number(editProd.price):''}">
+        <div style="flex:1;min-width:100px;">
+          <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃលក់ $/ឯកតា" style="width:100%;" value="${editProd?Number(editProd.price):''}">
+          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="suggestSellPrice()">💡 ស្នើពីតម្លៃចូល +ចំណេញ%</button>
+        </div>
         <input class="inp" id="pQty" type="number" step="any" placeholder="ចំនួនស្តុក (ទីតាំងបច្ចុប្បន្ន)" style="flex:1;min-width:160px" value="${editProd?getStockFor(editProd.id):''}">
         ${(editProd ? canAccess('stock_edit') : canAccess('stock_add')) ? `<button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>` : ''}
         ${editProd?`<button class="btn small" onclick="cancelEditProduct()">✕ បោះបង់</button>`:''}
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="pWeight" type="number" step="0.01" placeholder="ទំងន់/ឯកតា Kg (ស្រេចចិត្ត — សម្រាប់គណនាបញ្ជាទិញតាមទំងន់)" style="flex:1;min-width:160px" value="${editProd&&editProd.weight?Number(editProd.weight):''}">
-        <input class="inp" id="pCostPrice" type="number" step="0.01" placeholder="តម្លៃទិញចូលចុងក្រោយ $/ឯកតា (ស្រេចចិត្ត)" style="flex:1;min-width:160px" value="${editProd&&editProd.cost_price?Number(editProd.cost_price):''}">
+        <div style="flex:1;min-width:160px;">
+          <input class="inp" id="pCostPrice" type="number" step="0.01" placeholder="តម្លៃទិញចូលចុងក្រោយ $/ឯកតា (ស្រេចចិត្ត)" style="width:100%;" value="${editProd&&editProd.cost_price?Number(editProd.cost_price):''}">
+          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="toggleStockCostCalc()">🧮 គណនាពីតម្លៃទិញសរុប</button>
+          ${stockCostCalcOpen?`
+          <div class="row-inline" style="gap:6px;margin-top:4px;">
+            <input class="inp" id="pCostTotal" type="number" step="0.01" placeholder="ថ្លៃដើមសរុប $ (ការទិញលើកនេះ)" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
+            <input class="inp" id="pCostQty" type="number" step="any" placeholder="ចំនួនទិញលើកនេះ" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
+          </div>
+          <p style="font-size:11px;color:var(--ink-muted);margin:3px 0 0;">បញ្ចូល តម្លៃសរុប និង ចំនួនទិញលើកនេះ ប្រព័ន្ធនឹងគណនា តម្លៃចូល/ឯកតា ដាក់ចូលប្រអប់ខាងលើឲ្យស្វ័យប្រវត្តិ</p>`:''}
+        </div>
       </div>
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="pBarcode" placeholder="បារកូដ (ស្រេចចិត្ត — ស្កេន ឬវាយផ្ទាល់)" style="flex:2;min-width:180px" value="${editProd?escapeHtml(editProd.barcode||''):''}">
@@ -3764,7 +3795,7 @@ async function renderPurchase(c){
         <div style="flex:1;">តម្លៃលក់ស្នើ (+ចំណេញ): <b id="poNewPriceDisplay">$0.00</b></div>
       </div>
       <div class="row-inline" style="margin-top:8px;">
-        <input class="inp" id="poNewPrice" type="number" step="0.01" placeholder="តម្លៃលក់ចុងក្រោយ (កែបានតាមចង់)" style="flex:1;min-width:160px">
+        <input class="inp" id="poNewPrice" type="number" step="0.01" placeholder="តម្លៃលក់ចុងក្រោយ ${poCurrencySymbol()}/ឯកតា (កែបានតាមចង់)" style="flex:1;min-width:160px">
         <button class="btn accent small" onclick="addNewPOProduct()">+ បន្ថែម</button>
       </div>
     </div>
@@ -3973,7 +4004,7 @@ async function addNewPOProduct(){
   const qty = parseFloat(document.getElementById('poNewQty').value) || 0;
   const {costPerUnit, suggestedPrice} = recalcPONewCost();
   const priceInput = document.getElementById('poNewPrice').value;
-  const price = priceInput ? (parseFloat(priceInput)||0) : suggestedPrice;
+  const price = priceInput ? poToUsd(parseFloat(priceInput)||0) : suggestedPrice;
   if(!name || !unit){ alert('សូមបញ្ចូលឈ្មោះ និងឯកតា'); return; }
   if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
 
