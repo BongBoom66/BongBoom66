@@ -3589,7 +3589,7 @@ async function renderPurchase(c){
     <div class="row-inline" style="justify-content:space-between;background:var(--paper-dim);padding:9px 14px;border-radius:9px;margin:10px 0 14px;font-size:12.5px;flex-wrap:wrap;gap:6px;">
       <span>👤 ${escapeHtml(selectedSupplier?.name || 'មិនទាន់ជ្រើសរើសអ្នកផ្គត់ផ្គង់')}</span>
       <span>📦 ${poCart.length} មុខទំនិញ</span>
-      <span>💰 សរុប $${poSubtotal().toFixed(2)}</span>
+      <span>💰 សរុប $${poSubtotal().toFixed(2)}${poCurrency!=='usd'?` (${poCurrencySymbol()}${usdToPo(poSubtotal()).toFixed(2)})`:''}</span>
     </div>
 
     ${poStep===1?`
@@ -3665,23 +3665,23 @@ async function renderPurchase(c){
       <div class="tbl-wrap" style="overflow-x:auto;">
         <table>
           <thead><tr>
-            <th style="text-align:left;min-width:200px;">ឈ្មោះ + ខ្នាត</th>
-            <th style="width:80px;">ចំនួនដុំ</th>
-            <th style="width:90px;">ឯកតា</th>
-            <th style="width:110px;">ទំងន់សរុប(Kg)</th>
-            <th style="width:110px;">តម្លៃ/Kg(${poCurrencySymbol()})</th>
-            <th style="width:100px;">សរុប</th>
-            <th style="width:32px;"></th>
+            <th style="text-align:left;width:30%;">ឈ្មោះ + ខ្នាត</th>
+            <th style="width:90px;">ចំនួនដុំ</th>
+            <th style="width:100px;">ឯកតា</th>
+            <th style="width:160px;">ទំងន់សរុប(Kg)</th>
+            <th style="width:160px;">តម្លៃ/Kg(${poCurrencySymbol()})</th>
+            <th style="width:130px;">សរុប</th>
+            <th style="width:36px;"></th>
           </tr></thead>
           <tbody>
             ${poBulkRows.map((r,i)=>`
             <tr>
-              <td><input class="inp" style="width:100%;min-width:180px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
-              <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)"></td>
-              <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
+              <td><input class="inp" style="width:100%;min-width:160px;font-size:14px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:center;font-size:14px;padding:8px;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
+              <td><input class="inp" style="width:100%;font-size:14px;padding:8px;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" min="0" step="0.01" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" min="0" step="0.01" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)"></td>
+              <td style="text-align:right;font-weight:700;font-size:14px;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
               <td><button class="btn small danger" onclick="removePOBulkRow(${i})">✕</button></td>
             </tr>`).join('')}
           </tbody>
@@ -3746,13 +3746,14 @@ async function renderPurchase(c){
             <th style="text-align:left;">ឈ្មោះ</th>
             <th style="width:60px;">ចំនួន</th>
             <th style="width:70px;">ឯកតា</th>
-            <th style="width:100px;">ថ្លៃចូល/ឯកតា</th>
-            <th style="width:90px;">សរុប</th>
+            <th style="width:120px;">ថ្លៃចូល/ឯកតា</th>
+            <th style="width:110px;">សរុប</th>
             <th style="width:90px;"></th>
           </tr></thead>
           <tbody>
             ${poCart.map((it,i)=>{
               const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
+              const lineTotal = it.qty*unitTotalCost;
               const isEditing = poEditingCartIndex===i;
               return `
             <tr>
@@ -3760,8 +3761,8 @@ async function renderPurchase(c){
               <td class="left">${escapeHtml(it.name)}</td>
               <td>${it.qty}</td>
               <td>${escapeHtml(it.unit||'')}</td>
-              <td>$${unitTotalCost.toFixed(2)}</td>
-              <td>$${(it.qty*unitTotalCost).toFixed(2)}</td>
+              <td>$${unitTotalCost.toFixed(2)}${poCurrency!=='usd'?`<br><span style="font-size:11px;color:var(--ink-muted);">${poCurrencySymbol()}${usdToPo(unitTotalCost).toFixed(2)}</span>`:''}</td>
+              <td>$${lineTotal.toFixed(2)}${poCurrency!=='usd'?`<br><span style="font-size:11px;color:var(--ink-muted);">${poCurrencySymbol()}${usdToPo(lineTotal).toFixed(2)}</span>`:''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small ${isEditing?'accent':''}" onclick="togglePOCartEdit(${i})">${isEditing?'បិទ':'កែ'}</button>
                 <button class="btn small danger" onclick="removePOItem(${i})">✕</button>
