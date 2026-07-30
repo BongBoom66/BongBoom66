@@ -3518,6 +3518,13 @@ function updatePOBulkRow(i, field, val){
   }
 }
 function updatePOItemField(i, field, val){ poCart[i][field] = val; renderPurchase(document.getElementById('content')); }
+function poUnitOptionsHTML(currentVal){
+  const isKnown = UNIT_OPTIONS.includes(currentVal);
+  return `
+    ${UNIT_OPTIONS.map(u=>`<option value="${u}" ${currentVal===u?'selected':''}>${u}</option>`).join('')}
+    ${currentVal && !isKnown ? `<option value="${escapeHtml(currentVal)}" selected>${escapeHtml(currentVal)}</option>` : ''}
+  `;
+}
 function submitPOBulkRows(){
   const validRows = poBulkRows.filter(r=>r.name.trim() && r.totalWeight>0 && r.pricePerKg>0);
   if(validRows.length===0){ alert('សូមបំពេញយ៉ាងតិចមួយជួរ (ឈ្មោះ, ទំងន់សរុប, តម្លៃ/Kg)'); return; }
@@ -3651,14 +3658,14 @@ async function renderPurchase(c){
               <td>${i+1}</td>
               <td><input class="inp" style="width:100%;min-width:160px;" value="${escapeHtml(it.name)}" onchange="updatePOItemField(${i},'name',this.value)"></td>
               <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)"></td>
-              <td><input class="inp" style="width:100%;" value="${escapeHtml(it.unit||'')}" onchange="updatePOItemField(${i},'unit',this.value)"></td>
+              <td><select class="inp" style="width:100%;" onchange="updatePOItemField(${i},'unit',this.value)">${poUnitOptionsHTML(it.unit)}</select></td>
               <td>
                 <div class="row-inline" style="gap:3px;margin-bottom:3px;">
                   <button class="btn small ${!it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, false)">/ឯកតា</button>
                   <button class="btn small ${it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, true)">⚖️/Kg</button>
                 </div>
                 ${!it.wcMode?`
-                <input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">`:`
+                <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">`:`
                 <div style="display:flex;flex-direction:column;gap:4px;">
                   <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
                   <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
@@ -3672,7 +3679,7 @@ async function renderPurchase(c){
               <td>+</td>
               <td><input class="inp" style="width:100%;min-width:160px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
               <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
-              <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
+              <td><select class="inp" style="width:100%;" onchange="updatePOBulkRow(${i},'unit',this.value)">${poUnitOptionsHTML(r.unit)}</select></td>
               <td>
                 <div style="display:flex;flex-direction:column;gap:4px;">
                   <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)">
