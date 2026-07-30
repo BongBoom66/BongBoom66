@@ -3661,7 +3661,7 @@ async function renderPurchase(c){
           <div style="margin-top:10px;max-height:560px;overflow-y:auto;">
             ${poCart.length===0?`<p class="empty" style="padding:20px 0;">មិនទាន់មានទំនិញ</p>`:
             poCart.map((it,i)=>{
-              const unitTotalCost = it.baseCost + (it.shipAlloc||0);
+              const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
               return `
               <div style="border:1px solid var(--paper-dim);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
                 <div class="row-inline" style="justify-content:space-between;align-items:flex-start;">
@@ -3863,7 +3863,7 @@ function updatePOWeightCalc(i, field, val){
 }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
 function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; renderPurchase(document.getElementById('content')); }
-function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(it.baseCost+(it.shipAlloc||0)),0); }
+function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(Math.round((it.baseCost+(it.shipAlloc||0))*100)/100),0); }
 
 function applyShippingAllocation(){
   const totalRaw = parseFloat(document.getElementById('poShippingInput').value) || 0;
