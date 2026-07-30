@@ -619,6 +619,7 @@ function getNavItems(){
   const all = [
     {key:'pos', label:'ការលក់', perm:'pos'},
     {key:'stock', label:'ស្តុក', perm:'stock_view'},
+    {key:'pricing', label:'គ្រប់គ្រងតម្លៃ', perm:'stock_view'},
     {key:'customers', label:'អតិថិជន', perm:'customers_view'},
     {key:'purchase', label:'បញ្ជាទិញ', perm:'purchase'},
     {key:'history', label:'ប្រវត្តិឯកសារ', perm:'history'},
@@ -794,6 +795,7 @@ function renderPage(){
   const p = getMyPermissions();
   if(activeNav==='pos' && p.pos) return renderPOS(c);
   if(activeNav==='stock' && p.stock_view) return renderStock(c);
+  if(activeNav==='pricing' && p.stock_view) return renderPricing(c);
   if(activeNav==='customers' && p.customers_view) return renderCustomers(c);
   if(activeNav==='history' && p.history) return renderHistory(c);
   if(activeNav==='purchase' && p.purchase) return renderPurchase(c);
@@ -807,7 +809,7 @@ function renderPage(){
 /* ================= REALTIME ================= */
 function subscribeRealtime(){
   sb.channel('public:all')
-    .on('postgres_changes', {event:'*', schema:'public', table:'products'}, ()=>{ if(activeNav==='stock'||activeNav==='pos') renderPage(); })
+    .on('postgres_changes', {event:'*', schema:'public', table:'products'}, ()=>{ if(activeNav==='stock'||activeNav==='pricing'||activeNav==='pos') renderPage(); })
     .on('postgres_changes', {event:'*', schema:'public', table:'customers'}, ()=>{ if(activeNav==='customers'||activeNav==='pos') renderPage(); })
     .on('postgres_changes', {event:'*', schema:'public', table:'documents'}, ()=>{ if(activeNav==='history') renderPage(); })
     .subscribe();
@@ -2642,7 +2644,10 @@ function printFromViewModal(){
 
 /* ================= STOCK ================= */
 let editingProductId = null;
+let stockAdjustProductId = null;
 let stockCategoryFilter = '';
+let pricingSearchQuery = '';
+let pricingCategoryFilter = '';
 let transferHistOpen = false;
 function toggleTransferHistory(){
   transferHistOpen = !transferHistOpen;
@@ -2714,7 +2719,7 @@ async function renderStock(c){
   await loadStockMap(currentLocationId);
   const {data: prods} = await sb.from('products').select('*').order('code', {ascending:true, nullsFirst:false}).order('name', {ascending:true});
   productsCache = prods || [];
-  const editProd = editingProductId ? productsCache.find(p=>p.id===editingProductId) : null;
+  const adjustProd = stockAdjustProductId ? productsCache.find(p=>p.id===stockAdjustProductId) : null;
 
   let transferHistory = [];
   if(locationsCache.length>1){
@@ -2732,41 +2737,16 @@ async function renderStock(c){
 
   c.innerHTML = `
     <h2 class="page-title">ស្តុកទំនិញ</h2>
-    <p class="page-sub">គ្រប់គ្រងទំនិញ តម្លៃ និងបរិមាណក្នុងស្តុក (${productsCache.length} មុខសរុប)</p>
+    <p class="page-sub">មើល និងកែសម្រួល តែបរិមាណស្តុកតាមទីតាំង (${productsCache.length} មុខសរុប) — សម្រាប់កំណត់ឈ្មោះ/តម្លៃ សូមចូល "គ្រប់គ្រងតម្លៃ"</p>
     ${locationSwitcherHTML()}
-    ${(canAccess('stock_add') || canAccess('stock_edit')) ? `
-    <div class="card" data-card-key="stock_form" style="${editProd?'border-color:var(--danger);background:#fff5f6;':''}">
-      ${editProd?`<b style="color:var(--danger);display:block;margin-bottom:8px;">កំពុងកែសម្រួល៖ ${escapeHtml(editProd.name)}</b>`:''}
+    ${(canAccess('stock_edit') && adjustProd) ? `
+    <div class="card" data-card-key="stock_adjust" style="border-color:var(--danger);background:#fff5f6;">
+      <b style="color:var(--danger);display:block;margin-bottom:8px;">កែស្តុក៖ ${escapeHtml(adjustProd.name)}</b>
       <div class="row-inline">
-        <input class="inp" id="pCode" placeholder="កូដ (ស្រេចចិត្ត)" style="flex:1;min-width:110px" value="${editProd?escapeHtml(editProd.code||''):''}">
-        <input class="inp" id="pName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:160px" value="${editProd?escapeHtml(editProd.name):''}">
-        ${categorySelectHTML('pCategory', editProd?(editProd.category||''):'')}
-        ${unitSelectHTML('pUnit', editProd?editProd.unit:'')}
-        <div style="flex:1;min-width:100px;">
-          <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃលក់ $/ឯកតា" style="width:100%;" value="${editProd?Number(editProd.price):''}">
-          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="suggestSellPrice()">💡 ស្នើពីតម្លៃចូល +ចំណេញ%</button>
-        </div>
-        <input class="inp" id="pQty" type="number" step="any" placeholder="ចំនួនស្តុក (ទីតាំងបច្ចុប្បន្ន)" style="flex:1;min-width:160px" value="${editProd?getStockFor(editProd.id):''}">
-        ${(editProd ? canAccess('stock_edit') : canAccess('stock_add')) ? `<button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>` : ''}
-        ${editProd?`<button class="btn small" onclick="cancelEditProduct()">✕ បោះបង់</button>`:''}
-      </div>
-      <div class="row-inline" style="margin-top:8px;">
-        <input class="inp" id="pWeight" type="number" step="0.01" placeholder="ទំងន់/ឯកតា Kg (ស្រេចចិត្ត — សម្រាប់គណនាបញ្ជាទិញតាមទំងន់)" style="flex:1;min-width:160px" value="${editProd&&editProd.weight?Number(editProd.weight):''}">
-        <div style="flex:1;min-width:160px;">
-          <input class="inp" id="pCostPrice" type="number" step="0.01" placeholder="តម្លៃទិញចូលចុងក្រោយ $/ឯកតា (ស្រេចចិត្ត)" style="width:100%;" value="${editProd&&editProd.cost_price?Number(editProd.cost_price):''}">
-          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="toggleStockCostCalc()">🧮 គណនាពីតម្លៃទិញសរុប</button>
-          ${stockCostCalcOpen?`
-          <div class="row-inline" style="gap:6px;margin-top:4px;">
-            <input class="inp" id="pCostTotal" type="number" step="0.01" placeholder="ថ្លៃដើមសរុប $ (ការទិញលើកនេះ)" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
-            <input class="inp" id="pCostQty" type="number" step="any" placeholder="ចំនួនទិញលើកនេះ" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
-          </div>
-          <p style="font-size:11px;color:var(--ink-muted);margin:3px 0 0;">បញ្ចូល តម្លៃសរុប និង ចំនួនទិញលើកនេះ ប្រព័ន្ធនឹងគណនា តម្លៃចូល/ឯកតា ដាក់ចូលប្រអប់ខាងលើឲ្យស្វ័យប្រវត្តិ</p>`:''}
-        </div>
-      </div>
-      <div class="row-inline" style="margin-top:8px;">
-        <input class="inp" id="pBarcode" placeholder="បារកូដ (ស្រេចចិត្ត — ស្កេន ឬវាយផ្ទាល់)" style="flex:2;min-width:180px" value="${editProd?escapeHtml(editProd.barcode||''):''}">
-        <button class="btn small" onclick="generateBarcodeForForm()">🎲 បង្កើតបារកូដស្វ័យប្រវត្តិ</button>
-        ${editProd && editProd.barcode ? `<button class="btn small accent" onclick="printBarcodeLabel('${editProd.id}')">🏷️ បោះពុម្ពស្លាក</button>` : ''}
+        <div style="flex:1;min-width:160px;color:var(--ink-muted);font-size:13px;">ស្តុកបច្ចុប្បន្ន (${escapeHtml((locationsCache.find(l=>l.id===currentLocationId)||{}).name||'')})៖ <b>${getStockFor(adjustProd.id)} ${escapeHtml(adjustProd.unit)}</b></div>
+        <input class="inp" id="stockAdjustQty" type="number" step="any" placeholder="ចំនួនស្តុកថ្មី" style="flex:1;min-width:160px" value="${getStockFor(adjustProd.id)}">
+        <button class="btn accent" onclick="saveStockQty()">រក្សាទុក</button>
+        <button class="btn small" onclick="cancelStockAdjust()">✕ បោះបង់</button>
       </div>
     </div>` : ''}
     ${canAccess('stock_import_export') ? `
@@ -2880,9 +2860,9 @@ function renderStockTableInnerHTML(filtered){
         <button class="btn accent small" onclick="printSelectedBarcodeLabels()">🏷️ បោះពុម្ពស្លាកដែលបានជ្រើសរើស</button>
       </div>`:''}
       <table>
-        <thead><tr><th style="width:32px;"></th><th>កូដ</th><th style="text-align:left">ឈ្មោះ</th><th>ប្រភេទ</th><th>ឯកតា</th><th>តម្លៃ</th><th>ស្តុក</th><th></th></tr></thead>
+        <thead><tr><th style="width:32px;"></th><th>កូដ</th><th style="text-align:left">ឈ្មោះ</th><th>ប្រភេទ</th><th>ឯកតា</th><th>ស្តុក</th><th></th></tr></thead>
         <tbody>
-          ${filtered.length===0?`<tr><td colspan="8" class="empty">មិនមានទំនិញត្រូវនឹងលក្ខខណ្ឌនេះ</td></tr>`:
+          ${filtered.length===0?`<tr><td colspan="7" class="empty">មិនមានទំនិញត្រូវនឹងលក្ខខណ្ឌនេះ</td></tr>`:
           filtered.map(p=>`
             <tr>
               <td>${p.barcode?`<input type="checkbox" class="barcodeSelectCB" value="${p.id}">`:''}</td>
@@ -2890,10 +2870,9 @@ function renderStockTableInnerHTML(filtered){
               <td class="left">${escapeHtml(p.name)}</td>
               <td>${escapeHtml(p.category||'')}</td>
               <td>${escapeHtml(p.unit)}</td>
-              <td>$${Number(p.price).toFixed(2)}</td>
               <td>${getStockFor(p.id)} <span class="badge ${getStockFor(p.id)<=5?'low':'ok'}">${getStockFor(p.id)<=5?'តិច':'គ្រប់'}</span></td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
-                ${canAccess('stock_edit') ? `<button class="btn small" onclick="editProduct('${p.id}')">កែ</button>` : ''}
+                ${canAccess('stock_edit') ? `<button class="btn small" onclick="openStockAdjust('${p.id}')">កែស្តុក</button>` : ''}
                 ${p.barcode ? `<button class="btn small accent" onclick="printBarcodeLabel('${p.id}')">🏷️ ស្លាក</button>` : ''}
                 ${canAccess('stock_delete') ? `<button class="btn small danger" onclick="deleteProduct('${p.id}')">លុប</button>` : ''}
               </td>
@@ -2902,12 +2881,20 @@ function renderStockTableInnerHTML(filtered){
       </table>
   `;
 }
-function editProduct(id){
-  editingProductId = id;
+function openStockAdjust(id){
+  stockAdjustProductId = id;
   renderStock(document.getElementById('content'));
 }
-function cancelEditProduct(){
-  editingProductId = null;
+function cancelStockAdjust(){
+  stockAdjustProductId = null;
+  renderStock(document.getElementById('content'));
+}
+async function saveStockQty(){
+  if(!stockAdjustProductId) return;
+  if(!currentLocationId){ alert('សូមបង្កើតទីតាំង (ហាង/ឃ្លាំង) ជាមុនសិន ក្នុង "ការកំណត់"'); return; }
+  const qty = parseFloat(document.getElementById('stockAdjustQty').value) || 0;
+  await upsertStock(stockAdjustProductId, currentLocationId, qty);
+  stockAdjustProductId = null;
   renderStock(document.getElementById('content'));
 }
 function applyStockFilter(){
@@ -2926,6 +2913,127 @@ function onStockSearchInput(val){
 function onStockCatFilter(val){
   stockCategoryFilter = val;
   applyStockFilter();
+}
+
+/* ================= PRICING (product master data + cost/sell price) ================= */
+async function renderPricing(c){
+  const {data: prods} = await sb.from('products').select('*').order('code', {ascending:true, nullsFirst:false}).order('name', {ascending:true});
+  productsCache = prods || [];
+  const editProd = editingProductId ? productsCache.find(p=>p.id===editingProductId) : null;
+
+  const filtered = productsCache.filter(p=>{
+    const matchCat = !pricingCategoryFilter || p.category===pricingCategoryFilter;
+    const matchSearch = !pricingSearchQuery || normText(p.name).includes(normText(pricingSearchQuery));
+    return matchCat && matchSearch;
+  });
+
+  c.innerHTML = `
+    <h2 class="page-title">គ្រប់គ្រងតម្លៃ</h2>
+    <p class="page-sub">បង្កើត/កែសម្រួល ឈ្មោះ ប្រភេទ តម្លៃទិញចូល និងតម្លៃលក់ទំនិញ (${productsCache.length} មុខសរុប) — សម្រាប់កែបរិមាណស្តុក សូមចូល "ស្តុក"</p>
+    ${(canAccess('stock_add') || canAccess('stock_edit')) ? `
+    <div class="card" data-card-key="pricing_form" style="${editProd?'border-color:var(--danger);background:#fff5f6;':''}">
+      ${editProd?`<b style="color:var(--danger);display:block;margin-bottom:8px;">កំពុងកែសម្រួល៖ ${escapeHtml(editProd.name)}</b>`:''}
+      <div class="row-inline">
+        <input class="inp" id="pCode" placeholder="កូដ (ស្រេចចិត្ត)" style="flex:1;min-width:110px" value="${editProd?escapeHtml(editProd.code||''):''}">
+        <input class="inp" id="pName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:160px" value="${editProd?escapeHtml(editProd.name):''}">
+        ${categorySelectHTML('pCategory', editProd?(editProd.category||''):'')}
+        ${unitSelectHTML('pUnit', editProd?editProd.unit:'')}
+        ${(editProd ? canAccess('stock_edit') : canAccess('stock_add')) ? `<button class="btn accent" onclick="addProduct()">${editProd?'រក្សាទុកការកែប្រែ':'+ បន្ថែមទំនិញ'}</button>` : ''}
+        ${editProd?`<button class="btn small" onclick="cancelEditProduct()">✕ បោះបង់</button>`:''}
+      </div>
+      <div class="row-inline" style="margin-top:8px;">
+        <input class="inp" id="pWeight" type="number" step="0.01" placeholder="ទំងន់/ឯកតា Kg (ស្រេចចិត្ត — សម្រាប់គណនាបញ្ជាទិញតាមទំងន់)" style="flex:1;min-width:160px" value="${editProd&&editProd.weight?Number(editProd.weight):''}">
+        <div style="flex:1;min-width:160px;">
+          <input class="inp" id="pCostPrice" type="number" step="0.01" placeholder="តម្លៃទិញចូលចុងក្រោយ $/ឯកតា (ស្រេចចិត្ត)" style="width:100%;" value="${editProd&&editProd.cost_price?Number(editProd.cost_price):''}">
+          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="toggleStockCostCalc()">🧮 គណនាពីតម្លៃទិញសរុប</button>
+          ${stockCostCalcOpen?`
+          <div class="row-inline" style="gap:6px;margin-top:4px;">
+            <input class="inp" id="pCostTotal" type="number" step="0.01" placeholder="ថ្លៃដើមសរុប $ (ការទិញលើកនេះ)" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
+            <input class="inp" id="pCostQty" type="number" step="any" placeholder="ចំនួនទិញលើកនេះ" style="flex:1;font-size:12px;padding:6px 8px;" oninput="calcStockCostPerUnit()">
+          </div>
+          <p style="font-size:11px;color:var(--ink-muted);margin:3px 0 0;">បញ្ចូល តម្លៃសរុប និង ចំនួនទិញលើកនេះ ប្រព័ន្ធនឹងគណនា តម្លៃចូល/ឯកតា ដាក់ចូលប្រអប់ខាងលើឲ្យស្វ័យប្រវត្តិ</p>`:''}
+        </div>
+        <div style="flex:1;min-width:100px;">
+          <input class="inp" id="pPrice" type="number" step="0.01" placeholder="តម្លៃលក់ $/ឯកតា" style="width:100%;" value="${editProd?Number(editProd.price):''}">
+          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:11px;color:var(--spark-dim);padding:3px 0 0;" onclick="suggestSellPrice()">💡 ស្នើពីតម្លៃចូល +ចំណេញ%</button>
+        </div>
+      </div>
+      <div class="row-inline" style="margin-top:8px;">
+        <input class="inp" id="pBarcode" placeholder="បារកូដ (ស្រេចចិត្ត — ស្កេន ឬវាយផ្ទាល់)" style="flex:2;min-width:180px" value="${editProd?escapeHtml(editProd.barcode||''):''}">
+        <button class="btn small" onclick="generateBarcodeForForm()">🎲 បង្កើតបារកូដស្វ័យប្រវត្តិ</button>
+        ${editProd && editProd.barcode ? `<button class="btn small accent" onclick="printBarcodeLabel('${editProd.id}')">🏷️ បោះពុម្ពស្លាក</button>` : ''}
+      </div>
+    </div>` : ''}
+    <div class="card" data-card-key="pricing_filters">
+      <div class="row-inline">
+        <input class="inp" id="pricingSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:2;min-width:180px" value="${escapeHtml(pricingSearchQuery)}" oninput="onPricingSearchInput(this.value)">
+        <select class="inp" id="pricingCatFilter" style="flex:1;min-width:160px" onchange="onPricingCatFilter(this.value)">
+          <option value="">-- គ្រប់ប្រភេទ --</option>
+          ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}" ${pricingCategoryFilter===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="card" data-card-key="pricing_table">
+      <div id="pricingTableWrap" class="tbl-wrap" data-resizable style="max-height:600px;overflow-y:auto;">
+        ${renderPricingTableInnerHTML(filtered)}
+      </div>
+    </div>
+  `;
+  applyCardArrange(c, 'pricing');
+}
+function renderPricingTableInnerHTML(filtered){
+  return `
+      <table>
+        <thead><tr><th>កូដ</th><th style="text-align:left">ឈ្មោះ</th><th>ប្រភេទ</th><th>ឯកតា</th><th>តម្លៃចូល</th><th>តម្លៃលក់</th><th>ចំណេញ</th><th></th></tr></thead>
+        <tbody>
+          ${filtered.length===0?`<tr><td colspan="8" class="empty">មិនមានទំនិញត្រូវនឹងលក្ខខណ្ឌនេះ</td></tr>`:
+          filtered.map(p=>{
+            const cost = Number(p.cost_price)||0;
+            const price = Number(p.price)||0;
+            const marginPct = cost>0 ? ((price-cost)/cost*100) : null;
+            return `
+            <tr>
+              <td>${pCode(p)}</td>
+              <td class="left">${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.category||'')}</td>
+              <td>${escapeHtml(p.unit)}</td>
+              <td>${cost>0?'$'+cost.toFixed(2):'-'}</td>
+              <td>$${price.toFixed(2)}</td>
+              <td>${marginPct!==null?marginPct.toFixed(0)+'%':'-'}</td>
+              <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
+                ${canAccess('stock_edit') ? `<button class="btn small" onclick="editProduct('${p.id}')">កែ</button>` : ''}
+                ${canAccess('stock_delete') ? `<button class="btn small danger" onclick="deleteProduct('${p.id}')">លុប</button>` : ''}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+  `;
+}
+function editProduct(id){
+  editingProductId = id;
+  renderPricing(document.getElementById('content'));
+}
+function cancelEditProduct(){
+  editingProductId = null;
+  renderPricing(document.getElementById('content'));
+}
+function applyPricingFilter(){
+  const filtered = productsCache.filter(p=>{
+    const matchCat = !pricingCategoryFilter || p.category===pricingCategoryFilter;
+    const matchSearch = !pricingSearchQuery || normText(p.name).includes(normText(pricingSearchQuery));
+    return matchCat && matchSearch;
+  });
+  const wrap = document.getElementById('pricingTableWrap');
+  if(wrap) wrap.innerHTML = renderPricingTableInnerHTML(filtered);
+}
+function onPricingSearchInput(val){
+  pricingSearchQuery = val;
+  applyPricingFilter();
+}
+function onPricingCatFilter(val){
+  pricingCategoryFilter = val;
+  applyPricingFilter();
 }
 async function transferStock(){
   const statusEl = document.getElementById('transferStatus');
@@ -2961,28 +3069,20 @@ async function addProduct(){
   const category = getCategoryValue('pCategory');
   const unit = getUnitValue('pUnit');
   const price = parseFloat(document.getElementById('pPrice').value)||0;
-  const qty = parseFloat(document.getElementById('pQty').value)||0;
   const weight = parseFloat(document.getElementById('pWeight')?.value) || null;
   const cost_price = parseFloat(document.getElementById('pCostPrice')?.value) || null;
   const barcodeEl = document.getElementById('pBarcode');
   const barcode = barcodeEl ? (barcodeEl.value.trim() || null) : null;
   if(!name || !unit){ alert('សូមបញ្ចូលឈ្មោះ និងឯកតា'); return; }
-  let productId = editingProductId;
   if(editingProductId){
     const {error} = await sb.from('products').update({code, name, category, unit, price, weight, cost_price, barcode}).eq('id', editingProductId);
     if(error){ alert(error.message); return; }
     editingProductId = null;
   } else {
-    const {data, error} = await sb.from('products').insert({code, name, category, unit, price, weight, cost_price, stock_qty:0, barcode}).select().single();
+    const {error} = await sb.from('products').insert({code, name, category, unit, price, weight, cost_price, stock_qty:0, barcode});
     if(error){ alert(error.message); return; }
-    productId = data.id;
   }
-  if(productId && currentLocationId){
-    await upsertStock(productId, currentLocationId, qty);
-  } else if(productId && qty>0 && !currentLocationId){
-    alert('ចំណាំ៖ ផលិតផលបានរក្សាទុករួច ប៉ុន្តែចំនួនស្តុកមិនត្រូវបានកត់ត្រាទេ ព្រោះមិនទាន់មានទីតាំង (ហាង/ឃ្លាំង)។ សូមបង្កើតទីតាំងក្នុង "ការកំណត់" រួចដាក់ស្តុកម្តងទៀត');
-  }
-  renderStock(document.getElementById('content'));
+  renderPricing(document.getElementById('content'));
 }
 function generateBarcodeForForm(){
   const el = document.getElementById('pBarcode');
@@ -3194,7 +3294,8 @@ async function deleteProduct(id){
     }
     return;
   }
-  renderStock(document.getElementById('content'));
+  if(activeNav==='pricing') renderPricing(document.getElementById('content'));
+  else renderStock(document.getElementById('content'));
 }
 
 /* ================= CUSTOMERS ================= */
