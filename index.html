@@ -3508,7 +3508,7 @@ let poShippingMethod = 'value';
 function newPOBulkRow(){ return {name:'', qty:1, unit:'សន្លឹក', mode:'weight', totalWeight:'', pricePerKg:'', unitPrice:''}; }
 let poBulkRows = [newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
 function addPOBulkRow(){ poBulkRows.push(newPOBulkRow()); renderPurchase(document.getElementById('content')); }
-function removePOBulkRow(i){ poBulkRows.splice(i,1); if(poBulkRows.length===0) poBulkRows.push(newPOBulkRow()); renderPurchase(document.getElementById('content')); }
+function removePOBulkRow(i){ poBulkRows.splice(i,1); renderPurchase(document.getElementById('content')); }
 function setPOBulkRowMode(i, mode){ poBulkRows[i].mode = mode; renderPurchase(document.getElementById('content')); }
 function updatePOBulkRow(i, field, val){
   poBulkRows[i][field] = (field==='name'||field==='unit') ? val : (parseFloat(val)||0);
@@ -3528,6 +3528,7 @@ function poUnitOptionsHTML(currentVal){
   `;
 }
 function submitPOBulkRows(){
+  if(poBulkRows.length===0) return;
   const validRows = poBulkRows.filter(r=>r.name.trim() && (r.mode==='unit' ? r.unitPrice>0 : (r.totalWeight>0 && r.pricePerKg>0)));
   if(validRows.length===0){ alert('សូមបំពេញយ៉ាងតិចមួយជួរ (ឈ្មោះ, និងតម្លៃ — តាមទំងន់ ឬតាមឯកតា)'); return; }
   validRows.forEach(r=>{
