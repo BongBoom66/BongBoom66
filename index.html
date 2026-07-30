@@ -3503,6 +3503,10 @@ let selectedSupplier = null;
 let poHistoryFilter = 'all';
 let poStep = 1; // 1=supplier/currency, 2=products, 3=shipping, 4=review
 function setPOStep(n){ poStep = n; renderPurchase(document.getElementById('content')); window.scrollTo(0,0); }
+let poAddMode = 'search'; // 'search' | 'bulk' | 'newpriced' — which "add items" panel is showing in step 2
+function setPOAddMode(m){ poAddMode = m; renderPurchase(document.getElementById('content')); }
+let poEditingCartIndex = null; // index of the poCart row currently expanded for cost editing, or null
+function togglePOCartEdit(i){ poEditingCartIndex = (poEditingCartIndex===i) ? null : i; renderPurchase(document.getElementById('content')); }
 let poShippingTotal = 0;
 let poShippingMethod = 'value';
 function newPOBulkRow(){ return {name:'', qty:1, unit:'សន្លឹក', totalWeight:'', pricePerKg:''}; }
@@ -3629,68 +3633,17 @@ async function renderPurchase(c){
     </div>` : ''}
 
     ${poStep===2?`
-    <div class="card" style="border-color:var(--good);" data-card-key="purchase_bulk">
-      <b>ទំនិញក្នុងបញ្ជាទិញនេះ (បញ្ចូលរហ័សតាមតារាង)</b>
-      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">ទំនិញដែលបន្ថែមតាមស្កេន/ស្វែងរកខាងក្រោម នឹងលេចមកជាជួរនៅទីនេះផ្ទាល់ — ឬសរសេរតាមតារាងវិក្កយបត្រអ្នកផ្គត់ផ្គង់ផ្ទាល់ក្នុងជួរទទេខាងក្រោម (ឈ្មោះ+ខ្នាត, ចំនួនដុំ, ទំងន់សរុប Kg, តម្លៃ/Kg)</p>
-      <div class="tbl-wrap" style="overflow-x:auto;">
-        <table>
-          <thead><tr>
-            <th style="width:28px;">ល.រ</th>
-            <th style="text-align:left;min-width:180px;">ឈ្មោះ + ខ្នាត</th>
-            <th style="width:70px;">ចំនួន</th>
-            <th style="width:85px;">ឯកតា</th>
-            <th style="width:170px;">ថ្លៃដើម/ឯកតា</th>
-            <th style="width:90px;">សរុប</th>
-            <th style="width:32px;"></th>
-          </tr></thead>
-          <tbody>
-            ${poCart.map((it,i)=>{
-              const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
-              return `
-            <tr style="background:#faf9f5;">
-              <td>${i+1}</td>
-              <td><input class="inp" style="width:100%;min-width:160px;" value="${escapeHtml(it.name)}" onchange="updatePOItemField(${i},'name',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)"></td>
-              <td><input class="inp" style="width:100%;" value="${escapeHtml(it.unit||'')}" onchange="updatePOItemField(${i},'unit',this.value)"></td>
-              <td>
-                <div class="row-inline" style="gap:3px;margin-bottom:3px;">
-                  <button class="btn small ${!it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, false)">/ឯកតា</button>
-                  <button class="btn small ${it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, true)">⚖️/Kg</button>
-                </div>
-                ${!it.wcMode?`
-                <input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">`:`
-                <div class="row-inline" style="gap:3px;">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
-                </div>`}
-              </td>
-              <td style="text-align:right;font-weight:700;">$${(it.qty*unitTotalCost).toFixed(2)}</td>
-              <td><button class="btn small danger" onclick="removePOItem(${i})">✕</button></td>
-            </tr>`;}).join('')}
-            ${poBulkRows.map((r,i)=>`
-            <tr>
-              <td>+</td>
-              <td><input class="inp" style="width:100%;min-width:160px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
-              <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
-              <td>
-                <div class="row-inline" style="gap:3px;">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="Kg" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)">
-                </div>
-              </td>
-              <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
-              <td><button class="btn small danger" onclick="removePOBulkRow(${i})">✕</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="row-inline" style="justify-content:space-between;margin-top:10px;">
-        <button class="btn small" onclick="addPOBulkRow()">+ បន្ថែមជួរទទេ</button>
-        <button class="btn accent" onclick="submitPOBulkRows()">បញ្ចូលជួរទទេចូលបញ្ជី →</button>
-      </div>
+    <p style="font-size:13px;color:var(--ink-muted);margin:0 0 8px;">ជ្រើសរើសវិធីបន្ថែមទំនិញខាងក្រោម (មានឲ្យជ្រើស 3 វិធី — ជ្រើសតែមួយតាមករណី)៖</p>
+    <div class="doctabs">
+      <button class="${poAddMode==='search'?'active invoice':''}" onclick="setPOAddMode('search')">🔍 ស្វែងរកទំនិញមានស្រាប់</button>
+      <button class="${poAddMode==='bulk'?'active invoice':''}" onclick="setPOAddMode('bulk')">📋 វិក្កយបត្រថ្មី (គិតតាមទំងន់)</button>
+      <button class="${poAddMode==='newpriced'?'active invoice':''}" onclick="setPOAddMode('newpriced')">✨ ទំនិញថ្មី + កំណត់តម្លៃលក់</button>
     </div>
-    <div class="card" data-card-key="purchase_prodlist">
+
+    ${poAddMode==='search'?`
+    <div class="card" data-card-key="purchase_prodlist" style="margin-top:12px;">
+      <b>ស្វែងរកទំនិញមានស្រាប់ក្នុងស្តុក</b>
+      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញដែលធ្លាប់ទិញ/មានក្នុងបញ្ជីស្តុករួចហើយ — ស្កេនបារកូដ ឬវាយស្វែងរក រួចចុច "+ បន្ថែម"</p>
       <div class="row-inline" style="margin-bottom:8px;">
         <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
         <button class="btn accent" onclick="openCameraScan('po')" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
@@ -3702,9 +3655,46 @@ async function renderPurchase(c){
           ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
         </select>
       </div>
-      <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:260px;overflow-y:auto;"></div>
-    </div>
-    <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
+      <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:320px;overflow-y:auto;"></div>
+    </div>` : ''}
+
+    ${poAddMode==='bulk'?`
+    <div class="card" style="border-color:var(--good);margin-top:12px;" data-card-key="purchase_bulk">
+      <b>វាយបញ្ចូលពីវិក្កយបត្រអ្នកផ្គត់ផ្គង់ (គិតតាមទំងន់)</b>
+      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">សម្រាប់វិក្កយបត្រចិន/វៀតណាមដែលមានច្រើនជួរ — សរសេរតាមតារាងវិក្កយបត្រផ្ទាល់ជួរម្តងៗ រួចចុច "បន្ថែមទាំងអស់ចូលបញ្ជី"</p>
+      <div class="tbl-wrap" style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th style="text-align:left;min-width:200px;">ឈ្មោះ + ខ្នាត</th>
+            <th style="width:80px;">ចំនួនដុំ</th>
+            <th style="width:90px;">ឯកតា</th>
+            <th style="width:110px;">ទំងន់សរុប(Kg)</th>
+            <th style="width:110px;">តម្លៃ/Kg(${poCurrencySymbol()})</th>
+            <th style="width:100px;">សរុប</th>
+            <th style="width:32px;"></th>
+          </tr></thead>
+          <tbody>
+            ${poBulkRows.map((r,i)=>`
+            <tr>
+              <td><input class="inp" style="width:100%;min-width:180px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
+              <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)"></td>
+              <td><input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)"></td>
+              <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
+              <td><button class="btn small danger" onclick="removePOBulkRow(${i})">✕</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="row-inline" style="justify-content:space-between;margin-top:10px;">
+        <button class="btn small" onclick="addPOBulkRow()">+ បន្ថែមជួរ</button>
+        <button class="btn accent" onclick="submitPOBulkRows()">បន្ថែមទាំងអស់ចូលបញ្ជី →</button>
+      </div>
+    </div>` : ''}
+
+    ${poAddMode==='newpriced'?`
+    <div class="card" style="border-color:var(--spark);margin-top:12px;" data-card-key="purchase_newprod">
       <b>ទំនិញថ្មី (មិនទាន់មានក្នុងស្តុក)</b>
       <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ</p>
       <div class="row-inline">
@@ -3744,8 +3734,83 @@ async function renderPurchase(c){
         <input class="inp" id="poNewPrice" type="number" step="0.01" placeholder="តម្លៃលក់ចុងក្រោយ (កែបានតាមចង់)" style="flex:1;min-width:160px">
         <button class="btn accent small" onclick="addNewPOProduct()">+ បន្ថែម</button>
       </div>
-    </div>
-    <div class="row-inline" style="justify-content:space-between;margin-top:6px;">
+    </div>` : ''}
+
+    ${poCart.length>0?`
+    <div class="card" data-card-key="purchase_cart_mini" style="margin-top:12px;">
+      <b>ទំនិញក្នុងបញ្ជាទិញនេះ (${poCart.length})</b>
+      <div class="tbl-wrap" style="margin-top:8px;overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th style="width:28px;">ល.រ</th>
+            <th style="text-align:left;">ឈ្មោះ</th>
+            <th style="width:60px;">ចំនួន</th>
+            <th style="width:70px;">ឯកតា</th>
+            <th style="width:100px;">ថ្លៃចូល/ឯកតា</th>
+            <th style="width:90px;">សរុប</th>
+            <th style="width:90px;"></th>
+          </tr></thead>
+          <tbody>
+            ${poCart.map((it,i)=>{
+              const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
+              const isEditing = poEditingCartIndex===i;
+              return `
+            <tr>
+              <td>${i+1}</td>
+              <td class="left">${escapeHtml(it.name)}</td>
+              <td>${it.qty}</td>
+              <td>${escapeHtml(it.unit||'')}</td>
+              <td>$${unitTotalCost.toFixed(2)}</td>
+              <td>$${(it.qty*unitTotalCost).toFixed(2)}</td>
+              <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
+                <button class="btn small ${isEditing?'accent':''}" onclick="togglePOCartEdit(${i})">${isEditing?'បិទ':'កែ'}</button>
+                <button class="btn small danger" onclick="removePOItem(${i})">✕</button>
+              </td>
+            </tr>
+            ${isEditing?`
+            <tr>
+              <td colspan="7" style="background:#faf9f5;padding:10px 12px;">
+                <div class="row-inline" style="gap:8px;flex-wrap:wrap;">
+                  <div style="flex:1;min-width:140px;">
+                    <label style="font-size:11px;color:var(--ink-muted);">ឈ្មោះ</label>
+                    <input class="inp" style="width:100%;margin-top:2px;" value="${escapeHtml(it.name)}" onchange="updatePOItemField(${i},'name',this.value)">
+                  </div>
+                  <div style="flex:1;min-width:80px;">
+                    <label style="font-size:11px;color:var(--ink-muted);">ចំនួន</label>
+                    <input class="inp" style="width:100%;margin-top:2px;" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)">
+                  </div>
+                  <div style="flex:1;min-width:80px;">
+                    <label style="font-size:11px;color:var(--ink-muted);">ឯកតា</label>
+                    <input class="inp" style="width:100%;margin-top:2px;" value="${escapeHtml(it.unit||'')}" onchange="updatePOItemField(${i},'unit',this.value)">
+                  </div>
+                </div>
+                <div class="row-inline" style="margin-top:8px;gap:6px;">
+                  <button class="btn small ${!it.wcMode?'accent':''}" onclick="setPOCostMode(${i}, false)">តាមឯកតា</button>
+                  <button class="btn small ${it.wcMode?'accent':''}" onclick="setPOCostMode(${i}, true)">⚖️ តាមទំងន់ (Kg)</button>
+                </div>
+                ${!it.wcMode?`
+                <div style="margin-top:8px;max-width:220px;">
+                  <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម/ឯកតា${poCurrency!=='usd'?' ('+poCurrencySymbol()+')':''}</label>
+                  <input class="inp" style="width:100%;margin-top:2px;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">
+                </div>`:`
+                <div class="row-inline" style="margin-top:8px;gap:8px;max-width:360px;">
+                  <div style="flex:1;">
+                    <label style="font-size:11px;color:var(--ink-muted);">ទំងន់សរុប (Kg)</label>
+                    <input class="inp" style="width:100%;margin-top:2px;" type="number" step="0.01" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
+                  </div>
+                  <div style="flex:1;">
+                    <label style="font-size:11px;color:var(--ink-muted);">តម្លៃ/Kg (${poCurrencySymbol()})</label>
+                    <input class="inp" style="width:100%;margin-top:2px;" type="number" step="0.01" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
+                  </div>
+                </div>`}
+              </td>
+            </tr>`:''}`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <div class="row-inline" style="justify-content:space-between;margin-top:14px;">
       <button class="btn" onclick="setPOStep(1)">← ថយក្រោយ</button>
       <button class="btn primary" onclick="setPOStep(3)">បន្ទាប់ → ថ្លៃដឹក</button>
     </div>` : ''}
