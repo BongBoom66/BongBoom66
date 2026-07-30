@@ -3585,7 +3585,7 @@ async function renderPurchase(c){
     <div class="row-inline" style="justify-content:space-between;background:var(--paper-dim);padding:9px 14px;border-radius:9px;margin:10px 0 14px;font-size:12.5px;flex-wrap:wrap;gap:6px;">
       <span>👤 ${escapeHtml(selectedSupplier?.name || 'មិនទាន់ជ្រើសរើសអ្នកផ្គត់ផ្គង់')}</span>
       <span>📦 ${poCart.length} មុខទំនិញ</span>
-      <span>💰 សរុប ${poCurrency==='usd'?'$'+poSubtotal().toFixed(2):poCurrencySymbol()+usdToPo(poSubtotal()).toFixed(2)}</span>
+      <span>💰 សរុប ${poCurrency==='usd'?'$'+poSubtotal().toFixed(2):`${poCurrencySymbol()}${usdToPo(poSubtotal()).toFixed(2)} ($${poSubtotal().toFixed(2)})`}</span>
     </div>
 
     ${poStep===1?`
@@ -3639,7 +3639,7 @@ async function renderPurchase(c){
             <th style="text-align:left;min-width:180px;">ឈ្មោះ + ខ្នាត</th>
             <th style="width:70px;">ចំនួន</th>
             <th style="width:85px;">ឯកតា</th>
-            <th style="width:170px;">ថ្លៃដើម/ឯកតា</th>
+            <th style="width:260px;">ថ្លៃដើម/ឯកតា</th>
             <th style="width:90px;">សរុប</th>
             <th style="width:32px;"></th>
           </tr></thead>
@@ -3659,9 +3659,9 @@ async function renderPurchase(c){
                 </div>
                 ${!it.wcMode?`
                 <input class="inp" style="width:100%;text-align:right;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">`:`
-                <div class="row-inline" style="gap:3px;">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
+                  <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
                 </div>`}
               </td>
               <td style="text-align:right;font-weight:700;">${poCurrency==='usd'?'$'+(it.qty*unitTotalCost).toFixed(2):poCurrencySymbol()+usdToPo(it.qty*unitTotalCost).toFixed(2)}</td>
@@ -3674,9 +3674,9 @@ async function renderPurchase(c){
               <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
               <td><input class="inp" style="width:100%;" value="${escapeHtml(r.unit)}" oninput="updatePOBulkRow(${i},'unit',this.value)"></td>
               <td>
-                <div class="row-inline" style="gap:3px;">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="Kg" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)">
-                  <input class="inp" style="width:50%;text-align:right;font-size:11px;padding:4px 5px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)">
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)">
+                  <input class="inp" style="width:100%;text-align:right;font-size:14px;padding:8px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)">
                 </div>
               </td>
               <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${((r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
@@ -3853,7 +3853,7 @@ async function renderPurchase(c){
         </table>
       </div>
       <div class="totals" style="margin-top:10px;">
-        <div class="line"><span>សរុប (រួមថ្លៃដឹក)</span><b>${poCurrency==='usd'?'$'+poSubtotal().toFixed(2):poCurrencySymbol()+usdToPo(poSubtotal()).toFixed(2)}</b></div>
+        <div class="line"><span>សរុប (រួមថ្លៃដឹក)</span><b>${poCurrency==='usd'?'$'+poSubtotal().toFixed(2):`${poCurrencySymbol()}${usdToPo(poSubtotal()).toFixed(2)} ($${poSubtotal().toFixed(2)})`}</b></div>
       </div>
       <div class="row-inline" style="margin-top:14px;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <button class="btn" onclick="setPOStep(3)">← ថយក្រោយ</button>
