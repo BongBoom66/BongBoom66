@@ -1755,7 +1755,7 @@ async function renderPOS(c){
             <datalist id="manNameList">
               ${[...new Set([...productsCache.map(p=>p.name), ...Object.keys(customItemsCache)])].map(n=>`<option value="${escapeHtml(n)}">`).join('')}
             </datalist>
-            <input class="inp" id="manQty" type="number" step="any" placeholder="ចំនួន" value="1" style="flex:1;min-width:70px">
+            <input class="inp" id="manQty" type="number" step="any" placeholder="ចំនួន" value="1" style="flex:1;min-width:100px">
             ${unitSelectHTML('manUnit','')}
             <input class="inp" id="manPrice" type="number" step="0.01" placeholder="តម្លៃរាយ $" style="flex:1;min-width:100px">
             <button class="btn accent small" onclick="addManualItem()">+ បន្ថែម</button>
@@ -3786,7 +3786,7 @@ async function renderPurchase(c){
           <thead><tr>
             <th style="width:28px;">ល.រ</th>
             <th style="text-align:left;min-width:180px;">ឈ្មោះ + ខ្នាត</th>
-            <th style="width:70px;">ចំនួន</th>
+            <th style="width:100px;">ចំនួន</th>
             <th style="width:85px;">ឯកតា</th>
             <th style="width:320px;">ថ្លៃដើម/ឯកតា</th>
             <th style="width:90px;">សរុប</th>
@@ -3868,7 +3868,7 @@ async function renderPurchase(c){
         ${unitSelectHTML('poNewUnit','')}
       </div>
       <div class="row-inline" style="margin-top:8px;">
-        <div style="flex:1;min-width:90px;">
+        <div style="flex:1;min-width:110px;">
           <label style="font-size:11px;color:var(--ink-muted);">ចំនួនទិញ</label>
           <input class="inp" id="poNewQty" type="number" step="any" value="1" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
         </div>
