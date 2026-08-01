@@ -2179,6 +2179,7 @@ function onCustPickerSearch(val){
     matches = customersCache.filter(cu=>
       normText(cu.name).includes(q) ||
       normText(cu.phone||'').includes(q) ||
+      normText(cu.phone2||'').includes(q) ||
       normText(cu.location||'').includes(q)
     ).slice(0, 20);
   }
@@ -2188,7 +2189,7 @@ function onCustPickerSearch(val){
     box.innerHTML = matches.map(cu=>`
       <div style="padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--paper-dim);" onmousedown="selectCustomerFromSuggestion('${cu.id}')">
         <b>${escapeHtml(cu.name)}</b> <span style="color:var(--ink-muted);font-size:12px;">${cCode(cu)}</span><br>
-        <span style="color:var(--ink-muted);font-size:12px;">${escapeHtml(cu.phone||'')}${cu.location?' • '+escapeHtml(cu.location):''}</span>
+        <span style="color:var(--ink-muted);font-size:12px;">${escapeHtml(cu.phone||'')}${cu.phone2?' / '+escapeHtml(cu.phone2):''}${cu.location?' • '+escapeHtml(cu.location):''}</span>
       </div>`).join('');
   }
   box.style.display = 'block';
@@ -3313,6 +3314,7 @@ async function renderCustomers(c){
   const filtered = customersCache.filter(cu =>
     normText(cu.name).includes(q) ||
     normText(cu.phone||'').includes(q) ||
+    normText(cu.phone2||'').includes(q) ||
     normText(cu.location||'').includes(q) ||
     normText(cCode(cu)).includes(q)
   );
@@ -3326,6 +3328,7 @@ async function renderCustomers(c){
       <div class="row-inline">
         <input class="inp" id="cName" placeholder="ឈ្មោះ" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.name):''}">
         <input class="inp" id="cPhone" placeholder="លេខទូរស័ព្ទ" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.phone||''):''}">
+        <input class="inp" id="cPhone2" placeholder="លេខទូរស័ព្ទទី ២ (ស្រេចចិត្ត)" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.phone2||''):''}">
         <input class="inp" id="cLoc" placeholder="ទីតាំង" style="flex:1;min-width:140px" value="${editCust?escapeHtml(editCust.location||''):''}">
         ${(editCust ? canAccess('customers_edit') : canAccess('customers_add')) ? `<button class="btn accent" onclick="addCustomer()">${editCust?'រក្សាទុកការកែប្រែ':'+ បន្ថែមអតិថិជន'}</button>` : ''}
         ${editCust?`<button class="btn small" onclick="cancelEditCustomer()">✕ បោះបង់</button>`:''}
@@ -3334,7 +3337,7 @@ async function renderCustomers(c){
     ${canAccess('customers_import_export') ? `
     <div class="card" data-card-key="customers_import_export">
       <b>Upload / ទាញយក អតិថិជនតាម Excel</b>
-      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ទូរស័ព្ទ, ទីតាំង (ជួរទី ១ ជា Header)</p>
+      <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ទូរស័ព្ទ, ទូរស័ព្ទទី ២ (ស្រេចចិត្ត), ទីតាំង (ជួរទី ១ ជា Header)</p>
       <div class="row-inline">
         <input type="file" id="custExcelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
         <button class="btn accent" onclick="importExcelCustomers()">Import</button>
@@ -3362,7 +3365,7 @@ function renderCustomerRows(filtered){
             <tr>
               <td>${cCode(cu)}</td>
               <td class="left">${escapeHtml(cu.name)}</td>
-              <td>${escapeHtml(cu.phone||'')}</td>
+              <td>${escapeHtml(cu.phone||'')}${cu.phone2?'<br>'+escapeHtml(cu.phone2):''}</td>
               <td>${escapeHtml(cu.location||'')}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small accent" onclick="viewCustomerDetail('${cu.id}')">ប្រវត្តិ</button>
@@ -3377,6 +3380,7 @@ function onCustomerSearchInput(val){
   const filtered = customersCache.filter(cu =>
     normText(cu.name).includes(q) ||
     normText(cu.phone||'').includes(q) ||
+    normText(cu.phone2||'').includes(q) ||
     normText(cu.location||'').includes(q) ||
     normText(cCode(cu)).includes(q)
   );
@@ -3412,7 +3416,7 @@ async function renderCustomerDetail(c, customerId){
       <h2 class="page-title">ប្រវត្តិអតិថិជន៖ ${escapeHtml(cust.name)}</h2>
       <button class="btn" onclick="closeCustomerDetail()">← ត្រឡប់ទៅបញ្ជី</button>
     </div>
-    <p class="page-sub">កូដ ${cCode(cust)} • ${escapeHtml(cust.phone||'')} • ${escapeHtml(cust.location||'')}</p>
+    <p class="page-sub">កូដ ${cCode(cust)} • ${escapeHtml(cust.phone||'')}${cust.phone2?' / '+escapeHtml(cust.phone2):''} • ${escapeHtml(cust.location||'')}</p>
 
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:10px;gap:8px;">
       <button class="btn" onclick="downloadCustomerHistoryPDF()">ទាញយក PDF</button>
@@ -3514,6 +3518,7 @@ async function exportCustomersExcel(){
     'កូដ': cCode(cu),
     'ឈ្មោះ': cu.name,
     'ទូរស័ព្ទ': cu.phone || '',
+    'ទូរស័ព្ទទី ២': cu.phone2 || '',
     'ទីតាំង': cu.location || ''
   }));
   const wb = XLSX.utils.book_new();
@@ -3547,6 +3552,7 @@ async function importExcelCustomers(){
       code: String(getVal(r, ['កូដ','Code'])).trim(),
       name: String(getVal(r, ['ឈ្មោះ','Name'])).trim(),
       phone: String(getVal(r, ['ទូរស័ព្ទ','Phone'])).trim(),
+      phone2: String(getVal(r, ['ទូរស័ព្ទទី ២','Phone2','ទូរស័ព្ទទី2'])).trim(),
       location: String(getVal(r, ['ទីតាំង','Location'])).trim()
     })).filter(r=>r.name);
 
@@ -3565,7 +3571,7 @@ async function importExcelCustomers(){
     for(const r of parsed){
       const match = (r.code && existingByCode[r.code.toLowerCase()]) || existingByName[r.name.toLowerCase()];
       if(match){
-        toUpdate.push({id: match.id, code: r.code || match.code, phone: r.phone || match.phone, location: r.location || match.location});
+        toUpdate.push({id: match.id, code: r.code || match.code, phone: r.phone || match.phone, phone2: r.phone2 || match.phone2, location: r.location || match.location});
       } else {
         toInsert.push(r);
         if(r.code) existingByCode[r.code.toLowerCase()] = {id:null};
@@ -3578,7 +3584,7 @@ async function importExcelCustomers(){
       if(error){ statusEl.textContent = 'មានបញ្ហា៖ '+error.message; return; }
     }
     for(const u of toUpdate){
-      await sb.from('customers').update({code:u.code, phone:u.phone, location:u.location}).eq('id', u.id);
+      await sb.from('customers').update({code:u.code, phone:u.phone, phone2:u.phone2, location:u.location}).eq('id', u.id);
     }
 
     statusEl.textContent = `Import ជោគជ័យ! បន្ថែមថ្មី ${toInsert.length} នាក់, ធ្វើបច្ចុប្បន្នភាព ${toUpdate.length} នាក់`;
@@ -3592,23 +3598,26 @@ async function importExcelCustomers(){
 async function addCustomer(){
   const name = document.getElementById('cName').value.trim();
   const phone = document.getElementById('cPhone').value.trim();
+  const phone2 = document.getElementById('cPhone2').value.trim();
   const loc = document.getElementById('cLoc').value.trim();
   if(!name && !phone){ alert('សូមបញ្ចូលឈ្មោះ ឬយ៉ាងតិចលេខទូរស័ព្ទ'); return; }
   const finalName = name || phone;
   if(editingCustomerId){
-    const {error} = await sb.from('customers').update({name:finalName, phone, location:loc}).eq('id', editingCustomerId);
+    const {error} = await sb.from('customers').update({name:finalName, phone, phone2, location:loc}).eq('id', editingCustomerId);
     if(error){ alert(error.message); return; }
     editingCustomerId = null;
   } else {
     const dup = customersCache.find(cu =>
       normText(cu.name.trim())===normText(finalName) ||
-      (phone && cu.phone && cu.phone.trim()===phone)
+      (phone && cu.phone && cu.phone.trim()===phone) ||
+      (phone && cu.phone2 && cu.phone2.trim()===phone) ||
+      (phone2 && ((cu.phone && cu.phone.trim()===phone2) || (cu.phone2 && cu.phone2.trim()===phone2)))
     );
     if(dup){
       const matchedOn = normText(dup.name.trim())===normText(finalName) ? 'ឈ្មោះ' : 'លេខទូរស័ព្ទ';
       if(!confirm(`អតិថិជន "${dup.name}" (${cCode(dup)}) មាន${matchedOn}ដូចគ្នារួចហើយ។ អ្នកចង់បន្ថែមជាអតិថិជនថ្មីទៀតឬទេ?`)) return;
     }
-    const {error} = await sb.from('customers').insert({name:finalName, phone, location:loc});
+    const {error} = await sb.from('customers').insert({name:finalName, phone, phone2, location:loc});
     if(error){ alert(error.message); return; }
   }
   renderCustomers(document.getElementById('content'));
