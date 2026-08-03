@@ -11,6 +11,14 @@
 //|     price falls), spaced InpGapUSD apart.                          |
 //|   - Each level is filled with an immediate market order (not a     |
 //|     pending order) the first time price trades through it.         |
+//|   - Every tick, each OPEN POSITION is checked individually: once    |
+//|     its own profit reaches InpLayerTPUSD it is closed on its own,   |
+//|     locking in that layer's gain immediately instead of leaving it  |
+//|     to ride back down while waiting for the whole basket to close.  |
+//|     This is what actually makes the strategy net profitable -       |
+//|     without it, a layer that was winning can give the profit back   |
+//|     and even end up a large loss by the time the basket-level exit  |
+//|     finally fires (see README for a worked example).                |
 //|   - Because both sides sit on opposite sides of the base price,     |
 //|     a whipsawing market fills layers on BOTH sides over time, so    |
 //|     the two baskets net/hedge against each other - g_buyFilled     |
@@ -42,6 +50,7 @@ input int    InpSlippagePoints   = 30;     // Max slippage for market orders (po
 
 input group "=== Profit-based exit (primary) ==="
 input double InpProfitTargetUSD  = 1.0;    // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
+input double InpLayerTPUSD       = 1.0;    // Close each individual position once ITS OWN profit >= this (0 = disabled)
 
 input group "=== Identification ==="
 input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's trades separate
@@ -120,6 +129,8 @@ void OnTick()
         }
      }
 
+   CloseIndividualLayersAtProfit();
+
    bool sideCompleted  = (g_buyFilled >= InpLayers) || (g_sellFilled >= InpLayers);
    bool profitReached  = (InpProfitTargetUSD > 0.0) && (GetFloatingProfit() >= InpProfitTargetUSD);
 
@@ -161,6 +172,33 @@ void CloseAllPositions()
 
       if(!trade.PositionClose(ticket))
          PrintFormat("Failed to close position #%I64u: %s", ticket, trade.ResultRetcodeDescription());
+     }
+  }
+
+//+------------------------------------------------------------------+
+void CloseIndividualLayersAtProfit()
+  {
+   if(InpLayerTPUSD <= 0.0)
+      return;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0)
+         continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+      if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
+         continue;
+
+      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      if(profit < InpLayerTPUSD)
+         continue;
+
+      if(trade.PositionClose(ticket))
+         PrintFormat("Layer position #%I64u closed individually at profit %.2f", ticket, profit);
+      else
+         PrintFormat("Failed to close position #%I64u for individual TP: %s", ticket, trade.ResultRetcodeDescription());
      }
   }
 
