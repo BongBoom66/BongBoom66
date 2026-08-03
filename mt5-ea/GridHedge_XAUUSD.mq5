@@ -35,6 +35,15 @@
 //|     and re-armed immediately the same way - a worst-case safety     |
 //|     exit for a market that trends hard one way without ever         |
 //|     giving back enough for the profit target.                       |
+//|   - Lot size grows per layer by InpLotMultiplier (1.0 = fixed lot,  |
+//|     same as before), capped at InpMaxLotSize, so a small pullback   |
+//|     recovers more of an adverse move. This is a bounded Martingale  |
+//|     - it does NOT guarantee profit, and a hard money stop-loss       |
+//|     (InpMaxLossUSD) is included specifically because no lot-sizing   |
+//|     formula can guarantee recovery: if the market trends hard one    |
+//|     way without ever reversing, InpMaxLossUSD forces the grid to     |
+//|     close and re-arm before the loss grows unbounded, instead of     |
+//|     letting a runaway lot size blow up the account.                  |
 //+------------------------------------------------------------------+
 #property copyright "Grid Hedge EA"
 #property version   "1.00"
@@ -43,7 +52,9 @@
 #include <Trade\Trade.mqh>
 
 input group "=== Grid settings ==="
-input double InpLotSize          = 0.01;   // Lot size per layer (same for all layers)
+input double InpLotSize          = 0.01;   // Base lot size for layer 1
+input double InpLotMultiplier    = 1.3;    // Lot multiplier per layer (1.0 = fixed lot, same size every layer)
+input double InpMaxLotSize       = 0.20;   // Maximum lot size for any single layer (hard cap)
 input double InpGapUSD           = 2.0;    // Gap between layers, in price ($)
 input int    InpLayers           = 10;     // Number of layers per side (Buy / Sell)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
@@ -52,12 +63,15 @@ input group "=== Profit-based exit (primary) ==="
 input double InpProfitTargetUSD  = 1.0;    // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
 input double InpLayerTPUSD       = 1.0;    // Close each individual position once ITS OWN profit >= this (0 = disabled)
 
+input group "=== Risk management ==="
+input double InpMaxLossUSD       = 50.0;   // Hard stop: close all + restart once total floating LOSS reaches this ($, 0 = disabled - NOT recommended)
+
 input group "=== Identification ==="
 input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's trades separate
 
 CTrade trade;
 
-double g_lot;                 // normalized lot size actually sent to broker
+double g_layerLot[];          // g_layerLot[i] = normalized lot size for layer i+1 (both Buy and Sell sides)
 double g_basePrice;           // price the current grid is centered on
 bool   g_buyTriggered[];      // g_buyTriggered[i] == layer i+1 already filled
 bool   g_sellTriggered[];
@@ -76,8 +90,20 @@ int OnInit()
       Print("InpLayers must be > 0");
       return INIT_PARAMETERS_INCORRECT;
      }
+   if(InpLotMultiplier <= 0.0)
+     {
+      Print("InpLotMultiplier must be > 0");
+      return INIT_PARAMETERS_INCORRECT;
+     }
 
-   g_lot = NormalizeLot(InpLotSize);
+   ArrayResize(g_layerLot, InpLayers);
+   for(int i = 0; i < InpLayers; i++)
+     {
+      double lot = InpLotSize * MathPow(InpLotMultiplier, i);
+      lot = MathMin(lot, InpMaxLotSize);
+      g_layerLot[i] = NormalizeLot(lot);
+     }
+
    ArrayResize(g_buyTriggered, InpLayers);
    ArrayResize(g_sellTriggered, InpLayers);
 
@@ -106,11 +132,11 @@ void OnTick()
 
       if(!g_buyTriggered[i] && ask >= buyLevel)
         {
-         if(trade.Buy(g_lot, _Symbol))
+         if(trade.Buy(g_layerLot[i], _Symbol))
            {
             g_buyTriggered[i] = true;
             g_buyFilled++;
-            PrintFormat("Buy layer %d filled at level %.2f (ask=%.2f)", i + 1, buyLevel, ask);
+            PrintFormat("Buy layer %d filled at level %.2f (ask=%.2f, lot=%.2f)", i + 1, buyLevel, ask, g_layerLot[i]);
            }
          else
             PrintFormat("Buy layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
@@ -118,11 +144,11 @@ void OnTick()
 
       if(!g_sellTriggered[i] && bid <= sellLevel)
         {
-         if(trade.Sell(g_lot, _Symbol))
+         if(trade.Sell(g_layerLot[i], _Symbol))
            {
             g_sellTriggered[i] = true;
             g_sellFilled++;
-            PrintFormat("Sell layer %d filled at level %.2f (bid=%.2f)", i + 1, sellLevel, bid);
+            PrintFormat("Sell layer %d filled at level %.2f (bid=%.2f, lot=%.2f)", i + 1, sellLevel, bid, g_layerLot[i]);
            }
          else
             PrintFormat("Sell layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
@@ -131,14 +157,17 @@ void OnTick()
 
    CloseIndividualLayersAtProfit();
 
+   double floatingProfit = GetFloatingProfit();
    bool sideCompleted  = (g_buyFilled >= InpLayers) || (g_sellFilled >= InpLayers);
-   bool profitReached  = (InpProfitTargetUSD > 0.0) && (GetFloatingProfit() >= InpProfitTargetUSD);
+   bool profitReached  = (InpProfitTargetUSD > 0.0) && (floatingProfit >= InpProfitTargetUSD);
+   bool lossExceeded   = (InpMaxLossUSD > 0.0) && (floatingProfit <= -InpMaxLossUSD);
 
-   if(sideCompleted || profitReached)
+   if(lossExceeded || sideCompleted || profitReached)
      {
+      string reason = lossExceeded ? "hard stop-loss reached" :
+                       sideCompleted ? "one side completed all layers" : "profit target reached";
       PrintFormat("Closing grid (buyFilled=%d sellFilled=%d profit=%.2f) - reason: %s",
-                  g_buyFilled, g_sellFilled, GetFloatingProfit(),
-                  sideCompleted ? "one side completed all layers" : "profit target reached");
+                  g_buyFilled, g_sellFilled, floatingProfit, reason);
       CloseAllPositions();
       ResetGrid(GetMidPrice());
      }
@@ -246,7 +275,8 @@ double NormalizeLot(double lot)
 void UpdateComment()
   {
    Comment(StringFormat(
-      "GridHedge_XAUUSD\nBase: %.2f\nBuy filled: %d/%d\nSell filled: %d/%d\nFloating P/L: %.2f",
-      g_basePrice, g_buyFilled, InpLayers, g_sellFilled, InpLayers, GetFloatingProfit()));
+      "GridHedge_XAUUSD\nBase: %.2f\nBuy filled: %d/%d\nSell filled: %d/%d\nFloating P/L: %.2f\nMax loss stop: %.2f\nNext layer lot: %.2f",
+      g_basePrice, g_buyFilled, InpLayers, g_sellFilled, InpLayers, GetFloatingProfit(),
+      InpMaxLossUSD, g_layerLot[MathMin(MathMax(g_buyFilled, g_sellFilled), InpLayers - 1)]));
   }
 //+------------------------------------------------------------------+
