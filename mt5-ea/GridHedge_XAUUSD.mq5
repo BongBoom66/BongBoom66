@@ -10,10 +10,17 @@
 //|     also spaced InpGapUSD apart.                                   |
 //|   - Each level is filled with an immediate market order (not a     |
 //|     pending order) the first time price trades through it.         |
-//|   - If either side (Buy or Sell) gets all InpLayers levels filled  |
-//|     before the other side does, ALL open positions from this EA    |
-//|     are closed immediately, and a brand new grid is re-armed       |
-//|     centered on the current market price.                         |
+//|   - Every tick the EA sums the floating profit of every open       |
+//|     position from this grid (each position's own real entry        |
+//|     price vs the current price). As soon as that total reaches     |
+//|     InpProfitTargetUSD, ALL positions are closed and a brand new    |
+//|     grid is re-armed centered on the current market price.          |
+//|   - As a fallback, if either side (Buy or Sell) fills all           |
+//|     InpLayers levels before recovering to profit, the grid is       |
+//|     also closed and re-armed the same way - this is a worst-case    |
+//|     safety exit, not the primary one, since closing only on a       |
+//|     full-side fill realizes the loss at the point of maximum        |
+//|     adverse excursion.                                              |
 //+------------------------------------------------------------------+
 #property copyright "Grid Hedge EA"
 #property version   "1.00"
@@ -27,8 +34,8 @@ input double InpGapUSD           = 2.0;    // Gap between layers, in price ($)
 input int    InpLayers           = 10;     // Number of layers per side (Buy / Sell)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
 
-input group "=== Optional early exit ==="
-input double InpProfitTargetUSD  = 0.0;    // Close all + restart once floating profit >= this (0 = disabled)
+input group "=== Profit-based exit (primary) ==="
+input double InpProfitTargetUSD  = 1.0;    // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
 
 input group "=== Identification ==="
 input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's trades separate
