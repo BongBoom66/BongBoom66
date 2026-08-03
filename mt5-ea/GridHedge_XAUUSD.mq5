@@ -8,7 +8,13 @@
 //|     FOLLOWING grid, not mean-reversion: 10 Buy levels are placed    |
 //|     ABOVE the base price (buy into strength as price rises) and    |
 //|     10 Sell levels are placed BELOW it (sell into weakness as       |
-//|     price falls), spaced InpGapUSD apart.                          |
+//|     price falls). Layer 1 is InpGapUSD away from base; each         |
+//|     further layer's own gap is multiplied by InpGapMultiplier, so   |
+//|     with the default >1.0 the layers widen out (layer 2 is farther  |
+//|     from layer 1 than layer 1 is from base, etc) instead of being   |
+//|     evenly spaced. This changes the SAME risk/reward trade-off as   |
+//|     InpLotMultiplier does, just via trade spacing instead of trade  |
+//|     size - it does not reduce risk on its own (see README).         |
 //|   - Each level is filled with an immediate market order (not a     |
 //|     pending order) the first time price trades through it.         |
 //|   - Every tick, each OPEN POSITION is checked individually: once    |
@@ -52,10 +58,11 @@
 #include <Trade\Trade.mqh>
 
 input group "=== Grid settings ==="
-input double InpLotSize          = 0.01;   // Base lot size for layer 1
-input double InpLotMultiplier    = 1.3;    // Lot multiplier per layer (1.0 = fixed lot, same size every layer)
-input double InpMaxLotSize       = 0.20;   // Maximum lot size for any single layer (hard cap)
-input double InpGapUSD           = 2.0;    // Gap between layers, in price ($)
+input double InpLotSize          = 0.01;   // Lot size for every layer (fixed, same size every layer)
+input double InpLotMultiplier    = 1.0;    // Lot multiplier per layer (1.0 = fixed lot; >1.0 = bounded Martingale, see README)
+input double InpMaxLotSize       = 0.20;   // Maximum lot size for any single layer (hard cap, only matters if InpLotMultiplier > 1.0)
+input double InpGapUSD           = 2.0;    // Gap for layer 1, in price ($)
+input double InpGapMultiplier    = 1.3;    // Gap multiplier per layer (1.0 = fixed gap; >1.0 = widening; <1.0 = narrowing, see README)
 input int    InpLayers           = 10;     // Number of layers per side (Buy / Sell)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
 
@@ -72,6 +79,7 @@ input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's tr
 CTrade trade;
 
 double g_layerLot[];          // g_layerLot[i] = normalized lot size for layer i+1 (both Buy and Sell sides)
+double g_layerDistance[];     // g_layerDistance[i] = cumulative distance from base price to layer i+1
 double g_basePrice;           // price the current grid is centered on
 bool   g_buyTriggered[];      // g_buyTriggered[i] == layer i+1 already filled
 bool   g_sellTriggered[];
@@ -95,6 +103,11 @@ int OnInit()
       Print("InpLotMultiplier must be > 0");
       return INIT_PARAMETERS_INCORRECT;
      }
+   if(InpGapMultiplier <= 0.0)
+     {
+      Print("InpGapMultiplier must be > 0");
+      return INIT_PARAMETERS_INCORRECT;
+     }
 
    ArrayResize(g_layerLot, InpLayers);
    for(int i = 0; i < InpLayers; i++)
@@ -102,6 +115,16 @@ int OnInit()
       double lot = InpLotSize * MathPow(InpLotMultiplier, i);
       lot = MathMin(lot, InpMaxLotSize);
       g_layerLot[i] = NormalizeLot(lot);
+     }
+
+   ArrayResize(g_layerDistance, InpLayers);
+   double cumDistance = 0.0;
+   double gap = InpGapUSD;
+   for(int i = 0; i < InpLayers; i++)
+     {
+      cumDistance += gap;
+      g_layerDistance[i] = cumDistance;
+      gap *= InpGapMultiplier;
      }
 
    ArrayResize(g_buyTriggered, InpLayers);
@@ -127,8 +150,8 @@ void OnTick()
 
    for(int i = 0; i < InpLayers; i++)
      {
-      double buyLevel  = g_basePrice + (i + 1) * InpGapUSD;   // above base: buy into an uptrend
-      double sellLevel = g_basePrice - (i + 1) * InpGapUSD;   // below base: sell into a downtrend
+      double buyLevel  = g_basePrice + g_layerDistance[i];   // above base: buy into an uptrend
+      double sellLevel = g_basePrice - g_layerDistance[i];   // below base: sell into a downtrend
 
       if(!g_buyTriggered[i] && ask >= buyLevel)
         {
@@ -183,7 +206,8 @@ void ResetGrid(double base)
    ArrayInitialize(g_sellTriggered, false);
    g_buyFilled  = 0;
    g_sellFilled = 0;
-   PrintFormat("Grid armed - base price %.2f, %d layers, gap %.2f", g_basePrice, InpLayers, InpGapUSD);
+   PrintFormat("Grid armed - base price %.2f, %d layers, layer1 gap %.2f, gap multiplier %.2f, last layer distance %.2f",
+               g_basePrice, InpLayers, InpGapUSD, InpGapMultiplier, g_layerDistance[InpLayers - 1]);
   }
 
 //+------------------------------------------------------------------+

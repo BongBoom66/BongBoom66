@@ -2,9 +2,10 @@
 
 Expert Advisor មួយសម្រាប់ MetaTrader 5 (MQL5) ត្រូវបានរចនាឡើងតាមតម្រូវការ៖
 
-- **តាម Trend**៖ ដាក់ Layer ចំនួន 10 (កំណត់បាន) ខាង **Buy នៅលើ** តម្លៃចាប់ផ្តើម (ទិញពេលឡើង) និង 10 ខាង **Sell នៅក្រោម** តម្លៃចាប់ផ្តើម (លក់ពេលចុះ) គំលាតគ្នា **$2** (កំណត់បាន) គិតចាប់ពីតម្លៃចាប់ផ្តើម (base price)
+- **តាម Trend**៖ ដាក់ Layer ចំនួន 10 (កំណត់បាន) ខាង **Buy នៅលើ** តម្លៃចាប់ផ្តើម (ទិញពេលឡើង) និង 10 ខាង **Sell នៅក្រោម** តម្លៃចាប់ផ្តើម (លក់ពេលចុះ) គិតចាប់ពីតម្លៃចាប់ផ្តើម (base price)
 - ពេលតម្លៃប៉ះកម្រិតនីមួយៗ EA បើក **Market order** ភ្លាមៗ (មិនមែន pending order ទេ)
-- **Lot size កើនតាម Layer** (Progressive/Bounded Martingale)៖ Layer 1 = `InpLotSize`, Layer បន្ទាប់ៗគុណនឹង `InpLotMultiplier` រហូតដល់កម្រិត `InpMaxLotSize` (Cap) — ជួយឲ្យតម្លៃត្រឡប់បន្តិចអាចទាញយកចំណេញមកវិញបានលឿនជាង។ កំណត់ `InpLotMultiplier=1.0` ដើម្បីប្រើ Lot ថេរដូចមុន
+- **Lot size ថេរ** (default) — `InpLotMultiplier=1.0` ដូចគ្នាគ្រប់ Layer។ អាចប្តូរជា Progressive/Bounded Martingale (Layer បន្ទាប់ៗគុណនឹង `InpLotMultiplier` រហូតដល់ `InpMaxLotSize` Cap) ប្រសិនបើកំណត់ `InpLotMultiplier > 1.0`
+- **Gap ពង្រីកទៅ Layer ខាងក្រៅ** (default)៖ Layer 1 គំលាត `InpGapUSD` ចេញពី Base, Layer បន្ទាប់ៗ គំលាតផ្ទាល់ខ្លួនគុណនឹង `InpGapMultiplier` (default 1.3) ធ្វើឲ្យ Layer ខាងក្រៅនៅឆ្ងាយពីគ្នាកាន់តែច្រើន។ កំណត់ `InpGapMultiplier=1.0` ដើម្បីប្រើ Gap ថេរដូចគ្នាទាំងអស់
 - **រៀងរាល់ Tick** EA ពិនិត្យ Position **នីមួយៗដាច់ដោយឡែក**៖ ពេល Profit ផ្ទាល់ខ្លួនរបស់ Layer ណាមួយដល់ `InpLayerTPUSD` → **បិទតែ Layer នោះម្នាក់ឯង** ចាប់យកចំណេញភ្លាមៗ ដោយមិនរង់ចាំ Basket ទាំងមូលទេ (ជួយកុំឲ្យប្រាក់ចំណេញត្រឡប់ទៅជាខាតវិញ)
 - **រៀងរាល់ Tick** EA ក៏គិត Floating profit សរុបនៃ Position ដែលនៅសល់ទាំងអស់ (គិតពីតម្លៃចូលពិតរបស់ Layer នីមួយៗ) ពេលដល់ `InpProfitTargetUSD` → **បិទ Position ដែលនៅសល់ទាំងអស់ ហើយសាកគំរូ Grid ថ្មី** ភ្លាមៗ តម្រឹមតម្លៃចាប់ផ្តើមថ្មីនៅត្រង់តម្លៃទីផ្សារបច្ចុប្បន្ន (នេះជាលក្ខខណ្ឌបិទ Basket ចម្បង)
 - ប្រសិនបើខាង Buy ឬខាង Sell ម្ខាងណាមួយចូលគ្រប់ទាំង 10 Layer មុននឹងទាន់ត្រឡប់ដល់ profit target → EA នឹងបិទ Position ទាំងអស់ និងសាកគំរូ Grid ថ្មីដដែល (នេះជាលក្ខខណ្ឌបិទបម្រុង/ករណីអាក្រក់បំផុត — មើលផ្នែក "ហេតុអ្វី Trend Grid ជាជម្រើសប្រសើរជាង" ខាងក្រោម)
@@ -25,9 +26,10 @@ Expert Advisor មួយសម្រាប់ MetaTrader 5 (MQL5) ត្រូ�
 | Parameter | អត្ថន័យ | លំនាំដើម |
 |---|---|---|
 | `InpLotSize` | Lot size សម្រាប់ Layer ទី 1 (មូលដ្ឋាន) | 0.01 |
-| `InpLotMultiplier` | គុណនឹង Lot របស់ Layer មុន ដើម្បីបាន Lot របស់ Layer បន្ទាប់ (1.0 = Lot ថេរដូចគ្នាទាំងអស់, >1.0 = កើនតាម Layer) | 1.3 |
-| `InpMaxLotSize` | Lot អតិបរមាកំណត់សម្រាប់ Layer តែមួយ (Cap កុំឲ្យ Lot ធំហួសហេតុ) | 0.20 |
-| `InpGapUSD` | គំលាតតម្លៃរវាង Layer ($) | 2.0 |
+| `InpLotMultiplier` | គុណនឹង Lot របស់ Layer មុន ដើម្បីបាន Lot របស់ Layer បន្ទាប់ (1.0 = Lot ថេរដូចគ្នាទាំងអស់, >1.0 = កើនតាម Layer) | 1.0 |
+| `InpMaxLotSize` | Lot អតិបរមាកំណត់សម្រាប់ Layer តែមួយ (Cap កុំឲ្យ Lot ធំហួសហេតុ, ប្រើតែពេល `InpLotMultiplier > 1.0`) | 0.20 |
+| `InpGapUSD` | គំលាតតម្លៃរវាង Base និង Layer ទី 1 ($) | 2.0 |
+| `InpGapMultiplier` | គុណនឹងគំលាតផ្ទាល់ខ្លួនរបស់ Layer មុន ដើម្បីបានគំលាតរបស់ Layer បន្ទាប់ (1.0 = គំលាតថេរដូចគ្នាទាំងអស់, >1.0 = ពង្រីក, <1.0 = រួមតូច) | 1.3 |
 | `InpLayers` | ចំនួន Layer ក្នុងមួយខាង (Buy/Sell) | 10 |
 | `InpSlippagePoints` | Slippage អតិបរមាសម្រាប់ market order | 30 |
 | `InpLayerTPUSD` | បិទ Position **ដាច់ដោយឡែក** ភ្លាមៗពេល Profit ផ្ទាល់ខ្លួនរបស់វាដល់តម្លៃនេះ — ជួយចាប់ចំណេញតូចៗភ្លាមៗ ជំនួសឲ្យរង់ចាំ Basket ទាំងមូល។ កំណត់ជា 0 ដើម្បីបិទ Feature នេះ | 1.0 |
@@ -57,11 +59,18 @@ Expert Advisor មួយសម្រាប់ MetaTrader 5 (MQL5) ត្រូ�
 
 ដូច្នេះកូដនេះប្រើ **Progressive Lot ដែលមានកម្រិតកំណត់** (`InpLotMultiplier` × `InpMaxLotSize` Cap) រួមផ្សំជាមួយ **`InpMaxLossUSD`** (Hard Stop-Loss)៖ បើ Floating loss សរុបលើសកម្រិតកំណត់នេះ EA **បង្ខំបិទ Grid ទាំងអស់ភ្លាមៗ** (មិនរង់ចាំដល់ Layer ទី 10 ទៀតទេ) ដើម្បីកុំឲ្យខាតកើនឡើងគ្មានទីបញ្ចប់ — នេះជាចំណុចការពារសំខាន់ដែលជំនួសកន្លែងដែល "រូបមន្ត Lot ធានាចំណេញ" មិនអាចធ្វើបាន។
 
+## Gap Widening — ហេតុអ្វីវាមិនមែនជាជម្រើសដែលមានហានិភ័យតិចជាង Lot Multiplier ទេ
+
+មានសំណួរថា "បើរក្សា Lot ថេរ តែកែគំលាត (Gap) ជំនួសវិញ តើកាត់បន្ថយហានិភ័យទេ?" — **ចម្លើយ៖ ទេ វាគ្រាន់តែជា Knob ស្រដៀងគ្នា**។ Gap ពង្រីក (default `InpGapMultiplier`=1.3) មានន័យថា Layer ខាងក្រៅនៅឆ្ងាយពីគ្នាកាន់តែច្រើន — ក្នុង Trend រត់ខ្លាំង EA ចំណាយពេលយូរជាងទើបចូលដល់ Layer ទី 10 (ចម្ងាយតម្លៃសរុបធំជាង) ដែលមានន័យថា **Loss អតិបរមាមុន `InpMaxLossUSD` ចាប់ដំណើរការក៏ធំជាងផងដែរ** ធៀបនឹង Gap ថេរ។ ផ្ទុយមកវិញ Gap រួមតូច (`InpGapMultiplier`<1.0) បញ្ចប់ Basket លឿនជាង (Loss អតិបរមាតូចជាង) ប៉ុន្តែ Trade ញឹកញាប់ជាង ចំណាយលើ Spread ច្រើនជាង។
+
+ដូច្នេះទោះជ្រើសរើស Lot Multiplier ឬ Gap Multiplier ក៏ដោយ ត្រូវការ `InpMaxLossUSD` (Hard Stop-Loss) ជានិច្ច ព្រោះជម្រើសទាំងពីរមិនផ្តល់ការធានាចំណេញទេ — គ្រាន់តែផ្លាស់ប្តូររបៀបដែល Risk/Reward លាតត្រដាងចេញតាមចម្ងាយតម្លៃប៉ុណ្ណោះ។
+
 ## ការប្រុងប្រយ័ត្ន (Risk warning)
 
-EA នេះជាប្រភេទ **Trend Grid/Hedge** ដែលបើកចំណាត់ការជាបន្តបន្ទាប់តាមទីផ្សារ ដោយប្រើ Progressive Lot (Bounded Martingale)។ ការកាត់កងគ្នារវាង Buy/Sell និង `InpMaxLossUSD` កាត់បន្ថយហានិភ័យ ប៉ុន្តែ**មិនលុបបំបាត់ហានិភ័យទាំងស្រុងទេ**៖
-- Lot ធំជាងមុននៅ Layer ក្រោយៗ មានន័យថា Loss ក៏អាចកើនលឿនជាងករណី Lot ថេរ ប្រសិនបើទីផ្សាររត់តែម្ខាងមុនពេល `InpMaxLossUSD` ចាប់ដំណើរការ
+EA នេះជាប្រភេទ **Trend Grid/Hedge** ដែលបើកចំណាត់ការជាបន្តបន្ទាប់តាមទីផ្សារ។ ការកាត់កងគ្នារវាង Buy/Sell និង `InpMaxLossUSD` កាត់បន្ថយហានិភ័យ ប៉ុន្តែ**មិនលុបបំបាត់ហានិភ័យទាំងស្រុងទេ**៖
+- បើប្រើ `InpLotMultiplier > 1.0`: Lot ធំជាងមុននៅ Layer ក្រោយៗ មានន័យថា Loss ក៏អាចកើនលឿនជាងករណី Lot ថេរ ប្រសិនបើទីផ្សាររត់តែម្ខាងមុនពេល `InpMaxLossUSD` ចាប់ដំណើរការ
+- បើប្រើ `InpGapMultiplier > 1.0` (default): ចម្ងាយតម្លៃសរុបចាំបាច់ត្រូវធំជាងមុនដល់ Layer ទី 10 ចូលពេញ ដែលមានន័យថា Loss អតិបរមាមុន `InpMaxLossUSD` ចាប់ដំណើរការក៏ធំជាងផងដែរ
 - `InpMaxLossUSD` គ្រាន់តែកំណត់ Loss អតិបរមា**ក្នុងមួយជុំ Grid**ប៉ុណ្ណោះ — បើកើតឡើងច្រើនជុំជាប់ៗគ្នា (ខាតៗៗ) សរុបអាចនៅតែធំ
 - កុំកំណត់ `InpMaxLossUSD=0` (បិទ Feature នេះ) លុះត្រាតែយល់ច្បាស់ពីហានិភ័យពេញលេញ
 
-សូមសាកល្បងលើ **Demo account** ជាមុនសិន កំណត់ `InpMaxLotSize` និង `InpMaxLossUSD` ឲ្យសមស្របនឹង Balance គណនីជាក់ស្តែង និងតាមដានយ៉ាងហ្មត់ចត់មុននឹងប្រើនៅលើ Real account។
+សូមសាកល្បងលើ **Demo account** ជាមុនសិន កំណត់ `InpMaxLotSize`, `InpGapMultiplier` និង `InpMaxLossUSD` ឲ្យសមស្របនឹង Balance គណនីជាក់ស្តែង និងតាមដានយ៉ាងហ្មត់ចត់មុននឹងប្រើនៅលើ Real account។
