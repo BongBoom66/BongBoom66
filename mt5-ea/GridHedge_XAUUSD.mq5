@@ -28,8 +28,8 @@
 input group "=== Trade settings ==="
 input double InpLotSize          = 0.01;   // Lot size per order
 input double InpTriggerGapUSD    = 2.0;    // Distance from base price that triggers an entry ($)
-input double InpTakeProfitUSD    = 2.0;    // Take profit distance from entry price ($)
-input double InpStopLossUSD      = 10.0;   // Stop loss distance from entry price ($)
+input double InpTakeProfitUSD    = 0.5;    // Take profit distance from entry price ($)
+input double InpStopLossUSD      = 50.0;   // Stop loss distance from entry price ($)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
 
 input group "=== Identification ==="
@@ -50,6 +50,11 @@ int OnInit()
 
    g_lot = NormalizeLot(InpLotSize);
    g_baseArmed = false;
+
+   double minStopDistance = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   if(minStopDistance > 0.0 && (InpTakeProfitUSD < minStopDistance || InpStopLossUSD < minStopDistance))
+      PrintFormat("WARNING: broker minimum stop distance is %.2f - InpTakeProfitUSD (%.2f) or InpStopLossUSD (%.2f) is tighter than that, orders may be rejected as invalid stops",
+                  minStopDistance, InpTakeProfitUSD, InpStopLossUSD);
 
    return INIT_SUCCEEDED;
   }

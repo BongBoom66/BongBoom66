@@ -5,7 +5,7 @@ Expert Advisor សម្រាប់ MetaTrader 5 (MQL5) — **1 Order ក្ន
 - ពេលគ្មាន Position បើក (Flat) តម្លៃទីផ្សារបច្ចុប្បន្នក្លាយជា **Base price**
 - រង់ចាំតម្លៃធ្វើចលនាឆ្ងាយ `InpTriggerGapUSD` ($2 default) ពី Base ទិសណាមួយ
 - ទិសណាមកដល់មុន បើក Order **មួយប៉ុណ្ណោះ** ភ្លាមៗ (Market order)៖ តម្លៃឡើងដល់ Base+Gap → **Buy**, តម្លៃចុះដល់ Base−Gap → **Sell**
-- Order នោះមាន **TP/SL ដាក់ផ្ទាល់ពី Broker** (`InpTakeProfitUSD`=$2, `InpStopLossUSD`=$10 default) — Broker បិទ Order ដោយស្វ័យប្រវត្តិពេលដល់ណាមួយ មិនចាំបាច់ពឹងលើ EA/Terminal ដំណើរការជានិច្ចទេ
+- Order នោះមាន **TP/SL ដាក់ផ្ទាល់ពី Broker** (`InpTakeProfitUSD`=$0.5, `InpStopLossUSD`=$50 default) — Broker បិទ Order ដោយស្វ័យប្រវត្តិពេលដល់ណាមួយ មិនចាំបាច់ពឹងលើ EA/Terminal ដំណើរការជានិច្ចទេ
 - ពេល Order បិទ (មិនថាដោយ TP ឬ SL) EA **រង់ចាំ Order បន្ទាប់ភ្លាមៗ** ដោយកំណត់ Base price ថ្មីត្រង់តម្លៃទីផ្សារបច្ចុប្បន្ន
 
 ## ឯកសារ
@@ -25,22 +25,28 @@ Expert Advisor សម្រាប់ MetaTrader 5 (MQL5) — **1 Order ក្ន
 |---|---|---|
 | `InpLotSize` | Lot size សម្រាប់ Order នីមួយៗ | 0.01 |
 | `InpTriggerGapUSD` | ចម្ងាយពី Base price ដែលបង្កឲ្យចូល Order ($) | 2.0 |
-| `InpTakeProfitUSD` | ចម្ងាយ Take Profit ពីតម្លៃចូល ($) | 2.0 |
-| `InpStopLossUSD` | ចម្ងាយ Stop Loss ពីតម្លៃចូល ($) | 10.0 |
+| `InpTakeProfitUSD` | ចម្ងាយ Take Profit ពីតម្លៃចូល ($) | 0.5 |
+| `InpStopLossUSD` | ចម្ងាយ Stop Loss ពីតម្លៃចូល ($) | 50.0 |
 | `InpSlippagePoints` | Slippage អតិបរមាសម្រាប់ market order | 30 |
 | `InpMagicNumber` | Magic number កំណត់អត្តសញ្ញាណ trade របស់ EA នេះ | 20260802 |
 
 ## ឧទាហរណ៍ដំណើរការ
 
-Base = $4000, `InpTriggerGapUSD`=$2, `InpTakeProfitUSD`=$2, `InpStopLossUSD`=$10
+Base = $4000, `InpTriggerGapUSD`=$2, `InpTakeProfitUSD`=$0.5, `InpStopLossUSD`=$50
 
-- តម្លៃឡើងដល់ 4002 → **Buy** បើក, SL=3992, TP=4004
-- ករណី 1: តម្លៃឡើងដល់ 4004 មុន → TP ចាប់ **+$2** → Position បិទ → Base ថ្មី = 4004 → រង់ចាំបន្ត
-- ករណី 2: តម្លៃចុះដល់ 3992 មុន → SL ចាប់ **−$10** → Position បិទ → Base ថ្មី = 3992 → រង់ចាំបន្ត
+- តម្លៃឡើងដល់ 4002 → **Buy** បើក, SL=3952, TP=4002.5
+- ករណី 1: តម្លៃឡើងដល់ 4002.5 មុន → TP ចាប់ **+$0.5** → Position បិទ → Base ថ្មី = 4002.5 → រង់ចាំបន្ត
+- ករណី 2: តម្លៃចុះដល់ 3952 មុន → SL ចាប់ **−$50** → Position បិទ → Base ថ្មី = 3952 → រង់ចាំបន្ត
 
-## ការប្រុងប្រយ័ត្ន (Risk warning)
+## ⚠️ ការប្រុងប្រយ័ត្នធ្ងន់ធ្ងរ៖ Risk/Reward = 1:100
 
-- **Risk/Reward មិនស្មើគ្នា**៖ TP=$2 តូចជាង SL=$10 ៥ដង។ មានន័យថា Win rate ត្រូវការលើសពី **~83%** ទើបចំណេញសុទ្ធវិជ្ជមានក្នុងរយៈពេលវែង (សម្រាប់រាល់ Loss 1 ដង ត្រូវការ Win 5 ដងទើបស្មើគ្នា)។ សូមប្រាកដថាចំណុចចូល (Trigger) ជាទិសដៅដែលមានប្រូបាប៊ីលីតេឈ្នះខ្ពស់ជាមុនសិន មិនមែនគ្រាន់តែពឹងលើ EA ទេ
-- **គ្មាន Guarantee ចំណេញ** — Broker TP/SL ត្រឹមតែកំណត់ហានិភ័យក្នុងមួយ Trade ប៉ុណ្ណោះ (អតិបរមា $10 × Lot ក្នុងមួយ Trade) មិនមែនធានាលទ្ធផលសរុបវិជ្ជមានទេ
-- **Spread/Slippage** អាចធ្វើឲ្យ TP/SL ជាក់ស្តែងខុសបន្តិចពីតម្លៃកំណត់ (ជាពិសេស `InpSlippagePoints` ពេលបើក Order)
+TP=$0.5 តូចជាង SL=$50 ដល់ទៅ **100 ដង**។ គណនា Win rate ចាំបាច់ (Breakeven) = SL/(SL+TP) = 50/50.5 = **~99%**។ មានន័យថា ត្រូវឈ្នះជាប់ៗគ្នាស្ទើរតែ 100% នៃ Trade ទាំងអស់ទើបស្មើគ្នា — **Loss តែម្តងតែមួយ លុបបំបាត់ចំណេញពី Trade ឈ្នះជាង 100 ដងភ្លាមៗ**។ នេះខុសពីមុន (TP=$2/SL=$10 = 1:5, ត្រូវការ Win rate ~83%) ខ្លាំងណាស់។
+
+ជាក់ស្តែង៖ ការចូលផ្សារញឹកញាប់ + ចំណេញតូចៗគ្មានន័យថាចំណេញសុទ្ធវិជ្ជមានទេ — លុះត្រាតែចំណុចចូល (Trigger, `InpTriggerGapUSD`=$2 ពី Base) ជាទិសដៅត្រឹមត្រូវស្ទើរតែគ្រប់ដង។ សូមតាមដាន Win rate ជាក់ស្តែងលើ Demo ដោយប្រុងប្រយ័ត្នខ្លាំង៖ បើ Win rate ធ្លាក់ក្រោម ~99% សូម្បីតែម្តង គណនីអាចខាតធំរហ័ស។
+
+## ការប្រុងប្រយ័ត្នផ្សេងទៀត
+
+- **TP/SL តូចជាង Broker Minimum Stop Distance** — Gold ជាធម្មតាមាន Minimum Stop Level ពី Broker (ចម្ងាយអប្បបរមារវាងតម្លៃចូល និង TP/SL) ។ `InpTakeProfitUSD`=$0.5 អាចតូចជាងកម្រិតនេះនៅ Broker មួយចំនួន ដែលនាំឲ្យ Order ត្រូវបដិសេធ (Invalid stops)។ EA នឹង Print ការព្រមានក្នុង Log ពេលចាប់ផ្តើម បើលក្ខខណ្ឌនេះកើតឡើង — សូមពិនិត្យ Experts tab
+- **គ្មាន Guarantee ចំណេញ** — Broker TP/SL ត្រឹមតែកំណត់ហានិភ័យក្នុងមួយ Trade ប៉ុណ្ណោះ (អតិបរមា $50 × Lot ក្នុងមួយ Trade) មិនមែនធានាលទ្ធផលសរុបវិជ្ជមានទេ
+- **Spread/Commission** កាត់រំលោភរាល់ Trade — ពេលចូលផ្សារញឹកញាប់ (TP តូច) Cost នេះកកកុញលឿនជាង
 - សូមសាកល្បងលើ **Demo account** ជាមុនសិន និងតាមដានចំនួន Trade/Win rate ជាក់ស្តែងសិន មុននឹងប្រើនៅលើ Real account
