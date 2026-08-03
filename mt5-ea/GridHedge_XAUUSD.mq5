@@ -4,23 +4,29 @@
 //|                                                                   |
 //|  Strategy:                                                        |
 //|   - On start (and after every reset) the current market price     |
-//|     becomes the "base price" of a new grid.                       |
-//|   - 10 Buy levels are placed below the base price, spaced          |
-//|     InpGapUSD apart, and 10 Sell levels are placed above it,       |
-//|     also spaced InpGapUSD apart.                                   |
+//|     becomes the "base price" of a new grid. This is a TREND-       |
+//|     FOLLOWING grid, not mean-reversion: 10 Buy levels are placed    |
+//|     ABOVE the base price (buy into strength as price rises) and    |
+//|     10 Sell levels are placed BELOW it (sell into weakness as       |
+//|     price falls), spaced InpGapUSD apart.                          |
 //|   - Each level is filled with an immediate market order (not a     |
 //|     pending order) the first time price trades through it.         |
+//|   - Because both sides sit on opposite sides of the base price,     |
+//|     a whipsawing market fills layers on BOTH sides over time, so    |
+//|     the two baskets net/hedge against each other - g_buyFilled     |
+//|     and g_sellFilled are independent running counts of each side's |
+//|     total fills, not a "who filled zero" worst case.               |
 //|   - Every tick the EA sums the floating profit of every open       |
 //|     position from this grid (each position's own real entry        |
 //|     price vs the current price). As soon as that total reaches     |
 //|     InpProfitTargetUSD, ALL positions are closed and a brand new    |
-//|     grid is re-armed centered on the current market price.          |
-//|   - As a fallback, if either side (Buy or Sell) fills all           |
-//|     InpLayers levels before recovering to profit, the grid is       |
-//|     also closed and re-armed the same way - this is a worst-case    |
-//|     safety exit, not the primary one, since closing only on a       |
-//|     full-side fill realizes the loss at the point of maximum        |
-//|     adverse excursion.                                              |
+//|     grid is re-armed immediately, centered on the current market   |
+//|     price - this is the primary exit.                               |
+//|   - As a fallback, if either side fills all InpLayers levels        |
+//|     before the profit target is reached, the grid is also closed    |
+//|     and re-armed immediately the same way - a worst-case safety     |
+//|     exit for a market that trends hard one way without ever         |
+//|     giving back enough for the profit target.                       |
 //+------------------------------------------------------------------+
 #property copyright "Grid Hedge EA"
 #property version   "1.00"
@@ -86,28 +92,28 @@ void OnTick()
 
    for(int i = 0; i < InpLayers; i++)
      {
-      double buyLevel  = g_basePrice - (i + 1) * InpGapUSD;
-      double sellLevel = g_basePrice + (i + 1) * InpGapUSD;
+      double buyLevel  = g_basePrice + (i + 1) * InpGapUSD;   // above base: buy into an uptrend
+      double sellLevel = g_basePrice - (i + 1) * InpGapUSD;   // below base: sell into a downtrend
 
-      if(!g_buyTriggered[i] && bid <= buyLevel)
+      if(!g_buyTriggered[i] && ask >= buyLevel)
         {
          if(trade.Buy(g_lot, _Symbol))
            {
             g_buyTriggered[i] = true;
             g_buyFilled++;
-            PrintFormat("Buy layer %d filled at level %.2f (bid=%.2f)", i + 1, buyLevel, bid);
+            PrintFormat("Buy layer %d filled at level %.2f (ask=%.2f)", i + 1, buyLevel, ask);
            }
          else
             PrintFormat("Buy layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
         }
 
-      if(!g_sellTriggered[i] && ask >= sellLevel)
+      if(!g_sellTriggered[i] && bid <= sellLevel)
         {
          if(trade.Sell(g_lot, _Symbol))
            {
             g_sellTriggered[i] = true;
             g_sellFilled++;
-            PrintFormat("Sell layer %d filled at level %.2f (ask=%.2f)", i + 1, sellLevel, ask);
+            PrintFormat("Sell layer %d filled at level %.2f (bid=%.2f)", i + 1, sellLevel, bid);
            }
          else
             PrintFormat("Sell layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
