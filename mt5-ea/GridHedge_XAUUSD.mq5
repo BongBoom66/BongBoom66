@@ -1,90 +1,45 @@
 //+------------------------------------------------------------------+
 //|                                          GridHedge_XAUUSD.mq5    |
-//|  Hedge grid EA for Gold (XAUUSD) on Exness Cent accounts.        |
+//|  Trend-following SINGLE-ORDER EA for Gold (XAUUSD), Exness Cent. |
 //|                                                                   |
 //|  Strategy:                                                        |
-//|   - On start (and after every reset) the current market price     |
-//|     becomes the "base price" of a new grid. This is a TREND-       |
-//|     FOLLOWING grid, not mean-reversion: 10 Buy levels are placed    |
-//|     ABOVE the base price (buy into strength as price rises) and    |
-//|     10 Sell levels are placed BELOW it (sell into weakness as       |
-//|     price falls). Layer 1 is InpGapUSD away from base; each         |
-//|     further layer's own gap is multiplied by InpGapMultiplier, so   |
-//|     with the default >1.0 the layers widen out (layer 2 is farther  |
-//|     from layer 1 than layer 1 is from base, etc) instead of being   |
-//|     evenly spaced. This changes the SAME risk/reward trade-off as   |
-//|     InpLotMultiplier does, just via trade spacing instead of trade  |
-//|     size - it does not reduce risk on its own (see README).         |
-//|   - Each level is filled with an immediate market order (not a     |
-//|     pending order) the first time price trades through it.         |
-//|   - Every tick, each OPEN POSITION is checked individually: once    |
-//|     its own profit reaches InpLayerTPUSD it is closed on its own,   |
-//|     locking in that layer's gain immediately instead of leaving it  |
-//|     to ride back down while waiting for the whole basket to close.  |
-//|     This is what actually makes the strategy net profitable -       |
-//|     without it, a layer that was winning can give the profit back   |
-//|     and even end up a large loss by the time the basket-level exit  |
-//|     finally fires (see README for a worked example).                |
-//|   - Because both sides sit on opposite sides of the base price,     |
-//|     a whipsawing market fills layers on BOTH sides over time, so    |
-//|     the two baskets net/hedge against each other - g_buyFilled     |
-//|     and g_sellFilled are independent running counts of each side's |
-//|     total fills, not a "who filled zero" worst case.               |
-//|   - Every tick the EA sums the floating profit of every open       |
-//|     position from this grid (each position's own real entry        |
-//|     price vs the current price). As soon as that total reaches     |
-//|     InpProfitTargetUSD, ALL positions are closed and a brand new    |
-//|     grid is re-armed immediately, centered on the current market   |
-//|     price - this is the primary exit.                               |
-//|   - As a fallback, if either side fills all InpLayers levels        |
-//|     before the profit target is reached, the grid is also closed    |
-//|     and re-armed immediately the same way - a worst-case safety     |
-//|     exit for a market that trends hard one way without ever         |
-//|     giving back enough for the profit target.                       |
-//|   - Lot size grows per layer by InpLotMultiplier (1.0 = fixed lot,  |
-//|     same as before), capped at InpMaxLotSize, so a small pullback   |
-//|     recovers more of an adverse move. This is a bounded Martingale  |
-//|     - it does NOT guarantee profit, and a hard money stop-loss       |
-//|     (InpMaxLossUSD) is included specifically because no lot-sizing   |
-//|     formula can guarantee recovery: if the market trends hard one    |
-//|     way without ever reversing, InpMaxLossUSD forces the grid to     |
-//|     close and re-arm before the loss grows unbounded, instead of     |
-//|     letting a runaway lot size blow up the account.                  |
+//|   - While flat (no open position), the current market price is    |
+//|     the "base price". The EA waits for price to move              |
+//|     InpTriggerGapUSD away from that base, in either direction.    |
+//|   - Whichever direction gets there first opens ONE market order:  |
+//|     price rising to base+InpTriggerGapUSD opens a Buy, price       |
+//|     falling to base-InpTriggerGapUSD opens a Sell.                 |
+//|   - The order is placed with a broker-side Take Profit             |
+//|     (InpTakeProfitUSD) and Stop Loss (InpStopLossUSD) set          |
+//|     directly on it - the broker closes it automatically when       |
+//|     either is hit, so the exit does not depend on the EA/terminal  |
+//|     staying connected.                                             |
+//|   - Only ONE position is open at a time. The instant it closes     |
+//|     (TP or SL), the EA re-arms: the base price resets to the       |
+//|     current market price and it starts waiting for the next        |
+//|     InpTriggerGapUSD move again.                                    |
 //+------------------------------------------------------------------+
-#property copyright "Grid Hedge EA"
-#property version   "1.00"
+#property copyright "Trend Single-Order EA"
+#property version   "2.00"
 #property strict
 
 #include <Trade\Trade.mqh>
 
-input group "=== Grid settings ==="
-input double InpLotSize          = 0.01;   // Lot size for every layer (fixed, same size every layer)
-input double InpLotMultiplier    = 1.0;    // Lot multiplier per layer (1.0 = fixed lot; >1.0 = bounded Martingale, see README)
-input double InpMaxLotSize       = 0.20;   // Maximum lot size for any single layer (hard cap, only matters if InpLotMultiplier > 1.0)
-input double InpGapUSD           = 2.0;    // Gap for layer 1, in price ($)
-input double InpGapMultiplier    = 1.3;    // Gap multiplier per layer (1.0 = fixed gap; >1.0 = widening; <1.0 = narrowing, see README)
-input int    InpLayers           = 10;     // Number of layers per side (Buy / Sell)
+input group "=== Trade settings ==="
+input double InpLotSize          = 0.01;   // Lot size per order
+input double InpTriggerGapUSD    = 2.0;    // Distance from base price that triggers an entry ($)
+input double InpTakeProfitUSD    = 2.0;    // Take profit distance from entry price ($)
+input double InpStopLossUSD      = 10.0;   // Stop loss distance from entry price ($)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
-
-input group "=== Profit-based exit (primary) ==="
-input double InpProfitTargetUSD  = 10.0;   // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
-input double InpLayerTPUSD       = 2.0;    // Close each individual position once ITS OWN profit >= this (0 = disabled)
-
-input group "=== Risk management ==="
-input double InpMaxLossUSD       = 50.0;   // Hard stop: close all + restart once total floating LOSS reaches this ($, 0 = disabled - NOT recommended)
 
 input group "=== Identification ==="
 input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's trades separate
 
 CTrade trade;
 
-double g_layerLot[];          // g_layerLot[i] = normalized lot size for layer i+1 (both Buy and Sell sides)
-double g_layerDistance[];     // g_layerDistance[i] = cumulative distance from base price to layer i+1
-double g_basePrice;           // price the current grid is centered on
-bool   g_buyTriggered[];      // g_buyTriggered[i] == layer i+1 already filled
-bool   g_sellTriggered[];
-int    g_buyFilled;
-int    g_sellFilled;
+double g_lot;          // normalized lot size actually sent to broker
+double g_basePrice;    // reference price the EA is currently waiting from
+bool   g_baseArmed;    // true once g_basePrice has been set for this waiting period
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -93,44 +48,9 @@ int OnInit()
    trade.SetDeviationInPoints(InpSlippagePoints);
    trade.SetTypeFillingBySymbol(_Symbol);
 
-   if(InpLayers <= 0)
-     {
-      Print("InpLayers must be > 0");
-      return INIT_PARAMETERS_INCORRECT;
-     }
-   if(InpLotMultiplier <= 0.0)
-     {
-      Print("InpLotMultiplier must be > 0");
-      return INIT_PARAMETERS_INCORRECT;
-     }
-   if(InpGapMultiplier <= 0.0)
-     {
-      Print("InpGapMultiplier must be > 0");
-      return INIT_PARAMETERS_INCORRECT;
-     }
+   g_lot = NormalizeLot(InpLotSize);
+   g_baseArmed = false;
 
-   ArrayResize(g_layerLot, InpLayers);
-   for(int i = 0; i < InpLayers; i++)
-     {
-      double lot = InpLotSize * MathPow(InpLotMultiplier, i);
-      lot = MathMin(lot, InpMaxLotSize);
-      g_layerLot[i] = NormalizeLot(lot);
-     }
-
-   ArrayResize(g_layerDistance, InpLayers);
-   double cumDistance = 0.0;
-   double gap = InpGapUSD;
-   for(int i = 0; i < InpLayers; i++)
-     {
-      cumDistance += gap;
-      g_layerDistance[i] = cumDistance;
-      gap *= InpGapMultiplier;
-     }
-
-   ArrayResize(g_buyTriggered, InpLayers);
-   ArrayResize(g_sellTriggered, InpLayers);
-
-   ResetGrid(GetMidPrice());
    return INIT_SUCCEEDED;
   }
 
@@ -148,117 +68,58 @@ void OnTick()
    if(bid <= 0.0 || ask <= 0.0)
       return;
 
-   for(int i = 0; i < InpLayers; i++)
+   if(HasOpenPosition())
      {
-      double buyLevel  = g_basePrice + g_layerDistance[i];   // above base: buy into an uptrend
-      double sellLevel = g_basePrice - g_layerDistance[i];   // below base: sell into a downtrend
-
-      if(!g_buyTriggered[i] && ask >= buyLevel)
-        {
-         if(trade.Buy(g_layerLot[i], _Symbol))
-           {
-            g_buyTriggered[i] = true;
-            g_buyFilled++;
-            PrintFormat("Buy layer %d filled at level %.2f (ask=%.2f, lot=%.2f)", i + 1, buyLevel, ask, g_layerLot[i]);
-           }
-         else
-            PrintFormat("Buy layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
-        }
-
-      if(!g_sellTriggered[i] && bid <= sellLevel)
-        {
-         if(trade.Sell(g_layerLot[i], _Symbol))
-           {
-            g_sellTriggered[i] = true;
-            g_sellFilled++;
-            PrintFormat("Sell layer %d filled at level %.2f (bid=%.2f, lot=%.2f)", i + 1, sellLevel, bid, g_layerLot[i]);
-           }
-         else
-            PrintFormat("Sell layer %d failed: %s", i + 1, trade.ResultRetcodeDescription());
-        }
-     }
-
-   CloseIndividualLayersAtProfit();
-
-   double floatingProfit = GetFloatingProfit();
-   bool sideCompleted  = (g_buyFilled >= InpLayers) || (g_sellFilled >= InpLayers);
-   bool profitReached  = (InpProfitTargetUSD > 0.0) && (floatingProfit >= InpProfitTargetUSD);
-   bool lossExceeded   = (InpMaxLossUSD > 0.0) && (floatingProfit <= -InpMaxLossUSD);
-
-   if(lossExceeded || sideCompleted || profitReached)
-     {
-      string reason = lossExceeded ? "hard stop-loss reached" :
-                       sideCompleted ? "one side completed all layers" : "profit target reached";
-      PrintFormat("Closing grid (buyFilled=%d sellFilled=%d profit=%.2f) - reason: %s",
-                  g_buyFilled, g_sellFilled, floatingProfit, reason);
-      CloseAllPositions();
-      ResetGrid(GetMidPrice());
-     }
-
-   UpdateComment();
-  }
-
-//+------------------------------------------------------------------+
-void ResetGrid(double base)
-  {
-   g_basePrice = base;
-   ArrayInitialize(g_buyTriggered, false);
-   ArrayInitialize(g_sellTriggered, false);
-   g_buyFilled  = 0;
-   g_sellFilled = 0;
-   PrintFormat("Grid armed - base price %.2f, %d layers, layer1 gap %.2f, gap multiplier %.2f, last layer distance %.2f",
-               g_basePrice, InpLayers, InpGapUSD, InpGapMultiplier, g_layerDistance[InpLayers - 1]);
-  }
-
-//+------------------------------------------------------------------+
-void CloseAllPositions()
-  {
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-     {
-      ulong ticket = PositionGetTicket(i);
-      if(ticket == 0)
-         continue;
-      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
-         continue;
-      if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
-         continue;
-
-      if(!trade.PositionClose(ticket))
-         PrintFormat("Failed to close position #%I64u: %s", ticket, trade.ResultRetcodeDescription());
-     }
-  }
-
-//+------------------------------------------------------------------+
-void CloseIndividualLayersAtProfit()
-  {
-   if(InpLayerTPUSD <= 0.0)
+      g_baseArmed = false; // re-arm a fresh base the moment we go flat again
+      Comment(StringFormat("GridHedge_XAUUSD (Single Order)\nPosition open, waiting for TP/SL..."));
       return;
-
-   for(int i = PositionsTotal() - 1; i >= 0; i--)
-     {
-      ulong ticket = PositionGetTicket(i);
-      if(ticket == 0)
-         continue;
-      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
-         continue;
-      if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
-         continue;
-
-      double profit = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
-      if(profit < InpLayerTPUSD)
-         continue;
-
-      if(trade.PositionClose(ticket))
-         PrintFormat("Layer position #%I64u closed individually at profit %.2f", ticket, profit);
-      else
-         PrintFormat("Failed to close position #%I64u for individual TP: %s", ticket, trade.ResultRetcodeDescription());
      }
+
+   if(!g_baseArmed)
+     {
+      g_basePrice = GetMidPrice();
+      g_baseArmed = true;
+      PrintFormat("Armed - base price %.2f, waiting for +-%.2f move", g_basePrice, InpTriggerGapUSD);
+     }
+
+   if(ask >= g_basePrice + InpTriggerGapUSD)
+      OpenOrder(ORDER_TYPE_BUY, ask);
+   else if(bid <= g_basePrice - InpTriggerGapUSD)
+      OpenOrder(ORDER_TYPE_SELL, bid);
+
+   Comment(StringFormat("GridHedge_XAUUSD (Single Order)\nBase: %.2f\nWaiting for +-%.2f move...", g_basePrice, InpTriggerGapUSD));
   }
 
 //+------------------------------------------------------------------+
-double GetFloatingProfit()
+void OpenOrder(ENUM_ORDER_TYPE type, double refPrice)
   {
-   double profit = 0.0;
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   double sl, tp;
+   bool ok;
+
+   if(type == ORDER_TYPE_BUY)
+     {
+      sl = NormalizeDouble(refPrice - InpStopLossUSD, digits);
+      tp = NormalizeDouble(refPrice + InpTakeProfitUSD, digits);
+      ok = trade.Buy(g_lot, _Symbol, 0.0, sl, tp);
+     }
+   else
+     {
+      sl = NormalizeDouble(refPrice + InpStopLossUSD, digits);
+      tp = NormalizeDouble(refPrice - InpTakeProfitUSD, digits);
+      ok = trade.Sell(g_lot, _Symbol, 0.0, sl, tp);
+     }
+
+   if(ok)
+      PrintFormat("%s order opened near %.2f, SL=%.2f, TP=%.2f, lot=%.2f",
+                  type == ORDER_TYPE_BUY ? "Buy" : "Sell", refPrice, sl, tp, g_lot);
+   else
+      PrintFormat("Order failed: %s", trade.ResultRetcodeDescription());
+  }
+
+//+------------------------------------------------------------------+
+bool HasOpenPosition()
+  {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
      {
       ulong ticket = PositionGetTicket(i);
@@ -269,9 +130,9 @@ double GetFloatingProfit()
       if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
          continue;
 
-      profit += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+      return true;
      }
-   return profit;
+   return false;
   }
 
 //+------------------------------------------------------------------+
@@ -293,14 +154,5 @@ double NormalizeLot(double lot)
    double normalized = MathRound(lot / lotStep) * lotStep;
    normalized = MathMax(minLot, MathMin(maxLot, normalized));
    return NormalizeDouble(normalized, 2);
-  }
-
-//+------------------------------------------------------------------+
-void UpdateComment()
-  {
-   Comment(StringFormat(
-      "GridHedge_XAUUSD\nBase: %.2f\nBuy filled: %d/%d\nSell filled: %d/%d\nFloating P/L: %.2f\nMax loss stop: %.2f\nNext layer lot: %.2f",
-      g_basePrice, g_buyFilled, InpLayers, g_sellFilled, InpLayers, GetFloatingProfit(),
-      InpMaxLossUSD, g_layerLot[MathMin(MathMax(g_buyFilled, g_sellFilled), InpLayers - 1)]));
   }
 //+------------------------------------------------------------------+
