@@ -1,33 +1,31 @@
 //+------------------------------------------------------------------+
 //|                                          GridHedge_XAUUSD.mq5    |
-//|  Trend-following SINGLE-ORDER EA for Gold (XAUUSD), Exness Cent. |
+//|  Straddle EA for Gold (XAUUSD), Exness Cent.                     |
 //|                                                                   |
 //|  Strategy:                                                        |
-//|   - While flat (no open position), the current market price is    |
-//|     the "base price". The EA waits for price to move              |
-//|     InpTriggerGapUSD away from that base, in either direction.    |
-//|   - Whichever direction gets there first opens ONE market order:  |
-//|     price rising to base+InpTriggerGapUSD opens a Buy, price       |
-//|     falling to base-InpTriggerGapUSD opens a Sell.                 |
-//|   - The order is placed with a broker-side Take Profit             |
-//|     (InpTakeProfitUSD) and Stop Loss (InpStopLossUSD) set          |
-//|     directly on it - the broker closes it automatically when       |
-//|     either is hit, so the exit does not depend on the EA/terminal  |
-//|     staying connected.                                             |
-//|   - Only ONE position is open at a time. The instant it closes     |
-//|     (TP or SL), the EA re-arms: the base price resets to the       |
-//|     current market price and it starts waiting for the next        |
-//|     InpTriggerGapUSD move again.                                    |
+//|   - Whenever there is no open position from this EA, it opens     |
+//|     BOTH a Buy and a Sell at the current market price, at the      |
+//|     same time - each with its own broker-side Take Profit          |
+//|     (InpTakeProfitUSD) and Stop Loss (InpStopLossUSD).             |
+//|   - The two positions are managed independently after that: if     |
+//|     one hits its SL, the other is left open and keeps running       |
+//|     toward its own TP or SL - it is NOT force-closed just because   |
+//|     its pair closed.                                                |
+//|   - Once BOTH positions have closed (each via its own TP or SL),    |
+//|     the EA immediately opens a fresh Buy+Sell pair at the current   |
+//|     market price and the cycle repeats.                             |
+//|   - If one leg of a pair fails to open (e.g. margin rejection),     |
+//|     the other leg is closed immediately so a stray single-sided     |
+//|     position is never left running unintentionally.                 |
 //+------------------------------------------------------------------+
-#property copyright "Trend Single-Order EA"
-#property version   "2.00"
+#property copyright "Straddle EA"
+#property version   "3.00"
 #property strict
 
 #include <Trade\Trade.mqh>
 
 input group "=== Trade settings ==="
-input double InpLotSize          = 0.5;    // Lot size per order
-input double InpTriggerGapUSD    = 0.3;    // Distance from base price that triggers an entry ($) - smaller = more frequent entries
+input double InpLotSize          = 0.5;    // Lot size per order (Buy and Sell each)
 input double InpTakeProfitUSD    = 12.0;   // Take profit distance from entry price ($)
 input double InpStopLossUSD      = 10.0;   // Stop loss distance from entry price ($)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
@@ -37,9 +35,7 @@ input ulong  InpMagicNumber      = 20260802; // Magic number, keeps this EA's tr
 
 CTrade trade;
 
-double g_lot;          // normalized lot size actually sent to broker
-double g_basePrice;    // reference price the EA is currently waiting from
-bool   g_baseArmed;    // true once g_basePrice has been set for this waiting period
+double g_lot; // normalized lot size actually sent to broker
 
 //+------------------------------------------------------------------+
 int OnInit()
@@ -49,7 +45,6 @@ int OnInit()
    trade.SetTypeFillingBySymbol(_Symbol);
 
    g_lot = NormalizeLot(InpLotSize);
-   g_baseArmed = false;
 
    double minStopDistance = (double)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL) * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    if(minStopDistance > 0.0 && (InpTakeProfitUSD < minStopDistance || InpStopLossUSD < minStopDistance))
@@ -73,57 +68,65 @@ void OnTick()
    if(bid <= 0.0 || ask <= 0.0)
       return;
 
-   if(HasOpenPosition())
-     {
-      g_baseArmed = false; // re-arm a fresh base the moment we go flat again
-      Comment("GridHedge_XAUUSD (Single Order)\nPosition open, waiting for TP/SL...");
-      return;
-     }
+   int openCount = CountOpenPositions();
 
-   if(!g_baseArmed)
-     {
-      g_basePrice = GetMidPrice();
-      g_baseArmed = true;
-      PrintFormat("Armed - base price %.2f, waiting for +-%.2f move", g_basePrice, InpTriggerGapUSD);
-     }
+   if(openCount == 0)
+      OpenStraddle();
 
-   if(ask >= g_basePrice + InpTriggerGapUSD)
-      OpenOrder(ORDER_TYPE_BUY, ask);
-   else if(bid <= g_basePrice - InpTriggerGapUSD)
-      OpenOrder(ORDER_TYPE_SELL, bid);
-
-   Comment(StringFormat("GridHedge_XAUUSD (Single Order)\nBase: %.2f\nWaiting for +-%.2f move...", g_basePrice, InpTriggerGapUSD));
+   Comment(StringFormat("GridHedge_XAUUSD (Straddle)\nOpen legs: %d/2", CountOpenPositions()));
   }
 
 //+------------------------------------------------------------------+
-void OpenOrder(ENUM_ORDER_TYPE type, double refPrice)
+void OpenStraddle()
   {
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
-   double sl, tp;
-   bool ok;
 
-   if(type == ORDER_TYPE_BUY)
-     {
-      sl = NormalizeDouble(refPrice - InpStopLossUSD, digits);
-      tp = NormalizeDouble(refPrice + InpTakeProfitUSD, digits);
-      ok = trade.Buy(g_lot, _Symbol, 0.0, sl, tp);
-     }
+   double buySL = NormalizeDouble(ask - InpStopLossUSD, digits);
+   double buyTP = NormalizeDouble(ask + InpTakeProfitUSD, digits);
+   bool buyOk = trade.Buy(g_lot, _Symbol, 0.0, buySL, buyTP);
+   if(buyOk)
+      PrintFormat("Buy leg opened near %.2f, SL=%.2f, TP=%.2f, lot=%.2f", ask, buySL, buyTP, g_lot);
    else
-     {
-      sl = NormalizeDouble(refPrice + InpStopLossUSD, digits);
-      tp = NormalizeDouble(refPrice - InpTakeProfitUSD, digits);
-      ok = trade.Sell(g_lot, _Symbol, 0.0, sl, tp);
-     }
+      PrintFormat("Buy leg failed: %s", trade.ResultRetcodeDescription());
 
-   if(ok)
-      PrintFormat("%s order opened near %.2f, SL=%.2f, TP=%.2f, lot=%.2f",
-                  type == ORDER_TYPE_BUY ? "Buy" : "Sell", refPrice, sl, tp, g_lot);
+   double sellSL = NormalizeDouble(bid + InpStopLossUSD, digits);
+   double sellTP = NormalizeDouble(bid - InpTakeProfitUSD, digits);
+   bool sellOk = trade.Sell(g_lot, _Symbol, 0.0, sellSL, sellTP);
+   if(sellOk)
+      PrintFormat("Sell leg opened near %.2f, SL=%.2f, TP=%.2f, lot=%.2f", bid, sellSL, sellTP, g_lot);
    else
-      PrintFormat("Order failed: %s", trade.ResultRetcodeDescription());
+      PrintFormat("Sell leg failed: %s", trade.ResultRetcodeDescription());
+
+   if(buyOk != sellOk)
+     {
+      Print("Straddle legs mismatched (one side failed to open) - closing the other leg to avoid a stray one-sided position");
+      CloseAllPositions();
+     }
   }
 
 //+------------------------------------------------------------------+
-bool HasOpenPosition()
+int CountOpenPositions()
+  {
+   int count = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0)
+         continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+      if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
+         continue;
+
+      count++;
+     }
+   return count;
+  }
+
+//+------------------------------------------------------------------+
+void CloseAllPositions()
   {
    for(int i = PositionsTotal() - 1; i >= 0; i--)
      {
@@ -135,15 +138,9 @@ bool HasOpenPosition()
       if(PositionGetInteger(POSITION_MAGIC) != (long)InpMagicNumber)
          continue;
 
-      return true;
+      if(!trade.PositionClose(ticket))
+         PrintFormat("Failed to close position #%I64u: %s", ticket, trade.ResultRetcodeDescription());
      }
-   return false;
-  }
-
-//+------------------------------------------------------------------+
-double GetMidPrice()
-  {
-   return (SymbolInfoDouble(_Symbol, SYMBOL_BID) + SymbolInfoDouble(_Symbol, SYMBOL_ASK)) / 2.0;
   }
 
 //+------------------------------------------------------------------+
