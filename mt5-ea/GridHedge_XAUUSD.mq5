@@ -67,8 +67,8 @@ input int    InpLayers           = 10;     // Number of layers per side (Buy / S
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
 
 input group "=== Profit-based exit (primary) ==="
-input double InpProfitTargetUSD  = 1.0;    // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
-input double InpLayerTPUSD       = 1.0;    // Close each individual position once ITS OWN profit >= this (0 = disabled)
+input double InpProfitTargetUSD  = 10.0;   // Close all + restart once total floating profit >= this (0 = disabled, falls back to full-side-fill only)
+input double InpLayerTPUSD       = 2.0;    // Close each individual position once ITS OWN profit >= this (0 = disabled)
 
 input group "=== Risk management ==="
 input double InpMaxLossUSD       = 50.0;   // Hard stop: close all + restart once total floating LOSS reaches this ($, 0 = disabled - NOT recommended)
