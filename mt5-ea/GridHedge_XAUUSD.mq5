@@ -26,9 +26,9 @@
 #include <Trade\Trade.mqh>
 
 input group "=== Trade settings ==="
-input double InpLotSize          = 0.01;   // Lot size per order
+input double InpLotSize          = 0.5;    // Lot size per order
 input double InpTriggerGapUSD    = 0.3;    // Distance from base price that triggers an entry ($) - smaller = more frequent entries
-input double InpTakeProfitUSD    = 0.25;   // Take profit distance from entry price ($)
+input double InpTakeProfitUSD    = 0.5;    // Take profit distance from entry price ($)
 input double InpStopLossUSD      = 0.75;   // Stop loss distance from entry price ($)
 input int    InpSlippagePoints   = 30;     // Max slippage for market orders (points)
 
