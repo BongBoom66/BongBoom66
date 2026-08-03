@@ -71,7 +71,7 @@ void OnTick()
    if(HasOpenPosition())
      {
       g_baseArmed = false; // re-arm a fresh base the moment we go flat again
-      Comment(StringFormat("GridHedge_XAUUSD (Single Order)\nPosition open, waiting for TP/SL..."));
+      Comment("GridHedge_XAUUSD (Single Order)\nPosition open, waiting for TP/SL...");
       return;
      }
 
