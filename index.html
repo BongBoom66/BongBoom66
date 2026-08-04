@@ -4711,20 +4711,27 @@ function downloadImageFromViewModal(){
 
 /* ================= REPORTS ================= */
 let reportRange = 'month';
-let reportCustomMonth = ''; // 'YYYY-MM', only used when reportRange==='custom'
+let reportCustomStart = ''; // 'YYYY-MM-DD', only used when reportRange==='custom'
+let reportCustomEnd = ''; // 'YYYY-MM-DD', only used when reportRange==='custom'
+// Formats a Date using its LOCAL calendar fields (unlike toISOString, which
+// converts to UTC first and can roll the date back a day for timezones ahead
+// of UTC — e.g. midnight in Phnom Penh (UTC+7) becomes 17:00 the previous day
+// in UTC).
+function localYMD(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 async function renderReports(c){
   const today = new Date();
   let startDate, endStr = null;
   if(reportRange==='today'){ startDate = new Date(today.getFullYear(),today.getMonth(),today.getDate()); }
   else if(reportRange==='week'){ startDate = new Date(today); startDate.setDate(today.getDate()-6); }
   else if(reportRange==='month'){ startDate = new Date(today.getFullYear(), today.getMonth(), 1); }
-  else if(reportRange==='custom' && reportCustomMonth){
-    const [cy, cm] = reportCustomMonth.split('-').map(Number);
-    startDate = new Date(cy, cm-1, 1);
-    endStr = new Date(cy, cm, 0).toISOString().slice(0,10);
+  else if(reportRange==='custom' && reportCustomStart && reportCustomEnd){
+    startDate = new Date(reportCustomStart+'T00:00:00');
+    endStr = reportCustomEnd;
   }
   else { startDate = new Date(2020,0,1); }
-  const startStr = startDate.toISOString().slice(0,10);
+  const startStr = localYMD(startDate);
 
   let docsQuery = sb.from('documents').select('*').gte('doc_date', startStr).order('doc_date', {ascending:true});
   if(endStr) docsQuery = docsQuery.lte('doc_date', endStr);
@@ -4742,15 +4749,21 @@ async function renderReports(c){
   let prevStartStr = null, prevEndStr = null;
   if(reportRange==='today'){
     const y = new Date(today.getFullYear(),today.getMonth(),today.getDate()-1);
-    prevStartStr = y.toISOString().slice(0,10); prevEndStr = prevStartStr;
+    prevStartStr = localYMD(y); prevEndStr = prevStartStr;
   } else if(reportRange==='week'){
     const pEnd = new Date(startDate); pEnd.setDate(startDate.getDate()-1);
     const pStart = new Date(pEnd); pStart.setDate(pEnd.getDate()-6);
-    prevStartStr = pStart.toISOString().slice(0,10); prevEndStr = pEnd.toISOString().slice(0,10);
-  } else if(reportRange==='month' || (reportRange==='custom' && reportCustomMonth)){
+    prevStartStr = localYMD(pStart); prevEndStr = localYMD(pEnd);
+  } else if(reportRange==='month'){
     const pEnd = new Date(startDate); pEnd.setDate(startDate.getDate()-1);
     const pStart = new Date(pEnd.getFullYear(), pEnd.getMonth(), 1);
-    prevStartStr = pStart.toISOString().slice(0,10); prevEndStr = pEnd.toISOString().slice(0,10);
+    prevStartStr = localYMD(pStart); prevEndStr = localYMD(pEnd);
+  } else if(reportRange==='custom' && reportCustomStart && reportCustomEnd){
+    // Previous period of the same length, immediately before the custom range
+    const spanDays = Math.round((new Date(reportCustomEnd+'T00:00:00') - startDate) / 86400000) + 1;
+    const pEnd = new Date(startDate); pEnd.setDate(pEnd.getDate()-1);
+    const pStart = new Date(pEnd); pStart.setDate(pEnd.getDate()-(spanDays-1));
+    prevStartStr = localYMD(pStart); prevEndStr = localYMD(pEnd);
   }
   let prevTotalSales = null;
   if(prevStartStr){
@@ -4874,16 +4887,23 @@ async function renderReports(c){
 
   c.innerHTML = `
     <h2 class="page-title">របាយការណ៍លក់</h2>
-    <p class="page-sub">សរុបការលក់តាមកំឡុងពេល${reportRange==='custom'&&reportCustomMonth?' — ខែ '+reportCustomMonth:''}</p>
+    <p class="page-sub">សរុបការលក់តាមកំឡុងពេល${reportRange==='custom'&&reportCustomStart?' — ពី '+reportCustomStart+' ដល់ '+reportCustomEnd:''}</p>
     <div class="doctabs">
       <button class="${reportRange==='today'?'active invoice':''}" onclick="setReportRange('today')">ថ្ងៃនេះ</button>
       <button class="${reportRange==='week'?'active invoice':''}" onclick="setReportRange('week')">៧ថ្ងៃចុងក្រោយ</button>
       <button class="${reportRange==='month'?'active invoice':''}" onclick="setReportRange('month')">ខែនេះ</button>
       <button class="${reportRange==='all'?'active invoice':''}" onclick="setReportRange('all')">ទាំងអស់</button>
     </div>
-    <div class="row-inline" style="margin-top:8px;">
-      <label style="font-size:13px;color:var(--ink-muted);">ជ្រើសរើសខែផ្សេង (ខែមុនៗ)៖</label>
-      <input class="inp" id="reportMonthPicker" type="month" style="width:180px;" max="${today.toISOString().slice(0,7)}" value="${reportRange==='custom'?reportCustomMonth:''}" onchange="setReportCustomMonth(this.value)">
+    <div class="row-inline" style="margin-top:8px;align-items:flex-end;">
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ពីថ្ងៃ (ខែ/ឆ្នាំមុនៗក៏បាន)</label>
+        <input class="inp" id="reportRangeFrom" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${reportCustomStart}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
+        <input class="inp" id="reportRangeTo" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${reportCustomEnd}">
+      </div>
+      <button class="btn ${reportRange==='custom'?'accent':''}" onclick="applyReportCustomRange()">អនុវត្ត</button>
     </div>
     ${canAccess('reports_export') ? `
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:14px;gap:8px;">
@@ -5097,10 +5117,14 @@ async function renderReports(c){
   `;
   applyCardArrange(c, 'reports');
 }
-function setReportRange(r){ reportRange = r; reportCustomMonth = ''; renderReports(document.getElementById('content')); }
-function setReportCustomMonth(val){
-  if(!val) return;
-  reportCustomMonth = val;
+function setReportRange(r){ reportRange = r; reportCustomStart = ''; reportCustomEnd = ''; renderReports(document.getElementById('content')); }
+function applyReportCustomRange(){
+  const from = document.getElementById('reportRangeFrom').value;
+  const to = document.getElementById('reportRangeTo').value;
+  if(!from || !to){ alert('សូមជ្រើសរើសទាំងថ្ងៃចាប់ផ្តើម និងថ្ងៃបញ្ចប់'); return; }
+  if(from > to){ alert('ថ្ងៃចាប់ផ្តើម ត្រូវតែមុន ឬស្មើថ្ងៃបញ្ចប់'); return; }
+  reportCustomStart = from;
+  reportCustomEnd = to;
   reportRange = 'custom';
   renderReports(document.getElementById('content'));
 }
@@ -5426,7 +5450,7 @@ async function downloadReportPDF(){
     pdf.setFontSize(14);
     pdf.text('Kim Sreang Shop - Sales Report', 20, 30);
     pdf.addImage(imgData, 'PNG', 20, 45, imgWidth, imgHeight);
-    const label = reportRange==='custom' ? reportCustomMonth : ({today:'today', week:'7days', month:'month', all:'all'}[reportRange] || reportRange);
+    const label = reportRange==='custom' ? `${reportCustomStart}_to_${reportCustomEnd}` : ({today:'today', week:'7days', month:'month', all:'all'}[reportRange] || reportRange);
     pdf.save(`Sales_Report_${label}_${new Date().toISOString().slice(0,10)}.pdf`);
   }catch(e){
     alert('មិនអាចទាញយក PDF បានទេ៖ '+e.message);
@@ -5450,7 +5474,7 @@ function downloadReport(){
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Report');
-  const label = reportRange==='custom' ? reportCustomMonth : ({today:'ថ្ងៃនេះ', week:'7ថ្ងៃ', month:'ខែនេះ', all:'ទាំងអស់'}[reportRange] || reportRange);
+  const label = reportRange==='custom' ? `${reportCustomStart}_ដល់_${reportCustomEnd}` : ({today:'ថ្ងៃនេះ', week:'7ថ្ងៃ', month:'ខែនេះ', all:'ទាំងអស់'}[reportRange] || reportRange);
   XLSX.writeFile(wb, `របាយការណ៍_${label}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
