@@ -139,8 +139,11 @@
   .card{position:relative;background:linear-gradient(150deg, #ffffff, #f5f5f5);border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);vertical-align:top;}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
+  .arrange-mode .card[data-card-key].arrange-dragging{box-shadow:0 24px 48px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2);cursor:grabbing;}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
-  .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
+  .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
+  .arrange-drag-handle{cursor:grab;touch-action:none;padding:3px 9px;font-size:13px;background:rgba(0,0,0,0.1);border-radius:4px;user-select:none;}
+  .arrange-drag-handle:active{cursor:grabbing;}
   .arrange-resize-handle{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:var(--spark);border-radius:6px 0 var(--radius) 0;z-index:5;display:flex;align-items:center;justify-content:center;font-size:11px;color:#1a3a52;user-select:none;}
 
   .debt-alert-banner{background:linear-gradient(135deg,#fdecea,#fbd9d6);border-bottom:2px solid var(--danger);color:#7a1f1a;font-size:13px;font-weight:700;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
@@ -1408,9 +1411,30 @@ async function setAppTheme(themeId){
   await sb.from('app_settings').upsert({key:'app_theme', value: themeId});
   renderSettings(document.getElementById('content'));
 }
-/* ================= DASHBOARD ARRANGE MODE (▲▼ buttons to reorder, S/M/L buttons or a free-resize handle to resize) ================= */
+/* ================= DASHBOARD ARRANGE MODE =================
+   Two modes per page, chosen automatically:
+   - Normal (default): cards stack top-to-bottom, reordered with ▲▼ buttons.
+   - Canvas ("Windows" mode): once a card is actually dragged by its ⠿ handle,
+     EVERY card on that page is switched to free x/y positioning in one shot
+     (their current on-screen spot is captured as their starting position, so
+     nothing jumps), and from then on every card can be dragged to literally
+     any spot, including overlapping others, exactly like moving windows on a
+     desktop. Switching every card at once (not just the dragged one) avoids
+     the earlier bug where one absolutely-positioned card sitting among
+     normal-flow siblings caused everything to reflow and drift out of place.
+     Cards also freely resize (width + height) via a corner handle. Dragged
+     positions snap to an 8px grid so edges line up cleanly instead of
+     landing on random pixels. Layout persists per page in cardLayouts,
+     shared across all staff (stored server-side, not per-device). On narrow/
+     phone screens canvas mode is ignored and cards always stack normally,
+     since desktop x/y coordinates would overlap chaotically on a small
+     screen. */
 let arrangeMode = false;
-let cardLayouts = {}; // { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'}, custom:{cardKey:{w,h}} } }
+const ARRANGE_NARROW_BREAKPOINT = 820;
+const ARRANGE_SNAP = 8;
+function arrangeSnap(v){ return Math.round(v/ARRANGE_SNAP)*ARRANGE_SNAP; }
+// { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'}, canvas:true|false, custom:{cardKey:{x,y,w,h}} } }
+let cardLayouts = {};
 async function loadCardLayouts(){
   try{
     const {data} = await sb.from('app_settings').select('value').eq('key','card_layouts').single();
@@ -1447,13 +1471,13 @@ function moveCardOrder(pageKey, key, dir){
   if(dir<0) parent.insertBefore(cardEl, other);
   else parent.insertBefore(other, cardEl);
   const order = Array.from(containerEl.querySelectorAll('[data-card-key]')).map(el=>el.getAttribute('data-card-key'));
-  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
   cardLayouts[pageKey].order = order;
   saveCardLayouts();
   renderPage();
 }
 function setCardSize(pageKey, key, sizeId){
-  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
   if(!cardLayouts[pageKey].sizes) cardLayouts[pageKey].sizes = {};
   cardLayouts[pageKey].sizes[key] = sizeId;
   // A preset height overrides any earlier free-resize height for this card.
@@ -1461,41 +1485,19 @@ function setCardSize(pageKey, key, sizeId){
   saveCardLayouts();
   renderPage();
 }
-function startCardResize(e, pageKey, key, el){
-  e.preventDefault();
-  e.stopPropagation();
-  el.setPointerCapture(e.pointerId);
-  const startX = e.clientX, startY = e.clientY;
-  const startRect = el.getBoundingClientRect();
-  const resizeTarget = el.querySelector('[data-resizable]');
-  const startH = resizeTarget ? resizeTarget.getBoundingClientRect().height : 200;
-  const onMove = (ev)=>{
-    const w = Math.max(240, startRect.width + (ev.clientX-startX));
-    const h = Math.max(100, startH + (ev.clientY-startY));
-    el.style.display = 'inline-block';
-    el.style.maxWidth = '100%';
-    el.style.width = w+'px';
-    if(resizeTarget){ resizeTarget.style.maxHeight = h+'px'; resizeTarget.style.overflow = 'auto'; }
-  };
-  const onUp = (ev)=>{
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    const finalW = Math.max(240, startRect.width + (ev.clientX-startX));
-    const finalH = Math.max(100, startH + (ev.clientY-startY));
-    if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
-    if(!cardLayouts[pageKey].custom) cardLayouts[pageKey].custom = {};
-    cardLayouts[pageKey].custom[key] = {w: Math.round(finalW), h: Math.round(finalH)};
-    saveCardLayouts();
-  };
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
+function exitCanvasMode(pageKey){
+  const layout = cardLayouts[pageKey];
+  if(!layout) return;
+  layout.canvas = false;
+  if(layout.custom){ Object.values(layout.custom).forEach(c=>{ delete c.x; delete c.y; }); }
+  saveCardLayouts();
+  renderPage();
 }
-// Call at the end of every page render function: applies saved order/sizes to
-// [data-card-key] elements, and (when arrangeMode is on) adds ▲/▼ move buttons
-// and S/M/L size-preset buttons per card. Uses plain buttons (not drag gestures)
-// so it works reliably with mouse, trackpad, and touchscreen alike. No-op if the
-// page has no [data-card-key] cards — pages that never touch this feature render
-// exactly as before.
+// Call at the end of every page render function: applies saved order/size/
+// free-position to [data-card-key] elements, and (when arrangeMode is on)
+// adds a drag handle, a resize handle, ▲/▼ move buttons, and S/M/L
+// size-preset buttons to each card. No-op if the page has no [data-card-key]
+// cards — pages that never touch this feature render exactly as before.
 function applyCardArrange(containerEl, pageKey){
   if(!containerEl) return;
   const cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
@@ -1504,7 +1506,12 @@ function applyCardArrange(containerEl, pageKey){
   const order = layout.order || [];
   const sizes = layout.sizes || {};
   const custom = layout.custom || {};
+  const isNarrow = containerEl.clientWidth>0 && containerEl.clientWidth<ARRANGE_NARROW_BREAKPOINT;
+  const canvasActive = !!layout.canvas && !isNarrow;
 
+  // Normal-flow ordering still applies first — it's what canvas mode
+  // measures FROM the first time it materializes everyone's position, and
+  // it's the entire behavior when canvas mode is off.
   if(order.length>0){
     const byParent = new Map();
     cards.forEach(el=>{
@@ -1528,7 +1535,17 @@ function applyCardArrange(containerEl, pageKey){
   if(arrangeMode){
     const banner = document.createElement('div');
     banner.className = 'arrange-banner';
-    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — ប្រើប៊ូតុង ▲▼ ដើម្បីផ្លាស់ទីតាំង, ប៊ូតុង តូច/មធ្យម/ធំ ឬអូសជ្រុង ⇲ ដើម្បីប្តូរទំហំសេរី</span>`;
+    const hint = canvasActive
+      ? '🔧 កំពុងរៀបចំទំព័រនេះ — អូសដោយកាន់ ⠿ ដើម្បីទុកកន្លែងណាក៏បាន (ដូច Windows), អូសជ្រុង ⇲ ដើម្បីប្តូរទំហំសេរី'
+      : '🔧 កំពុងរៀបចំទំព័រនេះ — អូសដោយកាន់ ⠿ ម្តងដើម្បីចាប់ផ្តើមទុកកន្លែងណាក៏បាន ឬប្រើប៊ូតុង ▲▼, អូសជ្រុង ⇲ ដើម្បីប្តូរទំហំសេរី';
+    banner.innerHTML = `<span>${hint}</span>`;
+    if(canvasActive){
+      const listBtn = document.createElement('button');
+      listBtn.className = 'btn small';
+      listBtn.textContent = '↕ ត្រឡប់ជាបញ្ជីធម្មតា';
+      listBtn.onclick = ()=>exitCanvasMode(pageKey);
+      banner.appendChild(listBtn);
+    }
     const resetBtn = document.createElement('button');
     resetBtn.className = 'btn small';
     resetBtn.textContent = '↺ កំណត់ទីតាំងទំព័រនេះឡើងវិញ';
@@ -1537,11 +1554,15 @@ function applyCardArrange(containerEl, pageKey){
     containerEl.insertBefore(banner, containerEl.firstChild);
   }
 
+  if(canvasActive) containerEl.style.position = 'relative';
+  else containerEl.style.position = '';
+
+  let maxBottom = 0;
   cards.forEach(el=>{
     const key = el.getAttribute('data-card-key');
     // Any card without its own designated [data-resizable] area (e.g. a plain
-    // form card) gets one synthesized around its full content, so the S/M/L
-    // size controls below work uniformly on every card, not just tables.
+    // form card) gets one synthesized around its full content, so the height
+    // controls below work uniformly on every card, not just tables.
     let resizeTarget = el.querySelector('[data-resizable]');
     if(!resizeTarget){
       const wrap = document.createElement('div');
@@ -1558,14 +1579,44 @@ function applyCardArrange(containerEl, pageKey){
       resizeTarget.style.maxHeight = preset ? preset.maxHeight : '';
     }
     resizeTarget.style.overflow = 'auto';
-    if(custSize && custSize.w){
-      el.style.display = 'inline-block';
-      el.style.width = custSize.w+'px';
-      el.style.maxWidth = '100%';
+
+    if(canvasActive){
+      // First time canvas mode turns on for this page, cards that were never
+      // individually dragged don't have x/y yet — capture their current
+      // (normal-flow) on-screen spot as their starting point, so nothing
+      // visibly jumps when the switch happens.
+      if(custSize && custSize.x!=null){
+        el.style.width = (custSize.w || el.getBoundingClientRect().width)+'px';
+      } else {
+        const rect = el.getBoundingClientRect();
+        const containerRect = containerEl.getBoundingClientRect();
+        if(!layout.custom) layout.custom = {};
+        layout.custom[key] = {...(layout.custom[key]||{}), x: Math.round(rect.left-containerRect.left), y: Math.round(rect.top-containerRect.top), w: Math.round(rect.width)};
+        el.style.width = layout.custom[key].w+'px';
+      }
+      const pos = layout.custom[key];
+      el.style.position = 'absolute';
+      el.style.left = pos.x+'px';
+      el.style.top = pos.y+'px';
+      el.style.margin = '0';
+      el.style.display = 'block';
+      el.style.maxWidth = 'none';
+      const h = pos.h || el.getBoundingClientRect().height || 200;
+      maxBottom = Math.max(maxBottom, pos.y + h + 24);
     } else {
-      el.style.display = '';
-      el.style.width = '';
-      el.style.maxWidth = '';
+      el.style.position = '';
+      el.style.left = '';
+      el.style.top = '';
+      el.style.margin = '';
+      if(custSize && custSize.w){
+        el.style.display = 'inline-block';
+        el.style.width = custSize.w+'px';
+        el.style.maxWidth = '100%';
+      } else {
+        el.style.display = '';
+        el.style.width = '';
+        el.style.maxWidth = '';
+      }
     }
     if(!arrangeMode) return;
 
@@ -1574,12 +1625,15 @@ function applyCardArrange(containerEl, pageKey){
     const toolbar = document.createElement('div');
     toolbar.className = 'arrange-toolbar';
     toolbar.innerHTML = `
+      <span class="arrange-drag-handle" title="អូសដើម្បីទុកកន្លែងណាក៏បាន">⠿</span>
+      ${canvasActive ? '' : `
       <button class="btn small" ${idx===0?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',-1)" title="ឡើងលើ">▲</button>
-      <button class="btn small" ${idx===siblings.length-1?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',1)" title="ចុះក្រោម">▼</button>
+      <button class="btn small" ${idx===siblings.length-1?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',1)" title="ចុះក្រោម">▼</button>`}
       ${Object.keys(ARRANGE_SIZE_PRESETS).map(sid=>`
         <button class="btn small ${sizes[key]===sid && !(custSize&&custSize.h)?'accent':''}" onclick="setCardSize('${pageKey}','${key}','${sid}')">${ARRANGE_SIZE_PRESETS[sid].label}</button>`).join('')}
     `;
     el.insertBefore(toolbar, el.firstChild);
+    toolbar.querySelector('.arrange-drag-handle').addEventListener('pointerdown', (e)=>startCardDrag(e, pageKey, el, containerEl));
 
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'arrange-resize-handle';
@@ -1588,6 +1642,105 @@ function applyCardArrange(containerEl, pageKey){
     el.appendChild(resizeHandle);
     resizeHandle.addEventListener('pointerdown', (e)=>startCardResize(e, pageKey, key, el));
   });
+  if(canvasActive) containerEl.style.minHeight = maxBottom>0 ? maxBottom+'px' : '';
+  else containerEl.style.minHeight = '';
+}
+function startCardDrag(e, pageKey, el, containerEl){
+  e.preventDefault();
+  const key = el.getAttribute('data-card-key');
+  el.setPointerCapture(e.pointerId);
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
+  const layout = cardLayouts[pageKey];
+  if(!layout.custom) layout.custom = {};
+
+  // First drag on this page: canvas mode isn't active yet in applyCardArrange
+  // until layout.canvas is true, so every card is still plain normal-flow
+  // right now. Capture ALL cards' current on-screen spots as their starting
+  // x/y in one shot before switching modes, so the whole page becomes one
+  // stable canvas at once and nothing drifts relative to anything else.
+  if(!layout.canvas){
+    const containerRect = containerEl.getBoundingClientRect();
+    Array.from(containerEl.querySelectorAll('[data-card-key]')).forEach(cardEl=>{
+      const k = cardEl.getAttribute('data-card-key');
+      const rect = cardEl.getBoundingClientRect();
+      layout.custom[k] = {...(layout.custom[k]||{}), x: Math.round(rect.left-containerRect.left), y: Math.round(rect.top-containerRect.top), w: Math.round(rect.width)};
+    });
+    layout.canvas = true;
+    containerEl.style.position = 'relative';
+    Array.from(containerEl.querySelectorAll('[data-card-key]')).forEach(cardEl=>{
+      const k = cardEl.getAttribute('data-card-key');
+      const pos = layout.custom[k];
+      cardEl.style.position = 'absolute';
+      cardEl.style.left = pos.x+'px';
+      cardEl.style.top = pos.y+'px';
+      cardEl.style.width = pos.w+'px';
+      cardEl.style.margin = '0';
+      cardEl.style.display = 'block';
+      cardEl.style.maxWidth = 'none';
+    });
+  }
+
+  const containerRect = containerEl.getBoundingClientRect();
+  const startRect = el.getBoundingClientRect();
+  const grabOffsetX = e.clientX - startRect.left;
+  const grabOffsetY = e.clientY - startRect.top;
+
+  el.classList.add('arrange-dragging');
+  el.parentElement.appendChild(el); // bring to front while dragging
+  el.style.zIndex = '9999';
+
+  const onMove = (ev)=>{
+    const x = Math.max(0, ev.clientX - containerRect.left - grabOffsetX);
+    const y = Math.max(0, ev.clientY - containerRect.top - grabOffsetY);
+    el.style.left = arrangeSnap(x)+'px';
+    el.style.top = arrangeSnap(y)+'px';
+    const bottom = y + el.getBoundingClientRect().height + 24;
+    if(bottom > containerEl.clientHeight) containerEl.style.minHeight = bottom+'px';
+  };
+  const onUp = (ev)=>{
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    el.classList.remove('arrange-dragging');
+    el.style.zIndex = '';
+    const finalX = arrangeSnap(Math.max(0, ev.clientX - containerRect.left - grabOffsetX));
+    const finalY = arrangeSnap(Math.max(0, ev.clientY - containerRect.top - grabOffsetY));
+    const prev = layout.custom[key] || {};
+    layout.custom[key] = {...prev, x: finalX, y: finalY, w: prev.w || Math.round(startRect.width)};
+    saveCardLayouts();
+    renderPage();
+  };
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+function startCardResize(e, pageKey, key, el){
+  e.preventDefault();
+  e.stopPropagation();
+  el.setPointerCapture(e.pointerId);
+  const startX = e.clientX, startY = e.clientY;
+  const startRect = el.getBoundingClientRect();
+  const resizeTarget = el.querySelector('[data-resizable]');
+  const startH = resizeTarget ? resizeTarget.getBoundingClientRect().height : 200;
+  const isFree = el.style.position === 'absolute';
+  const onMove = (ev)=>{
+    const w = Math.max(240, startRect.width + (ev.clientX-startX));
+    const h = Math.max(100, startH + (ev.clientY-startY));
+    if(!isFree){ el.style.display = 'inline-block'; el.style.maxWidth = '100%'; }
+    el.style.width = w+'px';
+    if(resizeTarget){ resizeTarget.style.maxHeight = h+'px'; resizeTarget.style.overflow = 'auto'; }
+  };
+  const onUp = (ev)=>{
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    const finalW = Math.max(240, startRect.width + (ev.clientX-startX));
+    const finalH = Math.max(100, startH + (ev.clientY-startY));
+    if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
+    if(!cardLayouts[pageKey].custom) cardLayouts[pageKey].custom = {};
+    const prev = cardLayouts[pageKey].custom[key] || {};
+    cardLayouts[pageKey].custom[key] = {...prev, w: Math.round(finalW), h: Math.round(finalH)};
+    saveCardLayouts();
+  };
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
 }
 async function loadExchangeRate(){
   try{
