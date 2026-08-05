@@ -4397,18 +4397,17 @@ async function renderHistory(c){
       <input class="inp" id="historySearchInput" placeholder="ស្វែងរក (លេខឯកសារ/ឈ្មោះអតិថិជន/ទូរស័ព្ទ)..." style="width:100%;" value="${escapeHtml(historySearchQuery)}" oninput="onHistorySearchInput(this.value)">
     </div>
     <div class="card" data-card-key="history_datefilter">
-      <b>ត្រងតាមកាលបរិច្ឆេទ</b>
-      <div class="row-inline" style="margin-top:8px;">
-        <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ</label>
-          <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" max="${localYMD(new Date())}" style="width:100%;margin-top:4px;">
+      <div class="row-inline" style="align-items:flex-end;">
+        <div>
+          <label style="font-size:11px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ (ខែ/ឆ្នាំមុនៗក៏បាន)</label>
+          <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" max="${localYMD(new Date())}" style="width:160px;margin-top:2px;">
         </div>
-        <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
-          <input class="inp" type="date" id="historyDateTo" value="${historyDateTo}" max="${localYMD(new Date())}" style="width:100%;margin-top:4px;">
+        <div>
+          <label style="font-size:11px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
+          <input class="inp" type="date" id="historyDateTo" value="${historyDateTo}" max="${localYMD(new Date())}" style="width:160px;margin-top:2px;">
         </div>
-        <button class="btn accent" style="margin-top:18px;" onclick="applyHistoryDateFilter()">អនុវត្ត</button>
-        ${(historyDateFrom||historyDateTo) ? `<button class="btn" style="margin-top:18px;" onclick="clearHistoryDateFilter()">សម្អាតកាលបរិច្ឆេទ</button>` : ''}
+        <button class="btn accent" onclick="applyHistoryDateFilter()">អនុវត្ត</button>
+        ${(historyDateFrom||historyDateTo) ? `<button class="btn" onclick="clearHistoryDateFilter()">សម្អាតកាលបរិច្ឆេទ</button>` : ''}
       </div>
     </div>
     <div class="row-inline" style="justify-content:flex-end;margin-bottom:10px;">
