@@ -3642,6 +3642,8 @@ let suppliersCache = [];
 let poCart = []; // {product_id, name, unit, baseCost, shipAlloc, weight, volume, qty}
 let selectedSupplier = null;
 let poHistoryFilter = 'all';
+let poHistoryDateFrom = '';
+let poHistoryDateTo = '';
 let poStep = 1; // 1=supplier/currency, 2=products, 3=shipping, 4=review
 function setPOStep(n){ poStep = n; renderPurchase(document.getElementById('content')); window.scrollTo(0,0); }
 let poShippingTotal = 0;
@@ -3724,8 +3726,11 @@ async function renderPurchase(c){
   const {data: prods} = await sb.from('products').select('*').order('name');
   productsCache = prods || [];
 
-  let poQuery = sb.from('purchase_orders').select('*').order('created_at', {ascending:false}).limit(100);
+  let poQuery = sb.from('purchase_orders').select('*').order('created_at', {ascending:false});
   if(poHistoryFilter !== 'all') poQuery = poQuery.eq('status', poHistoryFilter);
+  if(poHistoryDateFrom) poQuery = poQuery.gte('po_date', poHistoryDateFrom);
+  if(poHistoryDateTo) poQuery = poQuery.lte('po_date', poHistoryDateTo);
+  if(!poHistoryDateFrom && !poHistoryDateTo) poQuery = poQuery.limit(100);
   const {data: pos} = await poQuery;
 
   c.innerHTML = `
@@ -4036,6 +4041,18 @@ async function renderPurchase(c){
         <button class="${poHistoryFilter==='pending'?'active invoice':''}" onclick="setPOFilter('pending')">រង់ចាំទទួល</button>
         <button class="${poHistoryFilter==='received'?'active invoice':''}" onclick="setPOFilter('received')">ទទួលរួច</button>
       </div>
+      <div class="row-inline" style="margin-top:10px;align-items:flex-end;">
+        <div>
+          <label style="font-size:11px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ</label>
+          <input class="inp" id="poHistoryDateFrom" type="date" style="width:160px;margin-top:2px;" max="${localYMD(new Date())}" value="${poHistoryDateFrom}">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
+          <input class="inp" id="poHistoryDateTo" type="date" style="width:160px;margin-top:2px;" max="${localYMD(new Date())}" value="${poHistoryDateTo}">
+        </div>
+        <button class="btn accent" onclick="applyPOHistoryDateFilter()">អនុវត្ត</button>
+        ${(poHistoryDateFrom||poHistoryDateTo) ? `<button class="btn" onclick="clearPOHistoryDateFilter()">សម្អាតកាលបរិច្ឆេទ</button>` : ''}
+      </div>
       <div class="tbl-wrap" data-resizable style="margin-top:10px;max-height:500px;overflow-y:auto;">
         <table>
           <thead><tr><th>លេខ</th><th style="text-align:left">អ្នកផ្គត់ផ្គង់</th><th>កាលបរិច្ឆេទ</th><th>សរុប</th><th>ស្ថានភាព</th><th></th></tr></thead>
@@ -4281,6 +4298,15 @@ async function receivePO(poId){
   renderPurchase(document.getElementById('content'));
 }
 function setPOFilter(f){ poHistoryFilter = f; renderPurchase(document.getElementById('content')); }
+function applyPOHistoryDateFilter(){
+  poHistoryDateFrom = document.getElementById('poHistoryDateFrom').value;
+  poHistoryDateTo = document.getElementById('poHistoryDateTo').value;
+  renderPurchase(document.getElementById('content'));
+}
+function clearPOHistoryDateFilter(){
+  poHistoryDateFrom = ''; poHistoryDateTo = '';
+  renderPurchase(document.getElementById('content'));
+}
 
 /* ================= HISTORY ================= */
 let historyFilter = 'all';
@@ -4375,11 +4401,11 @@ async function renderHistory(c){
       <div class="row-inline" style="margin-top:8px;">
         <div style="flex:1;min-width:140px;">
           <label style="font-size:12px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ</label>
-          <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" style="width:100%;margin-top:4px;">
+          <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" max="${localYMD(new Date())}" style="width:100%;margin-top:4px;">
         </div>
         <div style="flex:1;min-width:140px;">
           <label style="font-size:12px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
-          <input class="inp" type="date" id="historyDateTo" value="${historyDateTo}" style="width:100%;margin-top:4px;">
+          <input class="inp" type="date" id="historyDateTo" value="${historyDateTo}" max="${localYMD(new Date())}" style="width:100%;margin-top:4px;">
         </div>
         <button class="btn accent" style="margin-top:18px;" onclick="applyHistoryDateFilter()">អនុវត្ត</button>
         ${(historyDateFrom||historyDateTo) ? `<button class="btn" style="margin-top:18px;" onclick="clearHistoryDateFilter()">សម្អាតកាលបរិច្ឆេទ</button>` : ''}
@@ -5131,12 +5157,14 @@ function applyReportCustomRange(){
 
 /* ================= SHARED REVENUE (Owner Split) ================= */
 let sharedRevRange = 'month';
+let sharedRevCustomStart = '';
+let sharedRevCustomEnd = '';
 let sharedRevOwnerFilter = 'all';
 let sharedRevReviewFilter = 'unreviewed'; // 'unreviewed' | 'all' | 'reviewed'
 let sharedRevReviewedDate = ''; // single day filter — "what did I review on this day"
 async function renderSharedRevenue(c){
   const today = new Date();
-  let startStr;
+  let startStr, endStr = null;
   if(sharedRevReviewFilter==='reviewed'){
     // Review activity (when something was reviewed) is unrelated to the invoice's
     // own transaction date — search across everything, not just whatever window
@@ -5148,11 +5176,17 @@ async function renderSharedRevenue(c){
     if(sharedRevRange==='today'){ startDate = new Date(today.getFullYear(),today.getMonth(),today.getDate()); }
     else if(sharedRevRange==='week'){ startDate = new Date(today); startDate.setDate(today.getDate()-6); }
     else if(sharedRevRange==='month'){ startDate = new Date(today.getFullYear(), today.getMonth(), 1); }
+    else if(sharedRevRange==='custom' && sharedRevCustomStart && sharedRevCustomEnd){
+      startDate = new Date(sharedRevCustomStart+'T00:00:00');
+      endStr = sharedRevCustomEnd;
+    }
     else { startDate = new Date(2020,0,1); }
-    startStr = startDate.toISOString().slice(0,10);
+    startStr = localYMD(startDate);
   }
 
-  const {data: invoices} = await sb.from('documents').select('*').eq('doc_type','invoice').gte('doc_date', startStr).order('doc_date',{ascending:false});
+  let invoicesQuery = sb.from('documents').select('*').eq('doc_type','invoice').gte('doc_date', startStr).order('doc_date',{ascending:false});
+  if(endStr) invoicesQuery = invoicesQuery.lte('doc_date', endStr);
+  const {data: invoices} = await invoicesQuery;
   const invIds = (invoices||[]).map(d=>d.id);
 
   const UNASSIGNED = 'មិនទាន់កំណត់ម្ចាស់';
@@ -5241,6 +5275,18 @@ async function renderSharedRevenue(c){
       <button class="${sharedRevRange==='month'?'active invoice':''}" onclick="setSharedRevRange('month')">ខែនេះ</button>
       <button class="${sharedRevRange==='all'?'active invoice':''}" onclick="setSharedRevRange('all')">ទាំងអស់</button>
     </div>
+    ${sharedRevReviewFilter!=='reviewed' ? `
+    <div class="row-inline" style="margin-top:8px;align-items:flex-end;">
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ពីថ្ងៃ (ខែ/ឆ្នាំមុនៗក៏បាន)</label>
+        <input class="inp" id="sharedRevRangeFrom" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${sharedRevCustomStart}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
+        <input class="inp" id="sharedRevRangeTo" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${sharedRevCustomEnd}">
+      </div>
+      <button class="btn ${sharedRevRange==='custom'?'accent':''}" onclick="applySharedRevCustomRange()">អនុវត្ត</button>
+    </div>` : ''}
     <div class="card" data-card-key="sharedrev_filter">
       <label style="font-size:12.5px;color:var(--ink-muted);">ជ្រើសរើសម្ចាស់</label>
       <select class="inp" id="sharedRevOwnerSelect" style="width:100%;margin-top:4px;" onchange="setSharedRevOwnerFilter(this.value)">
@@ -5397,7 +5443,17 @@ async function confirmSharedRevNote(){
   await setSharedRevReviewed(pendingSharedRevNoteDocId, true, note);
   closeSharedRevNoteModal();
 }
-function setSharedRevRange(r){ sharedRevRange = r; renderSharedRevenue(document.getElementById('content')); }
+function setSharedRevRange(r){ sharedRevRange = r; sharedRevCustomStart = ''; sharedRevCustomEnd = ''; renderSharedRevenue(document.getElementById('content')); }
+function applySharedRevCustomRange(){
+  const from = document.getElementById('sharedRevRangeFrom').value;
+  const to = document.getElementById('sharedRevRangeTo').value;
+  if(!from || !to){ alert('សូមជ្រើសរើសទាំងថ្ងៃចាប់ផ្តើម និងថ្ងៃបញ្ចប់'); return; }
+  if(from > to){ alert('ថ្ងៃចាប់ផ្តើម ត្រូវតែមុន ឬស្មើថ្ងៃបញ្ចប់'); return; }
+  sharedRevCustomStart = from;
+  sharedRevCustomEnd = to;
+  sharedRevRange = 'custom';
+  renderSharedRevenue(document.getElementById('content'));
+}
 function exportSharedRevenueExcel(){
   const list = window._sharedRevInvoices || [];
   if(list.length===0){ alert('មិនមានទិន្នន័យសម្រាប់ទាញយកទេ'); return; }
