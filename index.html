@@ -185,7 +185,7 @@
   .pos-big-30 .btn.small{font-size:12px;padding:8px 15px;}
   .pos-big-30 p{font-size:11px !important;}
   .grid-2{display:grid;grid-template-columns:1fr 1.6fr;gap:16px;align-items:start;}
-  @media (max-width:900px){.grid-2{grid-template-columns:1fr;}}
+  body.mobile-grid .grid-2{grid-template-columns:1fr;}
 
   table{width:100%;border-collapse:collapse;font-size:15px;}
   th{background:linear-gradient(180deg, var(--graphite-2), var(--graphite));color:var(--ink);text-align:center;padding:11px 10px;font-weight:700;font-size:14px;}
@@ -228,26 +228,24 @@
 
   /* bottom mobile nav */
   nav.bottom{display:none;}
-  @media (max-width:760px){
-    nav.side{display:none;}
-    .layout{flex-direction:column;}
-    main.content{padding:14px;padding-bottom:78px;}
-    nav.bottom{
-      display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;
-      border-top:1px solid var(--paper-dim);z-index:60;
-      box-shadow:0 -1px 6px rgba(0,0,0,0.05);
-    }
-    nav.bottom button{
-      flex:1;background:transparent;border:none;color:#7a8484;padding:10px 4px;font-size:10.5px;
-      display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600;
-    }
-    nav.bottom button .dot{width:5px;height:5px;border-radius:50%;background:#c7d1d1;}
-    nav.bottom button.active{color:var(--spark-dim);}
-    nav.bottom button.active .dot{background:var(--spark);}
-    .grid-2{gap:12px;}
-    .pos-big-30 .row-inline > *, .pos-big-50 .row-inline > *{flex:1 1 100%;min-width:0;}
-    .totals .line{width:100%;}
+  body.mobile-nav nav.side{display:none;}
+  body.mobile-nav .layout{flex-direction:column;}
+  body.mobile-nav main.content{padding:14px;padding-bottom:78px;}
+  body.mobile-nav nav.bottom{
+    display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;
+    border-top:1px solid var(--paper-dim);z-index:60;
+    box-shadow:0 -1px 6px rgba(0,0,0,0.05);
   }
+  body.mobile-nav nav.bottom button{
+    flex:1;background:transparent;border:none;color:#7a8484;padding:10px 4px;font-size:10.5px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600;
+  }
+  body.mobile-nav nav.bottom button .dot{width:5px;height:5px;border-radius:50%;background:#c7d1d1;}
+  body.mobile-nav nav.bottom button.active{color:var(--spark-dim);}
+  body.mobile-nav nav.bottom button.active .dot{background:var(--spark);}
+  body.mobile-nav .grid-2{gap:12px;}
+  body.mobile-nav .pos-big-30 .row-inline > *, body.mobile-nav .pos-big-50 .row-inline > *{flex:1 1 100%;min-width:0;}
+  body.mobile-nav .totals .line{width:100%;}
 
   /* ---------- Print template ---------- */
   #printArea{display:none;}
@@ -452,6 +450,7 @@
     <div class="spacer"></div>
     <div class="who" id="whoLabel" onclick="goNav('myaccount')" style="cursor:pointer;text-decoration:underline;"></div>
     <button class="icon-btn" id="arrangeModeBtn" style="display:none;" onclick="toggleArrangeMode()">🔧 រៀបចំ Dashboard</button>
+    <button class="icon-btn" id="layoutModeBtn" onclick="cycleLayoutMode()" title="ប្តូររវាង Mode ទូរស័ព្ទ / កុំព្យូទ័រ"></button>
     <button class="icon-btn" onclick="doLogout()">ចេញ</button>
   </div>
 
@@ -745,6 +744,7 @@ function showApp(){
   loadShopInfo();
   loadProfileSignatures();
   loadCardLayouts();
+  applyLayoutMode();
   loadBarcodeLabelSettings();
   loadPOFxRates();
   if(isOwner()) document.getElementById('arrangeModeBtn').style.display = 'inline-block';
@@ -1411,6 +1411,37 @@ async function setAppTheme(themeId){
   await sb.from('app_settings').upsert({key:'app_theme', value: themeId});
   renderSettings(document.getElementById('content'));
 }
+/* ================= LAYOUT MODE (Phone / Computer) =================
+   Manually forces the whole app's layout to the phone (bottom nav, single
+   column) or computer (side nav, wide grid) presentation, regardless of the
+   device's actual screen size — e.g. viewing the desktop table layout on a
+   phone by forcing Computer mode, or previewing the phone layout on a wide
+   monitor. Default is Auto, which just follows the real screen width like
+   before. This is a personal per-device preference (kept in localStorage,
+   NOT shared via app_settings like cardLayouts is), since different staff
+   on different devices would want different choices. */
+const LAYOUT_MODE_NAV_BREAKPOINT = 760;
+const LAYOUT_MODE_GRID_BREAKPOINT = 900;
+let layoutMode = localStorage.getItem('layoutMode') || 'auto'; // 'auto' | 'phone' | 'computer'
+const LAYOUT_MODE_LABELS = { auto:'⚙️ Auto', phone:'📱 ទូរស័ព្ទ', computer:'💻 កុំព្យូទ័រ' };
+function applyLayoutMode(){
+  const w = window.innerWidth;
+  let mobileNav, mobileGrid;
+  if(layoutMode==='phone'){ mobileNav = true; mobileGrid = true; }
+  else if(layoutMode==='computer'){ mobileNav = false; mobileGrid = false; }
+  else { mobileNav = w<=LAYOUT_MODE_NAV_BREAKPOINT; mobileGrid = w<=LAYOUT_MODE_GRID_BREAKPOINT; }
+  document.body.classList.toggle('mobile-nav', mobileNav);
+  document.body.classList.toggle('mobile-grid', mobileGrid);
+  const btn = document.getElementById('layoutModeBtn');
+  if(btn) btn.textContent = LAYOUT_MODE_LABELS[layoutMode];
+}
+function cycleLayoutMode(){
+  layoutMode = layoutMode==='auto' ? 'phone' : layoutMode==='phone' ? 'computer' : 'auto';
+  localStorage.setItem('layoutMode', layoutMode);
+  applyLayoutMode();
+  renderPage();
+}
+window.addEventListener('resize', ()=>{ if(layoutMode==='auto') applyLayoutMode(); });
 /* ================= DASHBOARD ARRANGE MODE =================
    Two modes per page, chosen automatically:
    - Normal (default): cards stack top-to-bottom, reordered with ▲▼ buttons.
@@ -1430,7 +1461,6 @@ async function setAppTheme(themeId){
      since desktop x/y coordinates would overlap chaotically on a small
      screen. */
 let arrangeMode = false;
-const ARRANGE_NARROW_BREAKPOINT = 820;
 const ARRANGE_SNAP = 8;
 function arrangeSnap(v){ return Math.round(v/ARRANGE_SNAP)*ARRANGE_SNAP; }
 // { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'}, canvas:true|false, custom:{cardKey:{x,y,w,h}} } }
@@ -1506,7 +1536,7 @@ function applyCardArrange(containerEl, pageKey){
   const order = layout.order || [];
   const sizes = layout.sizes || {};
   const custom = layout.custom || {};
-  const isNarrow = containerEl.clientWidth>0 && containerEl.clientWidth<ARRANGE_NARROW_BREAKPOINT;
+  const isNarrow = document.body.classList.contains('mobile-nav');
   const canvasActive = !!layout.canvas && !isNarrow;
 
   // Normal-flow ordering still applies first — it's what canvas mode
