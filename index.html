@@ -3846,38 +3846,40 @@ async function renderPurchase(c){
       <span>💰 សរុប ${poCurrency==='usd'?'$'+poSubtotal().toFixed(2):`${poCurrencySymbol()}${usdToPo(poSubtotal()).toFixed(2)} ($${poSubtotal().toFixed(2)})`}</span>
     </div>
 
-    <div class="card" data-card-key="purchase_currency" style="border-color:var(--laser);">
-      <b>រូបិយប័ណ្ណបញ្ជាទិញនេះ</b>
-      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បើវិក្កយបត្រពីអ្នកផ្គត់ផ្គង់ជាបរទេស (ចិន, វៀតណាម) សូមជ្រើសរើសរូបិយប័ណ្ណ និងបញ្ចូលអត្រាប្តូរប្រាក់ជាមុនសិន មុននឹងបញ្ចូលទំនិញខាងក្រោម — ថ្លៃដើមទាំងអស់នឹងគិតជារូបិយប័ណ្ណនេះ ហើយប្រព័ន្ធបម្លែងទៅដុល្លារស្វ័យប្រវត្តិ</p>
-      <div class="row-inline">
-        <select class="inp" id="poCurrencySelect" style="flex:1;min-width:180px" onchange="setPOCurrency(this.value)">
-          <option value="usd" ${poCurrency==='usd'?'selected':''}>💵 ដុល្លារ ($) — ខ្មែរ</option>
-          <option value="cny" ${poCurrency==='cny'?'selected':''}>🇨🇳 យន់ (¥) — ចិន</option>
-          <option value="vnd" ${poCurrency==='vnd'?'selected':''}>🇻🇳 ដុង (₫) — វៀតណាម</option>
+    <div class="grid-2">
+      <div class="card" data-card-key="purchase_currency" style="border-color:var(--laser);">
+        <b>រូបិយប័ណ្ណ</b>
+        <div class="row-inline" style="margin-top:8px;">
+          <select class="inp" id="poCurrencySelect" style="flex:1;min-width:140px" onchange="setPOCurrency(this.value)">
+            <option value="usd" ${poCurrency==='usd'?'selected':''}>💵 ដុល្លារ ($)</option>
+            <option value="cny" ${poCurrency==='cny'?'selected':''}>🇨🇳 យន់ (¥)</option>
+            <option value="vnd" ${poCurrency==='vnd'?'selected':''}>🇻🇳 ដុង (₫)</option>
+          </select>
+          ${poCurrency!=='usd'?`
+          <div class="row-inline" style="flex:1;min-width:160px;">
+            <span style="font-size:13px;white-space:nowrap;">1 $ =</span>
+            <input class="inp" id="poFxRateInput" type="number" step="0.01" value="${poFxRate||''}" placeholder="អត្រាប្តូរប្រាក់" style="flex:1;" onchange="updatePOFxRate(this.value)">
+            <span style="font-size:13px;white-space:nowrap;">${poCurrencySymbol()}</span>
+          </div>`:''}
+        </div>
+        <p style="margin:6px 0 0;font-size:11px;color:var(--ink-muted);">សម្រាប់អ្នកផ្គត់ផ្គង់បរទេស — ថ្លៃដើមទាំងអស់គិតជារូបិយប័ណ្ណនេះ ប្រព័ន្ធបម្លែងទៅដុល្លារស្វ័យប្រវត្តិ</p>
+      </div>
+      <div class="card" data-card-key="purchase_supplier">
+        <div class="row-inline" style="justify-content:space-between;margin-bottom:8px;">
+          <b>អ្នកផ្គត់ផ្គង់</b>
+          <button class="btn small" onclick="toggleNewSupplier()">+ អ្នកផ្គត់ផ្គង់ថ្មី</button>
+        </div>
+        <select class="inp" id="poSupplierSelect" style="width:100%;" onchange="pickSupplier()">
+          <option value="">-- មិនកំណត់ --</option>
+          ${suppliersCache.map(s=>`<option value="${s.id}" ${selectedSupplier?.id===s.id?'selected':''}>${escapeHtml(s.name)}${s.phone?' — '+s.phone:''}</option>`).join('')}
         </select>
-        ${poCurrency!=='usd'?`
-        <div class="row-inline" style="flex:1;min-width:220px;">
-          <span style="font-size:13px;white-space:nowrap;">1 $ =</span>
-          <input class="inp" id="poFxRateInput" type="number" step="0.01" value="${poFxRate||''}" placeholder="អត្រាប្តូរប្រាក់" style="flex:1;" onchange="updatePOFxRate(this.value)">
-          <span style="font-size:13px;white-space:nowrap;">${poCurrencySymbol()}</span>
-        </div>`:''}
-      </div>
-    </div>
-    <div class="card" data-card-key="purchase_supplier">
-      <div class="row-inline" style="justify-content:space-between;margin-bottom:8px;">
-        <b>អ្នកផ្គត់ផ្គង់</b>
-        <button class="btn small" onclick="toggleNewSupplier()">+ អ្នកផ្គត់ផ្គង់ថ្មី</button>
-      </div>
-      <select class="inp" id="poSupplierSelect" style="width:100%;" onchange="pickSupplier()">
-        <option value="">-- មិនកំណត់ --</option>
-        ${suppliersCache.map(s=>`<option value="${s.id}" ${selectedSupplier?.id===s.id?'selected':''}>${escapeHtml(s.name)}${s.phone?' — '+s.phone:''}</option>`).join('')}
-      </select>
-      <div id="newSupplierBox" style="display:none;margin-top:10px;">
-        <div class="row-inline">
-          <input class="inp" id="newSupName" placeholder="ឈ្មោះអ្នកផ្គត់ផ្គង់" style="flex:1;min-width:120px">
-          <input class="inp" id="newSupPhone" placeholder="លេខទូរស័ព្ទ" style="flex:1;min-width:120px">
-          <input class="inp" id="newSupLoc" placeholder="ទីតាំង" style="flex:1;min-width:120px">
-          <button class="btn accent small" onclick="saveNewSupplier()">រក្សាទុក</button>
+        <div id="newSupplierBox" style="display:none;margin-top:10px;">
+          <div class="row-inline">
+            <input class="inp" id="newSupName" placeholder="ឈ្មោះអ្នកផ្គត់ផ្គង់" style="flex:1;min-width:120px">
+            <input class="inp" id="newSupPhone" placeholder="លេខទូរស័ព្ទ" style="flex:1;min-width:120px">
+            <input class="inp" id="newSupLoc" placeholder="ទីតាំង" style="flex:1;min-width:120px">
+            <button class="btn accent small" onclick="saveNewSupplier()">រក្សាទុក</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3971,8 +3973,8 @@ async function renderPurchase(c){
 
     <div class="card" data-card-key="purchase_shipping">
       <b>ថ្លៃដឹកជញ្ជូនរួម (បែងចែកទៅតាមមុខទំនិញ)</b>
-      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បញ្ចូលថ្លៃដឹកសរុបលើកនេះ ១ដង ជ្រើសរើសវិធីបែងចែក រួចចុច "អនុវត្ត" — ប្រព័ន្ធនឹងបូកចូលទៅតម្លៃចូលរបស់ទំនិញនីមួយៗតាមសមាមាត្រ</p>
-      <div class="row-inline">
+      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">បញ្ចូលថ្លៃដឹកសរុបលើកនេះ ១ដង ជ្រើសរើសវិធីបែងចែក រួចចុច "អនុវត្ត"</p>
+      <div class="row-inline" style="max-width:700px;">
         <input class="inp" id="poShippingInput" type="number" step="0.01" placeholder="ថ្លៃដឹកសរុប ${poCurrencySymbol()}" value="${poShippingTotal||''}" style="flex:1;min-width:120px">
         <select class="inp" id="poShippingMethod" style="flex:1;min-width:160px">
           <option value="value" ${poShippingMethod==='value'?'selected':''}>តាមតម្លៃ (Value)</option>
