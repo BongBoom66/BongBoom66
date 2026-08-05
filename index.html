@@ -4124,7 +4124,9 @@ async function renderPurchase(c){
                 <td>${p.po_no}</td>
                 <td class="left">${escapeHtml(p.supplier_name||'')}</td>
                 <td>${p.po_date}</td>
-                <td>${p.received_date?escapeHtml(p.received_date)+(canAccess('purchase_receive')?` <button class="btn small" style="padding:1px 6px;font-size:10px;" onclick="editPOReceivedDate('${p.id}','${p.received_date}')">កែ</button>`:''):'—'}</td>
+                <td>${p.status!=='received'
+                  ? (canAccess('purchase_receive')?`<input class="inp" type="date" id="poReceiveDate_${p.id}" value="${p.received_date||localYMD(new Date())}" max="${localYMD(new Date())}" style="width:150px;">`:(p.received_date?escapeHtml(p.received_date):'—'))
+                  : (escapeHtml(p.received_date||'—')+(canAccess('purchase_receive')?` <button class="btn small" style="padding:1px 6px;font-size:10px;" onclick="editPOReceivedDate('${p.id}','${p.received_date||''}')">កែ</button>`:''))}</td>
                 <td>$${Number(p.subtotal).toFixed(2)}</td>
                 <td>${p.status==='received'?`<span class="badge ok">ទទួលរួច</span>`:`<span class="badge low">រង់ចាំទទួល</span>`}</td>
                 <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
@@ -4299,10 +4301,10 @@ async function savePO(){
 
 async function receivePO(poId){
   if(!currentLocationId){ alert('សូមបង្កើតទីតាំង (ហាង/ឃ្លាំង) ជាមុនសិន ក្នុង "ការកំណត់"'); return; }
-  const receivedDate = prompt('ទទួលទំនិញនេះចូលស្តុកនៅថ្ងៃណា? (YYYY-MM-DD)', localYMD(new Date()));
-  if(receivedDate===null) return;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(receivedDate)){ alert('ទម្រង់ថ្ងៃមិនត្រឹមត្រូវ សូមប្រើទម្រង់ YYYY-MM-DD (ឧ. 2026-08-05)'); return; }
-  if(!confirm('សម្គាល់ថាបានទទួលទំនិញនេះចូលស្តុក? (ចូលទីតាំង៖ '+((locationsCache.find(l=>l.id===currentLocationId)||{}).name||'')+')')) return;
+  const dateEl = document.getElementById('poReceiveDate_'+poId);
+  const receivedDate = dateEl ? dateEl.value : localYMD(new Date());
+  if(!receivedDate){ alert('សូមកំណត់ថ្ងៃទទួលទំនិញជាមុនសិន'); return; }
+  if(!confirm('សម្គាល់ថាបានទទួលទំនិញនេះចូលស្តុក ថ្ងៃទី '+receivedDate+'? (ចូលទីតាំង៖ '+((locationsCache.find(l=>l.id===currentLocationId)||{}).name||'')+')')) return;
   const {data: items, error: itemsErr} = await sb.from('purchase_order_items').select('*').eq('po_id', poId);
   if(itemsErr){ alert('មិនអាចទាញយកទំនិញក្នុងបញ្ជាទិញបានទេ៖ '+itemsErr.message); return; }
   for(const it of (items||[])){
