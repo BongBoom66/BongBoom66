@@ -139,7 +139,8 @@
   .card{position:relative;background:linear-gradient(150deg, #ffffff, #f5f5f5);border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);vertical-align:top;}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
-  .arrange-mode .card[data-card-key].arrange-dragging{box-shadow:0 24px 48px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2);cursor:grabbing;transform:rotate(1deg);}
+  .arrange-mode .card[data-card-key].arrange-dragging{box-shadow:0 24px 48px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2);cursor:grabbing;transform:rotate(1deg);margin:0 !important;}
+  .arrange-placeholder{border:2px dashed var(--spark-dim);border-radius:var(--radius);background:rgba(63,169,220,0.08);margin-bottom:16px;box-sizing:border-box;vertical-align:top;}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
   .arrange-drag-handle{cursor:grab;touch-action:none;padding:3px 9px;font-size:13px;background:rgba(0,0,0,0.1);border-radius:4px;user-select:none;}
@@ -1412,22 +1413,15 @@ async function setAppTheme(themeId){
   renderSettings(document.getElementById('content'));
 }
 /* ================= DASHBOARD ARRANGE MODE =================
-   On desktop-width screens, cards can be dragged to any x/y position at all
-   — like moving a window on a desktop OS, including overlapping or sitting
-   in blank space, not just reordered in the page flow — and freely resized
-   (width + height) via a corner handle. A card only switches to free
-   positioning once it's actually been dragged; until then it stays in the
-   normal stacked layout (optionally with a custom width/height from the
-   resize handle alone). On narrow/phone screens, free positions are ignored
-   and every card falls back to the normal stacked layout, since arbitrary
-   x/y coordinates from a wide desktop session would overlap chaotically on
-   a small screen. Layout persists per page in cardLayouts, shared across all
-   staff (stored server-side, not per-device). ▲▼ and S/M/L buttons remain as
-   a reliable fallback alongside the drag/resize handles. */
+   Cards can be freely dragged (via pointer events — works for mouse, touch,
+   and pen alike) to any position on the page, including across the left/right
+   columns of a .grid-2 layout, and freely resized (width + height) by
+   dragging a handle in the corner, like resizing a window. Layout persists
+   per page in cardLayouts, shared across all staff (stored server-side, not
+   per-device). ▲▼ and S/M/L buttons remain as a reliable fallback alongside
+   the drag/resize handles. */
 let arrangeMode = false;
-const ARRANGE_NARROW_BREAKPOINT = 820;
-// { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'}, custom:{cardKey:{x,y,w,h}} } }
-// x/y present = freely positioned (absolute); x/y absent = normal flow, w/h (if set) just resize it there.
+// { [pageKey]: { order:[cardKey,...], sizes:{cardKey:'S'|'M'|'L'}, zones:{cardKey:zoneIndex}, custom:{cardKey:{w,h}} } }
 let cardLayouts = {};
 async function loadCardLayouts(){
   try{
@@ -1464,14 +1458,11 @@ function moveCardOrder(pageKey, key, dir){
   const other = siblings[newIdx];
   if(dir<0) parent.insertBefore(cardEl, other);
   else parent.insertBefore(other, cardEl);
-  const order = Array.from(containerEl.querySelectorAll('[data-card-key]')).map(el=>el.getAttribute('data-card-key'));
-  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
-  cardLayouts[pageKey].order = order;
-  saveCardLayouts();
+  persistCardLayoutFromDOM(pageKey, containerEl);
   renderPage();
 }
 function setCardSize(pageKey, key, sizeId){
-  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}};
   if(!cardLayouts[pageKey].sizes) cardLayouts[pageKey].sizes = {};
   cardLayouts[pageKey].sizes[key] = sizeId;
   // A preset height overrides any earlier free-resize height for this card.
@@ -1479,22 +1470,63 @@ function setCardSize(pageKey, key, sizeId){
   saveCardLayouts();
   renderPage();
 }
-// Call at the end of every page render function: applies saved order/size/
-// free-position to [data-card-key] elements, and (when arrangeMode is on)
-// adds a drag handle, a resize handle, ▲/▼ move buttons, and S/M/L
-// size-preset buttons to each card. No-op if the page has no [data-card-key]
-// cards — pages that never touch this feature render exactly as before.
+// Maps each [data-card-key]'s current parent element to a stable zone index,
+// in document order (first parent seen = zone 0, next distinct parent = zone
+// 1, ...). Used both to persist which zone a card was dropped into, and to
+// re-apply that placement on the next render — as long as a page's static
+// container structure for a given state doesn't change, the same physical
+// container (e.g. "the .grid-2 left column") gets the same zone index every
+// time, so cards can be reparented into it by index alone.
+function computeCardZones(cards){
+  const parentToZone = new Map();
+  const zoneToParent = [];
+  cards.forEach(el=>{
+    const p = el.parentElement;
+    if(!parentToZone.has(p)){ parentToZone.set(p, zoneToParent.length); zoneToParent.push(p); }
+  });
+  return {parentToZone, zoneToParent};
+}
+// Reads the live DOM (after a drag finished moving cards around, possibly
+// across zones) and writes that arrangement back into cardLayouts.
+function persistCardLayoutFromDOM(pageKey, containerEl){
+  const cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
+  const {parentToZone} = computeCardZones(cards);
+  if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, zones:{}, custom:{}};
+  if(!cardLayouts[pageKey].zones) cardLayouts[pageKey].zones = {};
+  cardLayouts[pageKey].order = cards.map(el=>el.getAttribute('data-card-key'));
+  cards.forEach(el=>{
+    cardLayouts[pageKey].zones[el.getAttribute('data-card-key')] = parentToZone.get(el.parentElement);
+  });
+  saveCardLayouts();
+}
+// Call at the end of every page render function: applies saved zone/order/size
+// to [data-card-key] elements, and (when arrangeMode is on) adds a drag
+// handle, a resize handle, ▲/▼ move buttons, and S/M/L size-preset buttons to
+// each card. No-op if the page has no [data-card-key] cards — pages that
+// never touch this feature render exactly as before.
 function applyCardArrange(containerEl, pageKey){
   if(!containerEl) return;
-  const cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
+  let cards = Array.from(containerEl.querySelectorAll('[data-card-key]'));
   if(cards.length===0) return;
   const layout = cardLayouts[pageKey] || {};
   const order = layout.order || [];
   const sizes = layout.sizes || {};
+  const zones = layout.zones || {};
   const custom = layout.custom || {};
-  const isNarrow = containerEl.clientWidth>0 && containerEl.clientWidth<ARRANGE_NARROW_BREAKPOINT;
-  containerEl.style.position = 'relative';
 
+  // Re-parent cards into their saved zone first (if it differs from where
+  // they'd naturally render and that zone still exists on this page/state),
+  // then sort within each parent by the saved order — same as before.
+  if(Object.keys(zones).length>0){
+    const {parentToZone, zoneToParent} = computeCardZones(cards);
+    cards.forEach(el=>{
+      const key = el.getAttribute('data-card-key');
+      const targetZone = zones[key];
+      if(targetZone===undefined || targetZone===null) return;
+      const targetParent = zoneToParent[targetZone];
+      if(targetParent && parentToZone.get(el.parentElement)!==targetZone) targetParent.appendChild(el);
+    });
+  }
   if(order.length>0){
     const byParent = new Map();
     cards.forEach(el=>{
@@ -1518,7 +1550,7 @@ function applyCardArrange(containerEl, pageKey){
   if(arrangeMode){
     const banner = document.createElement('div');
     banner.className = 'arrange-banner';
-    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — អូសដោយកាន់ ⠿ ដើម្បីទុកកន្លែងណាក៏បាន (${isNarrow?'ទំហំអេក្រង់តូច — បង្ហាញជាបញ្ជីធម្មតា':'ដូច Windows'}), អូសជ្រុង ⇲ ដើម្បីប្តូរទំហំសេរី</span>`;
+    banner.innerHTML = `<span>🔧 កំពុងរៀបចំទំព័រនេះ — អូសដោយកាន់ ⠿ ដើម្បីផ្លាស់ទីតាំង (រំកិលទៅជួរណាក៏បាន), អូសជ្រុង ⇲ ដើម្បីប្តូរទំហំសេរី</span>`;
     const resetBtn = document.createElement('button');
     resetBtn.className = 'btn small';
     resetBtn.textContent = '↺ កំណត់ទីតាំងទំព័រនេះឡើងវិញ';
@@ -1527,7 +1559,6 @@ function applyCardArrange(containerEl, pageKey){
     containerEl.insertBefore(banner, containerEl.firstChild);
   }
 
-  let maxBottom = 0;
   cards.forEach(el=>{
     const key = el.getAttribute('data-card-key');
     // Any card without its own designated [data-resizable] area (e.g. a plain
@@ -1549,31 +1580,14 @@ function applyCardArrange(containerEl, pageKey){
       resizeTarget.style.maxHeight = preset ? preset.maxHeight : '';
     }
     resizeTarget.style.overflow = 'auto';
-
-    const freePositioned = custSize && custSize.x!==undefined && custSize.x!==null && !isNarrow;
-    if(freePositioned){
-      el.style.position = 'absolute';
-      el.style.left = custSize.x+'px';
-      el.style.top = custSize.y+'px';
-      el.style.margin = '0';
-      el.style.display = custSize.w ? 'block' : '';
-      if(custSize.w) el.style.width = custSize.w+'px';
-      const h = custSize.h || el.getBoundingClientRect().height || 200;
-      maxBottom = Math.max(maxBottom, custSize.y + h + 24);
+    if(custSize && custSize.w){
+      el.style.display = 'inline-block';
+      el.style.width = custSize.w+'px';
+      el.style.maxWidth = '100%';
     } else {
-      el.style.position = '';
-      el.style.left = '';
-      el.style.top = '';
-      el.style.margin = '';
-      if(custSize && custSize.w){
-        el.style.display = 'inline-block';
-        el.style.width = custSize.w+'px';
-        el.style.maxWidth = '100%';
-      } else {
-        el.style.display = '';
-        el.style.width = '';
-        el.style.maxWidth = '';
-      }
+      el.style.display = '';
+      el.style.width = '';
+      el.style.maxWidth = '';
     }
     if(!arrangeMode) return;
 
@@ -1582,15 +1596,14 @@ function applyCardArrange(containerEl, pageKey){
     const toolbar = document.createElement('div');
     toolbar.className = 'arrange-toolbar';
     toolbar.innerHTML = `
-      <span class="arrange-drag-handle" title="អូសដើម្បីទុកកន្លែងណាក៏បាន">⠿</span>
+      <span class="arrange-drag-handle" title="អូសដើម្បីផ្លាស់ទីតាំង">⠿</span>
       <button class="btn small" ${idx===0?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',-1)" title="ឡើងលើ">▲</button>
       <button class="btn small" ${idx===siblings.length-1?'disabled':''} onclick="moveCardOrder('${pageKey}','${key}',1)" title="ចុះក្រោម">▼</button>
       ${Object.keys(ARRANGE_SIZE_PRESETS).map(sid=>`
         <button class="btn small ${sizes[key]===sid && !(custSize&&custSize.h)?'accent':''}" onclick="setCardSize('${pageKey}','${key}','${sid}')">${ARRANGE_SIZE_PRESETS[sid].label}</button>`).join('')}
-      ${freePositioned?`<button class="btn small" onclick="clearCardFreePosition('${pageKey}','${key}')" title="ត្រឡប់ទៅបញ្ជីធម្មតាវិញ">⤢ ត្រឡប់ក្នុងបញ្ជី</button>`:''}
     `;
     el.insertBefore(toolbar, el.firstChild);
-    toolbar.querySelector('.arrange-drag-handle').addEventListener('pointerdown', (e)=>startCardDrag(e, pageKey, el, containerEl));
+    toolbar.querySelector('.arrange-drag-handle').addEventListener('pointerdown', (e)=>startCardDrag(e, pageKey, el));
 
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'arrange-resize-handle';
@@ -1599,54 +1612,72 @@ function applyCardArrange(containerEl, pageKey){
     el.appendChild(resizeHandle);
     resizeHandle.addEventListener('pointerdown', (e)=>startCardResize(e, pageKey, key, el));
   });
-  containerEl.style.minHeight = maxBottom>0 ? maxBottom+'px' : '';
 }
-function clearCardFreePosition(pageKey, key){
-  const c = cardLayouts[pageKey]?.custom?.[key];
-  if(c){ delete c.x; delete c.y; }
-  saveCardLayouts();
-  renderPage();
-}
-function startCardDrag(e, pageKey, el, containerEl){
+function startCardDrag(e, pageKey, el){
   e.preventDefault();
+  const containerEl = document.getElementById('content');
   const key = el.getAttribute('data-card-key');
   el.setPointerCapture(e.pointerId);
-  const containerRect = containerEl.getBoundingClientRect();
   const startRect = el.getBoundingClientRect();
   const grabOffsetX = e.clientX - startRect.left;
   const grabOffsetY = e.clientY - startRect.top;
-  const startX = startRect.left - containerRect.left;
-  const startY = startRect.top - containerRect.top;
+
+  // A placeholder holds the card's spot in the normal document flow (so
+  // siblings reflow around it as it moves) while the real card is pulled out
+  // of flow and floats fixed to the viewport, following the pointer — the
+  // same visual feel as dragging a window on a desktop OS.
+  const placeholder = document.createElement('div');
+  placeholder.className = 'arrange-placeholder';
+  placeholder.style.width = startRect.width+'px';
+  placeholder.style.height = startRect.height+'px';
+  el.parentElement.insertBefore(placeholder, el);
 
   el.classList.add('arrange-dragging');
-  el.style.position = 'absolute';
-  el.style.margin = '0';
+  el.style.position = 'fixed';
+  el.style.left = startRect.left+'px';
+  el.style.top = startRect.top+'px';
   el.style.width = startRect.width+'px';
-  el.style.left = startX+'px';
-  el.style.top = startY+'px';
+  el.style.height = startRect.height+'px';
   el.style.zIndex = '9999';
+  el.style.pointerEvents = 'none';
+  document.body.appendChild(el);
 
   const onMove = (ev)=>{
-    const x = Math.max(0, ev.clientX - containerRect.left - grabOffsetX);
-    const y = Math.max(0, ev.clientY - containerRect.top - grabOffsetY);
-    el.style.left = x+'px';
-    el.style.top = y+'px';
-    const bottom = y + el.getBoundingClientRect().height + 24;
-    if(bottom > containerEl.clientHeight) containerEl.style.minHeight = bottom+'px';
+    el.style.left = (ev.clientX - grabOffsetX)+'px';
+    el.style.top = (ev.clientY - grabOffsetY)+'px';
+
+    const under = document.elementFromPoint(ev.clientX, ev.clientY);
+    if(!under) return;
+    const targetCard = under.closest('[data-card-key]');
+    if(targetCard && targetCard!==el){
+      const rect = targetCard.getBoundingClientRect();
+      const before = ev.clientY < rect.top + rect.height/2;
+      targetCard.parentElement.insertBefore(placeholder, before ? targetCard : targetCard.nextSibling);
+      return;
+    }
+    // Not over another card — if the pointer is over a known drop zone
+    // (a parent that holds other cards) with empty space, drop at its end.
+    const zoneParents = new Set(Array.from(containerEl.querySelectorAll('[data-card-key]')).map(c=>c.parentElement));
+    for(const zp of zoneParents){
+      if(zp!==placeholder.parentElement && zp.contains(under)){ zp.appendChild(placeholder); return; }
+    }
   };
-  const onUp = (ev)=>{
+  const onUp = ()=>{
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
+    placeholder.parentElement.insertBefore(el, placeholder);
+    placeholder.remove();
     el.classList.remove('arrange-dragging');
+    el.style.position = '';
+    el.style.left = '';
+    el.style.top = '';
+    el.style.height = '';
     el.style.zIndex = '';
-    const finalX = Math.max(0, Math.round(ev.clientX - containerRect.left - grabOffsetX));
-    const finalY = Math.max(0, Math.round(ev.clientY - containerRect.top - grabOffsetY));
-    if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
-    if(!cardLayouts[pageKey].custom) cardLayouts[pageKey].custom = {};
-    const prev = cardLayouts[pageKey].custom[key] || {};
-    cardLayouts[pageKey].custom[key] = {...prev, x: finalX, y: finalY, w: prev.w || Math.round(startRect.width)};
-    saveCardLayouts();
-    renderPage();
+    el.style.pointerEvents = '';
+    const custW = cardLayouts[pageKey]?.custom?.[key]?.w;
+    el.style.width = custW ? custW+'px' : '';
+    el.style.display = custW ? 'inline-block' : '';
+    persistCardLayoutFromDOM(pageKey, containerEl);
   };
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
@@ -1659,11 +1690,11 @@ function startCardResize(e, pageKey, key, el){
   const startRect = el.getBoundingClientRect();
   const resizeTarget = el.querySelector('[data-resizable]');
   const startH = resizeTarget ? resizeTarget.getBoundingClientRect().height : 200;
-  const isFree = el.style.position === 'absolute';
   const onMove = (ev)=>{
     const w = Math.max(240, startRect.width + (ev.clientX-startX));
     const h = Math.max(100, startH + (ev.clientY-startY));
-    if(!isFree){ el.style.display = 'inline-block'; el.style.maxWidth = '100%'; }
+    el.style.display = 'inline-block';
+    el.style.maxWidth = '100%';
     el.style.width = w+'px';
     if(resizeTarget){ resizeTarget.style.maxHeight = h+'px'; resizeTarget.style.overflow = 'auto'; }
   };
@@ -1672,10 +1703,9 @@ function startCardResize(e, pageKey, key, el){
     document.removeEventListener('pointerup', onUp);
     const finalW = Math.max(240, startRect.width + (ev.clientX-startX));
     const finalH = Math.max(100, startH + (ev.clientY-startY));
-    if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, custom:{}};
+    if(!cardLayouts[pageKey]) cardLayouts[pageKey] = {order:[], sizes:{}, zones:{}, custom:{}};
     if(!cardLayouts[pageKey].custom) cardLayouts[pageKey].custom = {};
-    const prev = cardLayouts[pageKey].custom[key] || {};
-    cardLayouts[pageKey].custom[key] = {...prev, w: Math.round(finalW), h: Math.round(finalH)};
+    cardLayouts[pageKey].custom[key] = {w: Math.round(finalW), h: Math.round(finalH)};
     saveCardLayouts();
   };
   document.addEventListener('pointermove', onMove);
