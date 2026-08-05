@@ -482,6 +482,16 @@
   </div>
 </div>
 
+<div id="poViewModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:200;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:12px;max-width:700px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="position:sticky;top:0;background:#fff;padding:14px 18px;border-bottom:1px solid var(--paper-dim);display:flex;justify-content:space-between;align-items:center;z-index:1;">
+      <b style="font-size:16px;">លម្អិតបញ្ជាទិញ</b>
+      <button class="btn" onclick="closePOViewModal()">✕ បិទ</button>
+    </div>
+    <div id="poViewModalContent" style="padding:14px;"></div>
+  </div>
+</div>
+
 <div id="markPaidModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:210;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:12px;max-width:360px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <div id="markPaidStep1">
@@ -4130,7 +4140,10 @@ async function renderPurchase(c){
                 <td>${p.po_date}</td>
                 <td>$${Number(p.subtotal).toFixed(2)}</td>
                 <td>${p.status==='received'?`<span class="badge ok">ទទួលរួច</span>`:`<span class="badge low">រង់ចាំទទួល</span>`}</td>
-                <td>${p.status!=='received' && canAccess('purchase_receive')?`<button class="btn small accent" onclick="receivePO('${p.id}')">ទទួលចូលស្តុក</button>`:''}</td>
+                <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
+                  <button class="btn small" onclick="viewPODetail('${p.id}')">មើល</button>
+                  ${p.status!=='received' && canAccess('purchase_receive')?`<button class="btn small accent" onclick="receivePO('${p.id}')">ទទួលចូលស្តុក</button>`:''}
+                </td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -4361,6 +4374,42 @@ async function receivePO(poId){
     return;
   }
   renderPurchase(document.getElementById('content'));
+}
+async function viewPODetail(poId){
+  const {data: po, error} = await sb.from('purchase_orders').select('*').eq('id', poId).single();
+  if(error || !po){ alert('មិនអាចទាញយកបញ្ជាទិញនេះបានទេ៖ '+(error?.message||'')); return; }
+  const {data: items} = await sb.from('purchase_order_items').select('*').eq('po_id', poId).order('sort_order');
+  const rows = items||[];
+  document.getElementById('poViewModalContent').innerHTML = `
+    <div style="font-size:13px;line-height:1.8;margin-bottom:10px;">
+      <div><b>លេខបញ្ជាទិញ៖</b> ${escapeHtml(po.po_no)}</div>
+      <div><b>អ្នកផ្គត់ផ្គង់៖</b> ${escapeHtml(po.supplier_name||'មិនកំណត់')}${po.supplier_phone?' — '+escapeHtml(po.supplier_phone):''}</div>
+      <div><b>កាលបរិច្ឆេទ៖</b> ${po.po_date}</div>
+      <div><b>ស្ថានភាព៖</b> ${po.status==='received'?'<span class="badge ok">ទទួលរួច</span>':'<span class="badge low">រង់ចាំទទួល</span>'}</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ល.រ</th><th style="text-align:left">ឈ្មោះ</th><th>ចំនួន</th><th>ឯកតា</th><th>តម្លៃចូល/ឯកតា</th><th>សរុប</th></tr></thead>
+        <tbody>
+          ${rows.length===0?`<tr><td colspan="6" class="empty">មិនមានទំនិញ</td></tr>`:
+          rows.map((it,i)=>`
+            <tr>
+              <td>${i+1}</td>
+              <td class="left">${escapeHtml(it.item_name)}</td>
+              <td>${Number(it.qty)}</td>
+              <td>${escapeHtml(it.unit||'')}</td>
+              <td>$${Number(it.unit_cost).toFixed(2)}</td>
+              <td>$${Number(it.total_cost).toFixed(2)}</td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;">សរុប</td><td style="font-weight:700;">$${Number(po.subtotal).toFixed(2)}</td></tr></tfoot>
+      </table>
+    </div>
+  `;
+  document.getElementById('poViewModalOverlay').style.display = 'flex';
+}
+function closePOViewModal(){
+  document.getElementById('poViewModalOverlay').style.display = 'none';
 }
 function setPOFilter(f){ poHistoryFilter = f; renderPurchase(document.getElementById('content')); }
 function applyPOHistoryDateFilter(){
