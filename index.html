@@ -3660,10 +3660,10 @@ let poShippingMethod = 'value';
 // item at a time, it drops into the cart list below; double-click a cart row to
 // pull it back in here for editing) instead of a table of several pre-rendered
 // blank rows.
-function newPOQuickAdd(){ return {name:'', qty:1, unit:'សន្លឹក', wcMode:false, unitPrice:'', totalWeight:'', pricePerKg:''}; }
+function newPOQuickAdd(){ return {name:'', qty:1, unit:'សន្លឹក', wcMode:false, unitPrice:'', totalWeight:'', pricePerKg:'', category:'', profitPct:20}; }
 let poQuickAdd = newPOQuickAdd();
 let poQuickEditIndex = null; // null = adding new, otherwise index into poCart being edited
-function resetPOQuickAdd(){ poQuickAdd = newPOQuickAdd(); poQuickEditIndex = null; }
+function resetPOQuickAdd(){ poQuickAdd = newPOQuickAdd(); poQuickEditIndex = null; poQuickAddAsNew = false; }
 function capturePOQuickFieldsFromDOM(){
   const nameEl = document.getElementById('poQuickName');
   const qtyEl = document.getElementById('poQuickQty');
@@ -3680,13 +3680,19 @@ function capturePOQuickFieldsFromDOM(){
     if(tw) poQuickAdd.totalWeight = tw.value;
     if(pk) poQuickAdd.pricePerKg = pk.value;
   }
+  if(poQuickAddAsNew){
+    const catEl = document.getElementById('poQuickCategory');
+    const profitEl = document.getElementById('poQuickProfitPct');
+    if(catEl) poQuickAdd.category = getCategoryValue('poQuickCategory');
+    if(profitEl) poQuickAdd.profitPct = profitEl.value;
+  }
 }
 function setPOQuickMode(isWeight){
   capturePOQuickFieldsFromDOM();
   poQuickAdd.wcMode = isWeight;
   renderPurchase(document.getElementById('content'));
 }
-function submitPOQuickAdd(){
+async function submitPOQuickAdd(){
   capturePOQuickFieldsFromDOM();
   const name = (poQuickAdd.name||'').trim();
   const qty = parseFloat(poQuickAdd.qty) || 0;
@@ -3694,6 +3700,7 @@ function submitPOQuickAdd(){
   if(!name){ alert('សូមបញ្ចូលឈ្មោះទំនិញ'); return; }
   if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
   let item;
+  let weightPerUnit = 0;
   if(!poQuickAdd.wcMode){
     const unitPrice = parseFloat(poQuickAdd.unitPrice) || 0;
     if(unitPrice<=0){ alert('សូមបញ្ចូលតម្លៃ/ឯកតា'); return; }
@@ -3702,12 +3709,23 @@ function submitPOQuickAdd(){
     const totalWeight = parseFloat(poQuickAdd.totalWeight) || 0;
     const pricePerKg = parseFloat(poQuickAdd.pricePerKg) || 0;
     if(totalWeight<=0 || pricePerKg<=0){ alert('សូមបញ្ចូលទំងន់សរុប និងតម្លៃ/Kg'); return; }
-    item = {name, unit, qty, baseCost: poToUsd((totalWeight*pricePerKg)/qty), shipAlloc:0, weight: totalWeight/qty, volume:0, wcMode:true, wcTotalWeight: totalWeight, wcPricePerKg: pricePerKg};
+    weightPerUnit = totalWeight/qty;
+    item = {name, unit, qty, baseCost: poToUsd((totalWeight*pricePerKg)/qty), shipAlloc:0, weight: weightPerUnit, volume:0, wcMode:true, wcTotalWeight: totalWeight, wcPricePerKg: pricePerKg};
   }
   if(poQuickEditIndex!==null){
     item.product_id = poCart[poQuickEditIndex].product_id || null;
     item.shipAlloc = poCart[poQuickEditIndex].shipAlloc || 0;
     poCart[poQuickEditIndex] = item;
+  } else if(poQuickAddAsNew){
+    const profitPct = parseFloat(poQuickAdd.profitPct) || 0;
+    const price = item.baseCost * (1 + profitPct/100);
+    const {data: newProd, error} = await sb.from('products').insert({
+      name, category: poQuickAdd.category||'', unit, price, weight: weightPerUnit||null, cost_price: item.baseCost, stock_qty:0
+    }).select().single();
+    if(error){ alert('មិនអាចបង្កើតទំនិញថ្មីបានទេ៖ '+error.message); return; }
+    productsCache.push(newProd);
+    item.product_id = newProd.id;
+    poCart.push(item);
   } else {
     item.product_id = null;
     poCart.push(item);
@@ -3718,6 +3736,7 @@ function submitPOQuickAdd(){
 function editPOCartItem(i){
   const it = poCart[i];
   poQuickEditIndex = i;
+  poQuickAddAsNew = false;
   poQuickAdd = {
     name: it.name, qty: it.qty, unit: it.unit||'',
     wcMode: !!it.wcMode,
@@ -3728,8 +3747,8 @@ function editPOCartItem(i){
   renderPurchase(document.getElementById('content'));
 }
 function cancelPOQuickEdit(){ resetPOQuickAdd(); renderPurchase(document.getElementById('content')); }
-let poNewProdFormOpen = false;
-function togglePONewProdForm(){ poNewProdFormOpen = !poNewProdFormOpen; renderPurchase(document.getElementById('content')); }
+let poQuickAddAsNew = false; // when true, submitPOQuickAdd() also registers the item as a new catalog product
+function togglePOQuickAsNew(checked){ poQuickAddAsNew = checked; renderPurchase(document.getElementById('content')); }
 async function importPOExcelItems(){
   const fileInput = document.getElementById('poExcelFile');
   const statusEl = document.getElementById('poExcelImportStatus');
@@ -3903,6 +3922,23 @@ async function renderPurchase(c){
         <input class="inp" id="poQuickTotalWeight" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" style="flex:1;min-width:130px" value="${poQuickAdd.totalWeight}">
         <input class="inp" id="poQuickPricePerKg" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" style="flex:1;min-width:130px" value="${poQuickAdd.pricePerKg}">
         `}
+      </div>
+      ${poQuickEditIndex===null?`
+      <div class="row-inline" style="margin-top:8px;align-items:center;">
+        <label class="row-inline" style="gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="poQuickAsNewCB" ${poQuickAddAsNew?'checked':''} onchange="togglePOQuickAsNew(this.checked)">
+          + ចុះក្នុងស្តុកជាទំនិញថ្មី (មិនធ្លាប់មានពីមុន)
+        </label>
+      </div>
+      ${poQuickAddAsNew?`
+      <div class="row-inline" style="margin-top:6px;">
+        ${categorySelectHTML('poQuickCategory', poQuickAdd.category||'')}
+        <div style="flex:1;min-width:100px;">
+          <label style="font-size:11px;color:var(--ink-muted);">ចំណេញ %</label>
+          <input class="inp" id="poQuickProfitPct" type="number" step="0.1" value="${poQuickAdd.profitPct||20}" style="width:100%;margin-top:2px;">
+        </div>
+      </div>` : ''}` : ''}
+      <div class="row-inline" style="margin-top:8px;">
         <button class="btn accent" onclick="submitPOQuickAdd()">${poQuickEditIndex!==null?'រក្សាទុកការកែប្រែ':'+ បន្ថែមចូលបញ្ជី'}</button>
         ${poQuickEditIndex!==null?`<button class="btn small" onclick="cancelPOQuickEdit()">✕ បោះបង់</button>`:''}
       </div>
@@ -3935,51 +3971,6 @@ async function renderPurchase(c){
           </tbody>
         </table>
       </div>
-    </div>
-    <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
-      <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="togglePONewProdForm()">
-        <b>+ ទំនិញថ្មី (មិនទាន់មានក្នុងស្តុក)</b>
-        <span>${poNewProdFormOpen?'▲':'▼'}</span>
-      </div>
-      ${poNewProdFormOpen?`
-      <p style="margin:8px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ (វានឹងបង្កើតជាទំនិញថ្មីក្នុងស្តុកផងដែរ)</p>
-      <div class="row-inline">
-        <input class="inp" id="poNewName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:140px">
-        ${categorySelectHTML('poNewCategory','')}
-        ${unitSelectHTML('poNewUnit','')}
-      </div>
-      <div class="row-inline" style="margin-top:8px;">
-        <div style="flex:1;min-width:110px;">
-          <label style="font-size:11px;color:var(--ink-muted);">ចំនួនទិញ</label>
-          <input class="inp" id="poNewQty" type="number" step="any" value="1" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
-        </div>
-        <div style="flex:1;min-width:100px;">
-          <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដើម ${poCurrencySymbol()}/ឯកតា</label>
-          <input class="inp" id="poNewBaseCost" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
-          <button type="button" style="border:none;background:transparent;cursor:pointer;font-size:10.5px;color:var(--spark-dim);padding:2px 0 0;" onclick="togglePONewWeightCalc()">⚖️ ពីទំងន់</button>
-          ${poNewWeightCalcOpen?`
-          <div style="display:flex;flex-direction:column;gap:3px;margin-top:2px;">
-            <input class="inp" id="poNewTotalWeight" style="width:100%;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" oninput="calcPONewWeightCost()">
-            <input class="inp" id="poNewPricePerKg" style="width:100%;font-size:11px;padding:3px 6px;" type="number" step="0.01" placeholder="${poCurrencySymbol()}/Kg" oninput="calcPONewWeightCost()">
-          </div>`:''}
-        </div>
-        <div style="flex:1;min-width:100px;">
-          <label style="font-size:11px;color:var(--ink-muted);">ថ្លៃដឹកសរុប ${poCurrencySymbol()}</label>
-          <input class="inp" id="poNewShipping" type="number" step="0.01" value="0" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
-        </div>
-        <div style="flex:1;min-width:90px;">
-          <label style="font-size:11px;color:var(--ink-muted);">ចំណេញ %</label>
-          <input class="inp" id="poNewProfitPct" type="number" step="0.1" value="20" style="width:100%;margin-top:2px;" oninput="recalcPONewCost()">
-        </div>
-      </div>
-      <div class="row-inline" style="margin-top:8px;background:#faf9f5;padding:8px;border-radius:7px;">
-        <div style="flex:1;">តម្លៃចូល/ឯកតា (ថ្លៃដើម + ថ្លៃដឹកចែក): <b id="poNewCostDisplay">$0.00</b></div>
-        <div style="flex:1;">តម្លៃលក់ស្នើ (+ចំណេញ): <b id="poNewPriceDisplay">$0.00</b></div>
-      </div>
-      <div class="row-inline" style="margin-top:8px;">
-        <input class="inp" id="poNewPrice" type="number" step="0.01" placeholder="តម្លៃលក់ចុងក្រោយ ${poCurrencySymbol()}/ឯកតា (កែបានតាមចង់)" style="flex:1;min-width:160px">
-        <button class="btn accent small" onclick="addNewPOProduct()">+ បន្ថែម</button>
-      </div>` : ''}
     </div>
     <div class="row-inline" style="justify-content:space-between;margin-top:6px;">
       <button class="btn" onclick="setPOStep(1)">← ថយក្រោយ</button>
@@ -4143,7 +4134,6 @@ async function renderPurchase(c){
     </div>
   `;
   renderPOProdList();
-  recalcPONewCost();
   applyCardArrange(c, 'purchase');
 }
 
@@ -4169,53 +4159,6 @@ function renderPOProdList(){
     </table>`;
 }
 
-let poNewWeightCalcOpen = false;
-function togglePONewWeightCalc(){ poNewWeightCalcOpen = !poNewWeightCalcOpen; renderPurchase(document.getElementById('content')); }
-function calcPONewWeightCost(){
-  const qty = parseFloat(document.getElementById('poNewQty')?.value) || 0;
-  const totalWeight = parseFloat(document.getElementById('poNewTotalWeight')?.value) || 0;
-  const pricePerKg = parseFloat(document.getElementById('poNewPricePerKg')?.value) || 0;
-  if(qty>0 && totalWeight>0 && pricePerKg>0){
-    document.getElementById('poNewBaseCost').value = ((totalWeight*pricePerKg)/qty).toFixed(2);
-  }
-  recalcPONewCost();
-}
-function recalcPONewCost(){
-  const qty = parseFloat(document.getElementById('poNewQty')?.value) || 0;
-  const baseCost = poToUsd(parseFloat(document.getElementById('poNewBaseCost')?.value) || 0);
-  const shipping = poToUsd(parseFloat(document.getElementById('poNewShipping')?.value) || 0);
-  const profitPct = parseFloat(document.getElementById('poNewProfitPct')?.value) || 0;
-  const shipPerUnit = qty>0 ? shipping/qty : 0;
-  const costPerUnit = baseCost + shipPerUnit;
-  const suggestedPrice = costPerUnit * (1 + profitPct/100);
-  const costEl = document.getElementById('poNewCostDisplay');
-  const priceEl = document.getElementById('poNewPriceDisplay');
-  if(costEl) costEl.textContent = '$'+costPerUnit.toFixed(2);
-  if(priceEl) priceEl.textContent = '$'+suggestedPrice.toFixed(2);
-  return {costPerUnit, suggestedPrice};
-}
-async function addNewPOProduct(){
-  const name = document.getElementById('poNewName').value.trim();
-  const category = getCategoryValue('poNewCategory');
-  const unit = getUnitValue('poNewUnit');
-  const qty = parseFloat(document.getElementById('poNewQty').value) || 0;
-  const {costPerUnit, suggestedPrice} = recalcPONewCost();
-  const priceInput = document.getElementById('poNewPrice').value;
-  const price = priceInput ? poToUsd(parseFloat(priceInput)||0) : suggestedPrice;
-  if(!name || !unit){ alert('សូមបញ្ចូលឈ្មោះ និងឯកតា'); return; }
-  if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
-
-  const totalWeight = poNewWeightCalcOpen ? (parseFloat(document.getElementById('poNewTotalWeight')?.value) || 0) : 0;
-  const weightPerUnit = totalWeight>0 ? totalWeight/qty : null;
-
-  const {data: newProd, error} = await sb.from('products').insert({name, category, unit, price, weight:weightPerUnit, cost_price:costPerUnit, stock_qty:0}).select().single();
-  if(error){ alert('មិនអាចបង្កើតទំនិញថ្មីបានទេ៖ '+error.message); return; }
-
-  productsCache.push(newProd);
-  poCart.push({product_id:newProd.id, name:newProd.name, unit:newProd.unit, baseCost:costPerUnit, shipAlloc:0, weight:weightPerUnit||0, volume:0, qty});
-  poNewWeightCalcOpen = false;
-  renderPurchase(document.getElementById('content'));
-}
 function addToPOCart(pid){
   const p = productsCache.find(x=>x.id===pid);
   if(!p) return;
@@ -4252,7 +4195,7 @@ function updatePOWeightCalc(i, field, val){
   renderPurchase(document.getElementById('content'));
 }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; resetPOQuickAdd(); poNewProdFormOpen=false; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poStep=1; resetPOQuickAdd(); renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(Math.round((it.baseCost+(it.shipAlloc||0))*100)/100),0); }
 
 function applyShippingAllocation(){
@@ -4346,7 +4289,7 @@ async function savePO(){
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
   poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poStep=1;
-  resetPOQuickAdd(); poNewProdFormOpen=false;
+  resetPOQuickAdd();
   renderPurchase(document.getElementById('content'));
 }
 
