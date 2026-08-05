@@ -3985,9 +3985,9 @@ async function renderPurchase(c){
         <button class="btn accent small" onclick="applyShippingAllocation()">អនុវត្តថ្លៃដឹក</button>
       </div>
     </div>
-    <div class="card" data-card-key="purchase_cart">
+    <div class="card" data-card-key="purchase_cart" style="max-width:560px;">
       <b>ទំនិញនឹងទិញ — កែតម្រូវថ្លៃដើម/ទំងន់</b>
-      <p style="margin:4px 0 0;font-size:12px;color:var(--ink-muted);">មុខទំនិញនីមួយៗអាចជ្រើសគិតតម្លៃ "តាមឯកតា" (ថ្លៃដើមផ្ទាល់) ឬ "តាមទំងន់ (Kg)" (ទំងន់សរុប × តម្លៃ/Kg) — សមស្របតាមរបៀបអ្នកផ្គត់ផ្គង់និមួយៗគិតលុយអ្នក</p>
+      <p style="margin:4px 0 0;font-size:11px;color:var(--ink-muted);">ជ្រើសគិតតម្លៃ "តាមឯកតា" ឬ "តាមទំងន់ (Kg)" សម្រាប់ទំនិញនីមួយៗ</p>
       <div style="margin-top:10px;max-height:560px;overflow-y:auto;">
         ${poCart.length===0?`<p class="empty" style="padding:20px 0;">មិនទាន់មានទំនិញ</p>`:
         poCart.map((it,i)=>{
