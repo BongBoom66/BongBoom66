@@ -2755,9 +2755,8 @@ async function renderStock(c){
       <b>Upload / ទាញយក ទំនិញតាម Excel</b>
       <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ប្រភេទ, ឯកតា, តម្លៃ, ស្តុក (ជួរទី ១ ជា Header)</p>
       <div class="row-inline">
-        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
-        <button class="btn accent" onclick="importExcelProducts()">Import</button>
-        <button class="btn" onclick="exportStockExcel()">ទាញយក Excel (Export)</button>
+        <label class="btn accent small" style="cursor:pointer;">📥 Import Excel<input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importExcelProducts()"></label>
+        <button class="btn small" onclick="exportStockExcel()">ទាញយក Excel (Export)</button>
       </div>
       <p id="importStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
@@ -3339,9 +3338,8 @@ async function renderCustomers(c){
       <b>Upload / ទាញយក អតិថិជនតាម Excel</b>
       <p style="font-size:12px;color:var(--ink-muted);margin:4px 0 10px;">File Excel ត្រូវមាន Column: កូដ (ស្រេចចិត្ត), ឈ្មោះ, ទូរស័ព្ទ, ទូរស័ព្ទទី ២ (ស្រេចចិត្ត), ទីតាំង (ជួរទី ១ ជា Header)</p>
       <div class="row-inline">
-        <input type="file" id="custExcelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
-        <button class="btn accent" onclick="importExcelCustomers()">Import</button>
-        <button class="btn" onclick="exportCustomersExcel()">ទាញយក Excel (Export)</button>
+        <label class="btn accent small" style="cursor:pointer;">📥 Import Excel<input type="file" id="custExcelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importExcelCustomers()"></label>
+        <button class="btn small" onclick="exportCustomersExcel()">ទាញយក Excel (Export)</button>
       </div>
       <p id="custImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
@@ -3932,10 +3930,7 @@ async function renderPurchase(c){
       ${poExcelImportOpen?`
       <div style="margin-top:10px;">
         <p style="font-size:12px;color:var(--ink-muted);margin:0 0 8px;">File Excel ត្រូវមាន Column: ឈ្មោះ, ចំនួន, ឯកតា, តម្លៃដើម/ឯកតា (ជួរទី ១ ជា Header — គិតជារូបិយប័ណ្ណបញ្ជាទិញនេះ)</p>
-        <div class="row-inline">
-          <input type="file" id="poExcelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
-          <button class="btn accent" onclick="importPOExcelItems()">Import</button>
-        </div>
+        <label class="btn accent small" style="cursor:pointer;">📥 Import Excel<input type="file" id="poExcelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPOExcelItems()"></label>
         <p id="poExcelImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
       </div>` : ''}
     </div>
