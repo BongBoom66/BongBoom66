@@ -139,7 +139,8 @@
   .card{position:relative;background:linear-gradient(150deg, #ffffff, #f5f5f5);border:1px solid var(--paper-dim);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 var(--paper-dim), 0 7px 14px rgba(20,30,40,0.07), 0 3px 5px rgba(20,30,40,0.045);transition:box-shadow .2s ease, transform .2s ease;transform:translateZ(0);vertical-align:top;}
   .card:hover{box-shadow:0 1px 0 rgba(255,255,255,0.8) inset, 0 2.5px 0 rgba(20,30,40,0.03), 0 11px 20px rgba(20,30,40,0.09), 0 5px 8px rgba(20,30,40,0.06);transform:translateY(-1.5px);}
   .arrange-mode .card[data-card-key]{border:2px dashed var(--spark-dim);}
-  .arrange-mode .card[data-card-key].arrange-dragging{opacity:0.5;}
+  .arrange-mode .card[data-card-key].arrange-dragging{box-shadow:0 24px 48px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2);cursor:grabbing;transform:rotate(1deg);margin:0 !important;}
+  .arrange-placeholder{border:2px dashed var(--spark-dim);border-radius:var(--radius);background:rgba(63,169,220,0.08);margin-bottom:16px;box-sizing:border-box;vertical-align:top;}
   .arrange-banner{background:var(--laser);color:#1a3a52;font-size:13px;font-weight:700;padding:8px 14px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
   .arrange-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--spark);padding:6px 8px;border-radius:6px 6px 0 0;margin:-16px -16px 10px -16px;}
   .arrange-drag-handle{cursor:grab;touch-action:none;padding:3px 9px;font-size:13px;background:rgba(0,0,0,0.1);border-radius:4px;user-select:none;}
@@ -1615,32 +1616,67 @@ function applyCardArrange(containerEl, pageKey){
 function startCardDrag(e, pageKey, el){
   e.preventDefault();
   const containerEl = document.getElementById('content');
+  const key = el.getAttribute('data-card-key');
   el.setPointerCapture(e.pointerId);
+  const startRect = el.getBoundingClientRect();
+  const grabOffsetX = e.clientX - startRect.left;
+  const grabOffsetY = e.clientY - startRect.top;
+
+  // A placeholder holds the card's spot in the normal document flow (so
+  // siblings reflow around it as it moves) while the real card is pulled out
+  // of flow and floats fixed to the viewport, following the pointer — the
+  // same visual feel as dragging a window on a desktop OS.
+  const placeholder = document.createElement('div');
+  placeholder.className = 'arrange-placeholder';
+  placeholder.style.width = startRect.width+'px';
+  placeholder.style.height = startRect.height+'px';
+  el.parentElement.insertBefore(placeholder, el);
+
   el.classList.add('arrange-dragging');
-  const prevPointerEvents = el.style.pointerEvents;
+  el.style.position = 'fixed';
+  el.style.left = startRect.left+'px';
+  el.style.top = startRect.top+'px';
+  el.style.width = startRect.width+'px';
+  el.style.height = startRect.height+'px';
+  el.style.zIndex = '9999';
   el.style.pointerEvents = 'none';
+  document.body.appendChild(el);
+
   const onMove = (ev)=>{
+    el.style.left = (ev.clientX - grabOffsetX)+'px';
+    el.style.top = (ev.clientY - grabOffsetY)+'px';
+
     const under = document.elementFromPoint(ev.clientX, ev.clientY);
     if(!under) return;
     const targetCard = under.closest('[data-card-key]');
     if(targetCard && targetCard!==el){
       const rect = targetCard.getBoundingClientRect();
       const before = ev.clientY < rect.top + rect.height/2;
-      targetCard.parentElement.insertBefore(el, before ? targetCard : targetCard.nextSibling);
+      targetCard.parentElement.insertBefore(placeholder, before ? targetCard : targetCard.nextSibling);
       return;
     }
     // Not over another card — if the pointer is over a known drop zone
     // (a parent that holds other cards) with empty space, drop at its end.
     const zoneParents = new Set(Array.from(containerEl.querySelectorAll('[data-card-key]')).map(c=>c.parentElement));
     for(const zp of zoneParents){
-      if(zp!==el.parentElement && zp.contains(under)){ zp.appendChild(el); return; }
+      if(zp!==placeholder.parentElement && zp.contains(under)){ zp.appendChild(placeholder); return; }
     }
   };
-  const onUp = (ev)=>{
+  const onUp = ()=>{
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
-    el.style.pointerEvents = prevPointerEvents;
+    placeholder.parentElement.insertBefore(el, placeholder);
+    placeholder.remove();
     el.classList.remove('arrange-dragging');
+    el.style.position = '';
+    el.style.left = '';
+    el.style.top = '';
+    el.style.height = '';
+    el.style.zIndex = '';
+    el.style.pointerEvents = '';
+    const custW = cardLayouts[pageKey]?.custom?.[key]?.w;
+    el.style.width = custW ? custW+'px' : '';
+    el.style.display = custW ? 'inline-block' : '';
     persistCardLayoutFromDOM(pageKey, containerEl);
   };
   document.addEventListener('pointermove', onMove);
