@@ -2835,7 +2835,7 @@ async function renderStock(c){
     </div>
     <div class="card" data-card-key="stock_filters">
       <div class="row-inline">
-        <input class="inp" id="stockSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:2;min-width:180px" value="${escapeHtml(stockSearchQuery)}" oninput="onStockSearchInput(this.value)">
+        <input class="inp" id="stockSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:0 1 260px;min-width:180px" value="${escapeHtml(stockSearchQuery)}" oninput="onStockSearchInput(this.value)">
         <select class="inp" id="stockCatFilter" style="flex:1;min-width:160px" onchange="onStockCatFilter(this.value)">
           <option value="">-- គ្រប់ប្រភេទ --</option>
           ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}" ${stockCategoryFilter===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('')}
@@ -2967,7 +2967,7 @@ async function renderPricing(c){
     </div>` : ''}
     <div class="card" data-card-key="pricing_filters">
       <div class="row-inline">
-        <input class="inp" id="pricingSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:2;min-width:180px" value="${escapeHtml(pricingSearchQuery)}" oninput="onPricingSearchInput(this.value)">
+        <input class="inp" id="pricingSearchInput" placeholder="ស្វែងរកតាមឈ្មោះ..." style="flex:0 1 260px;min-width:180px" value="${escapeHtml(pricingSearchQuery)}" oninput="onPricingSearchInput(this.value)">
         <select class="inp" id="pricingCatFilter" style="flex:1;min-width:160px" onchange="onPricingCatFilter(this.value)">
           <option value="">-- គ្រប់ប្រភេទ --</option>
           ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}" ${pricingCategoryFilter===cat?'selected':''}>${escapeHtml(cat)}</option>`).join('')}
@@ -3346,7 +3346,7 @@ async function renderCustomers(c){
       <p id="custImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
     </div>` : ''}
     <div class="card" data-card-key="customers_search">
-      <input class="inp" id="custSearchInput" placeholder="ស្វែងរកអតិថិជន (ឈ្មោះ/ទូរស័ព្ទ/ទីតាំង/កូដ)..." style="width:100%;" value="${escapeHtml(customerSearchQuery)}" oninput="onCustomerSearchInput(this.value)">
+      <input class="inp" id="custSearchInput" placeholder="ស្វែងរកអតិថិជន (ឈ្មោះ/ទូរស័ព្ទ/ទីតាំង/កូដ)..." style="width:100%;max-width:340px;" value="${escapeHtml(customerSearchQuery)}" oninput="onCustomerSearchInput(this.value)">
     </div>
     <div class="card" data-card-key="customers_table">
       <div class="tbl-wrap" data-resizable style="max-height:600px;overflow-y:auto;">
@@ -3865,7 +3865,7 @@ async function renderPurchase(c){
         <button class="btn accent" onclick="openCameraScan('po')" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
       </div>
       <div class="row-inline" style="margin-bottom:8px;">
-        <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:1;min-width:160px" oninput="renderPOProdList()">
+        <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:0 1 240px;min-width:160px" oninput="renderPOProdList()">
         <select class="inp" id="poProdCatFilter" style="flex:1;min-width:140px" onchange="renderPOProdList()">
           <option value="">-- គ្រប់ប្រភេទ --</option>
           ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
@@ -4394,7 +4394,7 @@ async function renderHistory(c){
       <button class="${historyPaymentFilter==='paid'?'active':''}" style="${historyPaymentFilter==='paid'?'background:var(--good);color:#fff;border-color:var(--good);':''}" onclick="setHistoryPaymentFilter('paid')">🟢 បង់រួច (${paidCount})</button>
     </div>
     <div class="card" data-card-key="history_search">
-      <input class="inp" id="historySearchInput" placeholder="ស្វែងរក (លេខឯកសារ/ឈ្មោះអតិថិជន/ទូរស័ព្ទ)..." style="width:100%;" value="${escapeHtml(historySearchQuery)}" oninput="onHistorySearchInput(this.value)">
+      <input class="inp" id="historySearchInput" placeholder="ស្វែងរក (លេខឯកសារ/ឈ្មោះអតិថិជន/ទូរស័ព្ទ)..." style="width:100%;max-width:340px;" value="${escapeHtml(historySearchQuery)}" oninput="onHistorySearchInput(this.value)">
     </div>
     <div class="card" data-card-key="history_datefilter">
       <div class="row-inline" style="align-items:flex-end;">
