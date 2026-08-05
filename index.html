@@ -3648,50 +3648,125 @@ let poStep = 1; // 1=supplier/currency, 2=products, 3=shipping, 4=review
 function setPOStep(n){ poStep = n; renderPurchase(document.getElementById('content')); window.scrollTo(0,0); }
 let poShippingTotal = 0;
 let poShippingMethod = 'value';
-function newPOBulkRow(){ return {name:'', qty:1, unit:'សន្លឹក', mode:'weight', totalWeight:'', pricePerKg:'', unitPrice:''}; }
-let poBulkRows = [newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
-function addPOBulkRow(){ poBulkRows.push(newPOBulkRow()); renderPurchase(document.getElementById('content')); }
-function removePOBulkRow(i){ poBulkRows.splice(i,1); renderPurchase(document.getElementById('content')); }
-function setPOBulkRowMode(i, mode){ poBulkRows[i].mode = mode; renderPurchase(document.getElementById('content')); }
-function updatePOBulkRow(i, field, val){
-  poBulkRows[i][field] = (field==='name'||field==='unit') ? val : (parseFloat(val)||0);
-  const rowTotalEl = document.getElementById('poBulkRowTotal_'+i);
-  if(rowTotalEl){
-    const r = poBulkRows[i];
-    const total = r.mode==='unit' ? (r.qty||0)*(r.unitPrice||0) : (r.totalWeight||0)*(r.pricePerKg||0);
-    rowTotalEl.textContent = poCurrencySymbol()+total.toFixed(2);
+// Single-row "add item" form for step 2 — mirrors the POS cart pattern (add one
+// item at a time, it drops into the cart list below; double-click a cart row to
+// pull it back in here for editing) instead of a table of several pre-rendered
+// blank rows.
+function newPOQuickAdd(){ return {name:'', qty:1, unit:'សន្លឹក', wcMode:false, unitPrice:'', totalWeight:'', pricePerKg:''}; }
+let poQuickAdd = newPOQuickAdd();
+let poQuickEditIndex = null; // null = adding new, otherwise index into poCart being edited
+function resetPOQuickAdd(){ poQuickAdd = newPOQuickAdd(); poQuickEditIndex = null; }
+function capturePOQuickFieldsFromDOM(){
+  const nameEl = document.getElementById('poQuickName');
+  const qtyEl = document.getElementById('poQuickQty');
+  const unitEl = document.getElementById('poQuickUnit');
+  if(nameEl) poQuickAdd.name = nameEl.value;
+  if(qtyEl) poQuickAdd.qty = qtyEl.value;
+  if(unitEl) poQuickAdd.unit = unitEl.value;
+  if(!poQuickAdd.wcMode){
+    const up = document.getElementById('poQuickUnitPrice');
+    if(up) poQuickAdd.unitPrice = up.value;
+  } else {
+    const tw = document.getElementById('poQuickTotalWeight');
+    const pk = document.getElementById('poQuickPricePerKg');
+    if(tw) poQuickAdd.totalWeight = tw.value;
+    if(pk) poQuickAdd.pricePerKg = pk.value;
   }
 }
-function updatePOItemField(i, field, val){ poCart[i][field] = val; renderPurchase(document.getElementById('content')); }
+function setPOQuickMode(isWeight){
+  capturePOQuickFieldsFromDOM();
+  poQuickAdd.wcMode = isWeight;
+  renderPurchase(document.getElementById('content'));
+}
+function submitPOQuickAdd(){
+  capturePOQuickFieldsFromDOM();
+  const name = (poQuickAdd.name||'').trim();
+  const qty = parseFloat(poQuickAdd.qty) || 0;
+  const unit = poQuickAdd.unit || '';
+  if(!name){ alert('សូមបញ្ចូលឈ្មោះទំនិញ'); return; }
+  if(qty<=0){ alert('សូមបញ្ចូលចំនួនត្រឹមត្រូវ'); return; }
+  let item;
+  if(!poQuickAdd.wcMode){
+    const unitPrice = parseFloat(poQuickAdd.unitPrice) || 0;
+    if(unitPrice<=0){ alert('សូមបញ្ចូលតម្លៃ/ឯកតា'); return; }
+    item = {name, unit, qty, baseCost: poToUsd(unitPrice), shipAlloc:0, weight:0, volume:0, wcMode:false};
+  } else {
+    const totalWeight = parseFloat(poQuickAdd.totalWeight) || 0;
+    const pricePerKg = parseFloat(poQuickAdd.pricePerKg) || 0;
+    if(totalWeight<=0 || pricePerKg<=0){ alert('សូមបញ្ចូលទំងន់សរុប និងតម្លៃ/Kg'); return; }
+    item = {name, unit, qty, baseCost: poToUsd((totalWeight*pricePerKg)/qty), shipAlloc:0, weight: totalWeight/qty, volume:0, wcMode:true, wcTotalWeight: totalWeight, wcPricePerKg: pricePerKg};
+  }
+  if(poQuickEditIndex!==null){
+    item.product_id = poCart[poQuickEditIndex].product_id || null;
+    item.shipAlloc = poCart[poQuickEditIndex].shipAlloc || 0;
+    poCart[poQuickEditIndex] = item;
+  } else {
+    item.product_id = null;
+    poCart.push(item);
+  }
+  resetPOQuickAdd();
+  renderPurchase(document.getElementById('content'));
+}
+function editPOCartItem(i){
+  const it = poCart[i];
+  poQuickEditIndex = i;
+  poQuickAdd = {
+    name: it.name, qty: it.qty, unit: it.unit||'',
+    wcMode: !!it.wcMode,
+    unitPrice: it.wcMode ? '' : (poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2),
+    totalWeight: it.wcMode ? (it.wcTotalWeight||'') : '',
+    pricePerKg: it.wcMode ? (it.wcPricePerKg||'') : ''
+  };
+  renderPurchase(document.getElementById('content'));
+}
+function cancelPOQuickEdit(){ resetPOQuickAdd(); renderPurchase(document.getElementById('content')); }
+let poNewProdFormOpen = false;
+function togglePONewProdForm(){ poNewProdFormOpen = !poNewProdFormOpen; renderPurchase(document.getElementById('content')); }
+let poExcelImportOpen = false;
+function togglePOExcelImport(){ poExcelImportOpen = !poExcelImportOpen; renderPurchase(document.getElementById('content')); }
+async function importPOExcelItems(){
+  const fileInput = document.getElementById('poExcelFile');
+  const statusEl = document.getElementById('poExcelImportStatus');
+  const file = fileInput.files[0];
+  if(!file){ statusEl.textContent = 'សូមជ្រើសរើស File ជាមុន'; return; }
+  statusEl.textContent = 'កំពុងអាន File...';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+    if(rows.length===0){ statusEl.textContent = 'File ទទេ គ្មានទិន្នន័យ'; return; }
+    const getVal = (row, keys) => {
+      for(const k of keys){
+        for(const rk of Object.keys(row)){
+          if(rk.trim().toLowerCase() === k.toLowerCase()) return row[rk];
+        }
+      }
+      return '';
+    };
+    const parsed = rows.map(r=>({
+      name: String(getVal(r, ['ឈ្មោះ','Name'])).trim(),
+      qty: parseFloat(getVal(r, ['ចំនួន','Qty','Quantity'])) || 0,
+      unit: String(getVal(r, ['ឯកតា','Unit'])).trim(),
+      unitPrice: parseFloat(getVal(r, ['តម្លៃដើម/ឯកតា','តម្លៃដើម','តម្លៃ','Price','Cost'])) || 0
+    })).filter(r=>r.name && r.qty>0 && r.unitPrice>0);
+    if(parsed.length===0){ statusEl.textContent = 'រកមិនឃើញជួរឈរត្រឹមត្រូវ (ឈ្មោះ/ចំនួន/ឯកតា/តម្លៃដើម-ឯកតា)'; return; }
+    parsed.forEach(r=>{
+      poCart.push({product_id:null, name:r.name, unit:r.unit||'', qty:r.qty, baseCost: poToUsd(r.unitPrice), shipAlloc:0, weight:0, volume:0, wcMode:false});
+    });
+    statusEl.textContent = `Import ជោគជ័យ! បន្ថែម ${parsed.length} មុខទំនិញចូលបញ្ជី`;
+    fileInput.value = '';
+    renderPurchase(document.getElementById('content'));
+  }catch(e){
+    statusEl.textContent = 'មិនអាចអាន File បានទេ៖ '+e.message;
+  }
+}
 function poUnitOptionsHTML(currentVal){
   const isKnown = UNIT_OPTIONS.includes(currentVal);
   return `
     ${UNIT_OPTIONS.map(u=>`<option value="${u}" ${currentVal===u?'selected':''}>${u}</option>`).join('')}
     ${currentVal && !isKnown ? `<option value="${escapeHtml(currentVal)}" selected>${escapeHtml(currentVal)}</option>` : ''}
   `;
-}
-function submitPOBulkRows(){
-  if(poBulkRows.length===0) return;
-  const validRows = poBulkRows.filter(r=>r.name.trim() && (r.mode==='unit' ? r.unitPrice>0 : (r.totalWeight>0 && r.pricePerKg>0)));
-  if(validRows.length===0){ alert('សូមបំពេញយ៉ាងតិចមួយជួរ (ឈ្មោះ, និងតម្លៃ — តាមទំងន់ ឬតាមឯកតា)'); return; }
-  validRows.forEach(r=>{
-    const qty = r.qty>0 ? r.qty : 1;
-    if(r.mode==='unit'){
-      poCart.push({
-        product_id: null, name: r.name.trim(), unit: r.unit||'', qty,
-        baseCost: poToUsd(r.unitPrice), shipAlloc: 0, weight: 0, volume: 0, wcMode: false
-      });
-    } else {
-      poCart.push({
-        product_id: null, name: r.name.trim(), unit: r.unit||'', qty,
-        baseCost: poToUsd((r.totalWeight*r.pricePerKg)/qty), shipAlloc: 0,
-        weight: r.totalWeight/qty, volume: 0,
-        wcMode: true, wcTotalWeight: r.totalWeight, wcPricePerKg: r.pricePerKg
-      });
-    }
-  });
-  poBulkRows = [newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
-  renderPurchase(document.getElementById('content'));
 }
 let poCurrency = 'usd'; // 'usd' | 'cny' | 'vnd' — currency this whole PO's costs are entered in
 let poFxRate = 1; // foreign currency units per $1 (only relevant when poCurrency != 'usd')
@@ -3792,73 +3867,6 @@ async function renderPurchase(c){
     </div>` : ''}
 
     ${poStep===2?`
-    <div class="card" style="border-color:var(--good);" data-card-key="purchase_bulk">
-      <b>ទំនិញក្នុងបញ្ជាទិញនេះ (បញ្ចូលរហ័សតាមតារាង)</b>
-      <p style="margin:4px 0 8px;font-size:12px;color:var(--ink-muted);">ទំនិញដែលបន្ថែមតាមស្កេន/ស្វែងរកខាងក្រោម នឹងលេចមកជាជួរនៅទីនេះផ្ទាល់ — ឬសរសេរតាមតារាងវិក្កយបត្រអ្នកផ្គត់ផ្គង់ផ្ទាល់ក្នុងជួរទទេខាងក្រោម (ឈ្មោះ+ខ្នាត, ចំនួនដុំ, ទំងន់សរុប Kg, តម្លៃ/Kg)</p>
-      <div class="tbl-wrap" style="overflow-x:auto;">
-        <table>
-          <thead><tr>
-            <th style="width:28px;">ល.រ</th>
-            <th style="text-align:left;min-width:180px;">ឈ្មោះ + ខ្នាត</th>
-            <th style="width:100px;">ចំនួន</th>
-            <th style="width:85px;">ឯកតា</th>
-            <th style="width:320px;">ថ្លៃដើម/ឯកតា</th>
-            <th style="width:90px;">សរុប</th>
-            <th style="width:32px;"></th>
-          </tr></thead>
-          <tbody>
-            ${poCart.map((it,i)=>{
-              const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
-              return `
-            <tr style="background:#faf9f5;">
-              <td>${i+1}</td>
-              <td><input class="inp" style="width:100%;min-width:160px;" value="${escapeHtml(it.name)}" onchange="updatePOItemField(${i},'name',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${it.qty}" onchange="updatePOQty(${i}, this.value)"></td>
-              <td><select class="inp" style="width:100%;" onchange="updatePOItemField(${i},'unit',this.value)">${poUnitOptionsHTML(it.unit)}</select></td>
-              <td>
-                <div class="row-inline" style="gap:3px;margin-bottom:3px;">
-                  <button class="btn small ${!it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, false)">/ឯកតា</button>
-                  <button class="btn small ${it.wcMode?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOCostMode(${i}, true)">⚖️/Kg</button>
-                </div>
-                ${!it.wcMode?`
-                <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" min="0" step="0.01" value="${(poCurrency==='usd'?it.baseCost:usdToPo(it.baseCost)).toFixed(2)}" onchange="updatePOBaseCost(${i}, this.value)">`:`
-                <div style="display:flex;flex-direction:column;gap:4px;">
-                  <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${it.wcTotalWeight||''}" onchange="updatePOWeightCalc(${i},'wcTotalWeight',this.value)">
-                  <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" value="${it.wcPricePerKg||''}" onchange="updatePOWeightCalc(${i},'wcPricePerKg',this.value)">
-                </div>`}
-              </td>
-              <td style="text-align:right;font-weight:700;">${poCurrency==='usd'?'$'+(it.qty*unitTotalCost).toFixed(2):poCurrencySymbol()+usdToPo(it.qty*unitTotalCost).toFixed(2)}</td>
-              <td><button class="btn small danger" onclick="removePOItem(${i})">✕</button></td>
-            </tr>`;}).join('')}
-            ${poBulkRows.map((r,i)=>`
-            <tr>
-              <td>+</td>
-              <td><input class="inp" style="width:100%;min-width:160px;" placeholder="ឧ. 304工业板 14x2000x5800" value="${escapeHtml(r.name)}" oninput="updatePOBulkRow(${i},'name',this.value)"></td>
-              <td><input class="inp" style="width:100%;text-align:center;" type="number" min="0" step="any" value="${r.qty}" oninput="updatePOBulkRow(${i},'qty',this.value)"></td>
-              <td><select class="inp" style="width:100%;" onchange="updatePOBulkRow(${i},'unit',this.value)">${poUnitOptionsHTML(r.unit)}</select></td>
-              <td>
-                <div class="row-inline" style="gap:3px;margin-bottom:4px;">
-                  <button class="btn small ${r.mode==='unit'?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOBulkRowMode(${i}, 'unit')">/ឯកតា</button>
-                  <button class="btn small ${r.mode!=='unit'?'accent':''}" style="padding:2px 6px;font-size:10px;" onclick="setPOBulkRowMode(${i}, 'weight')">⚖️/Kg</button>
-                </div>
-                ${r.mode==='unit'?`
-                <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/ឯកតា" value="${r.unitPrice||''}" oninput="updatePOBulkRow(${i},'unitPrice',this.value)">`:`
-                <div style="display:flex;flex-direction:column;gap:4px;">
-                  <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" value="${r.totalWeight||''}" oninput="updatePOBulkRow(${i},'totalWeight',this.value)">
-                  <input class="inp" style="width:100%;text-align:right;font-size:17px;padding:12px 10px;" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" value="${r.pricePerKg||''}" oninput="updatePOBulkRow(${i},'pricePerKg',this.value)">
-                </div>`}
-              </td>
-              <td style="text-align:right;font-weight:700;" id="poBulkRowTotal_${i}">${poCurrencySymbol()}${(r.mode==='unit'?(r.qty||0)*(r.unitPrice||0):(r.totalWeight||0)*(r.pricePerKg||0)).toFixed(2)}</td>
-              <td><button class="btn small danger" onclick="removePOBulkRow(${i})">✕</button></td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="row-inline" style="justify-content:space-between;margin-top:10px;">
-        <button class="btn small" onclick="addPOBulkRow()">+ បន្ថែមជួរទទេ</button>
-        <button class="btn accent" onclick="submitPOBulkRows()">បញ្ចូលជួរទទេចូលបញ្ជី →</button>
-      </div>
-    </div>
     <div class="card" data-card-key="purchase_prodlist">
       <div class="row-inline" style="margin-bottom:8px;">
         <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
@@ -3873,9 +3881,71 @@ async function renderPurchase(c){
       </div>
       <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:260px;overflow-y:auto;"></div>
     </div>
+    <div class="card" style="border-color:var(--good);" data-card-key="purchase_quickadd">
+      <b>${poQuickEditIndex!==null?'កែទំនិញ #'+(poQuickEditIndex+1):'បន្ថែមទំនិញ (សរសេរផ្ទាល់ ឬស្វែងរកខាងលើ)'}</b>
+      <div class="row-inline" style="margin-top:8px;">
+        <input class="inp" id="poQuickName" placeholder="ឈ្មោះ + ខ្នាត (ឧ. 304工业板 14x2000x5800)" style="flex:2;min-width:220px" value="${escapeHtml(poQuickAdd.name)}">
+        <input class="inp" id="poQuickQty" type="number" min="0" step="any" placeholder="ចំនួន" style="flex:1;min-width:100px" value="${poQuickAdd.qty}">
+        <select class="inp" id="poQuickUnit" style="flex:1;min-width:110px">${poUnitOptionsHTML(poQuickAdd.unit)}</select>
+      </div>
+      <div class="row-inline" style="margin-top:8px;">
+        <button type="button" class="btn small ${!poQuickAdd.wcMode?'accent':''}" onclick="setPOQuickMode(false)">/ឯកតា</button>
+        <button type="button" class="btn small ${poQuickAdd.wcMode?'accent':''}" onclick="setPOQuickMode(true)">⚖️ /Kg</button>
+        ${!poQuickAdd.wcMode?`
+        <input class="inp" id="poQuickUnitPrice" type="number" step="0.01" placeholder="តម្លៃ/ឯកតា ${poCurrencySymbol()}" style="flex:1;min-width:140px" value="${poQuickAdd.unitPrice}">
+        `:`
+        <input class="inp" id="poQuickTotalWeight" type="number" step="0.01" placeholder="ទំងន់សរុប Kg" style="flex:1;min-width:130px" value="${poQuickAdd.totalWeight}">
+        <input class="inp" id="poQuickPricePerKg" type="number" step="0.01" placeholder="តម្លៃ ${poCurrencySymbol()}/Kg" style="flex:1;min-width:130px" value="${poQuickAdd.pricePerKg}">
+        `}
+        <button class="btn accent" onclick="submitPOQuickAdd()">${poQuickEditIndex!==null?'រក្សាទុកការកែប្រែ':'+ បន្ថែមចូលបញ្ជី'}</button>
+        ${poQuickEditIndex!==null?`<button class="btn small" onclick="cancelPOQuickEdit()">✕ បោះបង់</button>`:''}
+      </div>
+    </div>
+    <div class="card" data-card-key="purchase_cart">
+      <b>ទំនិញក្នុងបញ្ជាទិញនេះ (${poCart.length})</b>
+      <div class="tbl-wrap" style="margin-top:8px;max-height:420px;overflow-y:auto;">
+        <table>
+          <thead><tr><th style="width:28px;">ល.រ</th><th style="text-align:left">ឈ្មោះ</th><th>ចំនួន</th><th>ឯកតា</th><th>តម្លៃចូល/ឯកតា</th><th>សរុប</th><th></th></tr></thead>
+          <tbody>
+            ${poCart.length===0?`<tr><td colspan="7" class="empty">មិនទាន់មានទំនិញ — ស្វែងរកខាងលើ ឬសរសេរផ្ទាល់ក្នុងប្រអប់ខាងលើ</td></tr>`:
+            poCart.map((it,i)=>{
+              const unitTotalCost = Math.round((it.baseCost + (it.shipAlloc||0)) * 100) / 100;
+              return `
+            <tr ondblclick="editPOCartItem(${i})" title="ចុចទ្វេដងដើម្បីកែ" style="cursor:pointer;${poQuickEditIndex===i?'background:#fff5f6;':''}">
+              <td>${i+1}</td>
+              <td class="left">${escapeHtml(it.name)}</td>
+              <td><input class="inp" style="width:80px;text-align:center" type="number" min="0" step="any" value="${it.qty}" onclick="event.stopPropagation()" onchange="updatePOQty(${i}, this.value)"></td>
+              <td>${escapeHtml(it.unit||'')}</td>
+              <td>${poCurrencySymbol()}${(poCurrency==='usd'?unitTotalCost:usdToPo(unitTotalCost)).toFixed(2)}${it.wcMode?' ⚖️':''}</td>
+              <td style="font-weight:700;">${poCurrencySymbol()}${(poCurrency==='usd'?(it.qty*unitTotalCost):usdToPo(it.qty*unitTotalCost)).toFixed(2)}</td>
+              <td><button class="btn small danger" onclick="event.stopPropagation(); removePOItem(${i})">✕</button></td>
+            </tr>`;}).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" data-card-key="purchase_excel">
+      <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="togglePOExcelImport()">
+        <b>📥 Upload ទំនិញតាម Excel (បន្ថែមច្រើនម្តងតែម្តង)</b>
+        <span>${poExcelImportOpen?'▲':'▼'}</span>
+      </div>
+      ${poExcelImportOpen?`
+      <div style="margin-top:10px;">
+        <p style="font-size:12px;color:var(--ink-muted);margin:0 0 8px;">File Excel ត្រូវមាន Column: ឈ្មោះ, ចំនួន, ឯកតា, តម្លៃដើម/ឯកតា (ជួរទី ១ ជា Header — គិតជារូបិយប័ណ្ណបញ្ជាទិញនេះ)</p>
+        <div class="row-inline">
+          <input type="file" id="poExcelFile" accept=".xlsx,.xls,.csv" style="flex:1;min-width:200px">
+          <button class="btn accent" onclick="importPOExcelItems()">Import</button>
+        </div>
+        <p id="poExcelImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
+      </div>` : ''}
+    </div>
     <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
-      <b>ទំនិញថ្មី (មិនទាន់មានក្នុងស្តុក)</b>
-      <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ</p>
+      <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="togglePONewProdForm()">
+        <b>+ ទំនិញថ្មី (មិនទាន់មានក្នុងស្តុក)</b>
+        <span>${poNewProdFormOpen?'▲':'▼'}</span>
+      </div>
+      ${poNewProdFormOpen?`
+      <p style="margin:8px 0 10px;font-size:12px;color:var(--ink-muted);">សម្រាប់ទំនិញប្រភេទថ្មីដែលទើបចង់ទិញលើកដំបូង — ប្រព័ន្ធគណនាតម្លៃចូល និងតម្លៃលក់ស្នើឲ្យស្វ័យប្រវត្តិ (វានឹងបង្កើតជាទំនិញថ្មីក្នុងស្តុកផងដែរ)</p>
       <div class="row-inline">
         <input class="inp" id="poNewName" placeholder="ឈ្មោះទំនិញ" style="flex:2;min-width:140px">
         ${categorySelectHTML('poNewCategory','')}
@@ -3912,7 +3982,7 @@ async function renderPurchase(c){
       <div class="row-inline" style="margin-top:8px;">
         <input class="inp" id="poNewPrice" type="number" step="0.01" placeholder="តម្លៃលក់ចុងក្រោយ ${poCurrencySymbol()}/ឯកតា (កែបានតាមចង់)" style="flex:1;min-width:160px">
         <button class="btn accent small" onclick="addNewPOProduct()">+ បន្ថែម</button>
-      </div>
+      </div>` : ''}
     </div>
     <div class="row-inline" style="justify-content:space-between;margin-top:6px;">
       <button class="btn" onclick="setPOStep(1)">← ថយក្រោយ</button>
@@ -4182,7 +4252,7 @@ function updatePOWeightCalc(i, field, val){
   renderPurchase(document.getElementById('content'));
 }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; poBulkRows=[newPOBulkRow(), newPOBulkRow(), newPOBulkRow()]; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; resetPOQuickAdd(); poNewProdFormOpen=false; poExcelImportOpen=false; renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(Math.round((it.baseCost+(it.shipAlloc||0))*100)/100),0); }
 
 function applyShippingAllocation(){
@@ -4276,7 +4346,7 @@ async function savePO(){
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
   poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poStep=1;
-  poBulkRows=[newPOBulkRow(), newPOBulkRow(), newPOBulkRow()];
+  resetPOQuickAdd(); poNewProdFormOpen=false; poExcelImportOpen=false;
   renderPurchase(document.getElementById('content'));
 }
 
