@@ -3895,20 +3895,24 @@ async function renderPurchase(c){
     </div>` : ''}
 
     ${poStep===2?`
-    <div class="card" data-card-key="purchase_prodlist">
-      <div class="row-inline" style="margin-bottom:8px;">
-        <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
-        <button class="btn accent" onclick="openCameraScan('po')" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
+    <div class="grid-2">
+      <div>
+        <div class="card" data-card-key="purchase_prodlist">
+          <div class="row-inline" style="margin-bottom:8px;">
+            <input class="inp" id="poBarcodeScanInput" autocomplete="off" placeholder="🔦 ស្កេនបារកូដ (ឧបករណ៍ Scan) ឬវាយកូដ រួច Enter..." style="flex:2;min-width:220px;border-color:var(--spark);" onkeydown="if(event.key==='Enter'){ event.preventDefault(); handlePOBarcodeScan(this.value); this.value=''; }">
+            <button class="btn accent" onclick="openCameraScan('po')" title="ស្កេនដោយ Camera">📷 ស្កេនកាមេរ៉ា</button>
+          </div>
+          <div class="row-inline" style="margin-bottom:8px;">
+            <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:0 1 310px;min-width:160px" oninput="renderPOProdList()">
+            <select class="inp" id="poProdCatFilter" style="flex:1;min-width:140px" onchange="renderPOProdList()">
+              <option value="">-- គ្រប់ប្រភេទ --</option>
+              ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
+            </select>
+          </div>
+          <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:400px;overflow-y:auto;"></div>
+        </div>
       </div>
-      <div class="row-inline" style="margin-bottom:8px;">
-        <input class="inp" id="poProdSearch" placeholder="ស្វែងរកទំនិញ..." style="flex:0 1 310px;min-width:160px" oninput="renderPOProdList()">
-        <select class="inp" id="poProdCatFilter" style="flex:1;min-width:140px" onchange="renderPOProdList()">
-          <option value="">-- គ្រប់ប្រភេទ --</option>
-          ${CATEGORIES.map(cat=>`<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}
-        </select>
-      </div>
-      <div id="poProdList" class="tbl-wrap" data-resizable style="max-height:260px;overflow-y:auto;"></div>
-    </div>
+      <div>
     <div class="card" style="border-color:var(--good);" data-card-key="purchase_quickadd">
       <b>${poQuickEditIndex!==null?'កែទំនិញ #'+(poQuickEditIndex+1):'បន្ថែមទំនិញ (សរសេរផ្ទាល់ ឬស្វែងរកខាងលើ)'}</b>
       <div class="row-inline" style="margin-top:8px;">
@@ -3973,6 +3977,8 @@ async function renderPurchase(c){
             </tr>`;}).join('')}
           </tbody>
         </table>
+      </div>
+    </div>
       </div>
     </div>
     <div class="row-inline" style="justify-content:space-between;margin-top:6px;">
