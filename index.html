@@ -486,7 +486,10 @@
   <div style="background:#fff;border-radius:12px;max-width:700px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <div style="position:sticky;top:0;background:#fff;padding:14px 18px;border-bottom:1px solid var(--paper-dim);display:flex;justify-content:space-between;align-items:center;z-index:1;">
       <b style="font-size:16px;">លម្អិតបញ្ជាទិញ</b>
-      <button class="btn" onclick="closePOViewModal()">✕ បិទ</button>
+      <div class="row-inline">
+        <button class="btn accent" onclick="printPODetail()">បោះពុម្ព</button>
+        <button class="btn" onclick="closePOViewModal()">✕ បិទ</button>
+      </div>
     </div>
     <div id="poViewModalContent" style="padding:14px;"></div>
   </div>
@@ -4113,14 +4116,15 @@ async function renderPurchase(c){
       </div>
       <div class="tbl-wrap" data-resizable style="margin-top:10px;max-height:500px;overflow-y:auto;">
         <table>
-          <thead><tr><th>លេខ</th><th style="text-align:left">អ្នកផ្គត់ផ្គង់</th><th>កាលបរិច្ឆេទ</th><th>សរុប</th><th>ស្ថានភាព</th><th></th></tr></thead>
+          <thead><tr><th>លេខ</th><th style="text-align:left">អ្នកផ្គត់ផ្គង់</th><th>កាលបរិច្ឆេទ</th><th>ថ្ងៃទទួល</th><th>សរុប</th><th>ស្ថានភាព</th><th></th></tr></thead>
           <tbody>
-            ${(!pos||pos.length===0)?`<tr><td colspan="6" class="empty">មិនទាន់មានបញ្ជាទិញ</td></tr>`:
+            ${(!pos||pos.length===0)?`<tr><td colspan="7" class="empty">មិនទាន់មានបញ្ជាទិញ</td></tr>`:
             pos.map(p=>`
               <tr>
                 <td>${p.po_no}</td>
                 <td class="left">${escapeHtml(p.supplier_name||'')}</td>
                 <td>${p.po_date}</td>
+                <td>${p.received_date?escapeHtml(p.received_date)+(canAccess('purchase_receive')?` <button class="btn small" style="padding:1px 6px;font-size:10px;" onclick="editPOReceivedDate('${p.id}','${p.received_date}')">កែ</button>`:''):'—'}</td>
                 <td>$${Number(p.subtotal).toFixed(2)}</td>
                 <td>${p.status==='received'?`<span class="badge ok">ទទួលរួច</span>`:`<span class="badge low">រង់ចាំទទួល</span>`}</td>
                 <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
@@ -4295,6 +4299,9 @@ async function savePO(){
 
 async function receivePO(poId){
   if(!currentLocationId){ alert('សូមបង្កើតទីតាំង (ហាង/ឃ្លាំង) ជាមុនសិន ក្នុង "ការកំណត់"'); return; }
+  const receivedDate = prompt('ទទួលទំនិញនេះចូលស្តុកនៅថ្ងៃណា? (YYYY-MM-DD)', localYMD(new Date()));
+  if(receivedDate===null) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(receivedDate)){ alert('ទម្រង់ថ្ងៃមិនត្រឹមត្រូវ សូមប្រើទម្រង់ YYYY-MM-DD (ឧ. 2026-08-05)'); return; }
   if(!confirm('សម្គាល់ថាបានទទួលទំនិញនេះចូលស្តុក? (ចូលទីតាំង៖ '+((locationsCache.find(l=>l.id===currentLocationId)||{}).name||'')+')')) return;
   const {data: items, error: itemsErr} = await sb.from('purchase_order_items').select('*').eq('po_id', poId);
   if(itemsErr){ alert('មិនអាចទាញយកទំនិញក្នុងបញ្ជាទិញបានទេ៖ '+itemsErr.message); return; }
@@ -4303,23 +4310,35 @@ async function receivePO(poId){
       await adjustStock(it.product_id, currentLocationId, Number(it.qty));
     }
   }
-  const {error: updErr} = await sb.from('purchase_orders').update({status:'received'}).eq('id', poId);
+  const {error: updErr} = await sb.from('purchase_orders').update({status:'received', received_date: receivedDate}).eq('id', poId);
   if(updErr){
     alert('ស្តុកបានបន្ថែមចូលរួច ប៉ុន្តែមិនអាចធ្វើបច្ចុប្បន្នភាពស្ថានភាពបញ្ជាទិញបានទេ៖ '+updErr.message+' — សូមកុំចុច "ទទួលចូលស្តុក" ម្តងទៀត ដើម្បីជៀសវាងបន្ថែមស្តុកស្ទួន');
     return;
   }
   renderPurchase(document.getElementById('content'));
 }
+async function editPOReceivedDate(poId, currentDate){
+  const receivedDate = prompt('កែថ្ងៃទទួលទំនិញ (YYYY-MM-DD)', currentDate || localYMD(new Date()));
+  if(receivedDate===null) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(receivedDate)){ alert('ទម្រង់ថ្ងៃមិនត្រឹមត្រូវ សូមប្រើទម្រង់ YYYY-MM-DD (ឧ. 2026-08-05)'); return; }
+  const {error} = await sb.from('purchase_orders').update({received_date: receivedDate}).eq('id', poId);
+  if(error){ alert('មិនអាចកែបានទេ៖ '+error.message); return; }
+  renderPurchase(document.getElementById('content'));
+  if(document.getElementById('poViewModalOverlay').style.display==='flex') viewPODetail(poId);
+}
+let poViewModalCurrent = null;
 async function viewPODetail(poId){
   const {data: po, error} = await sb.from('purchase_orders').select('*').eq('id', poId).single();
   if(error || !po){ alert('មិនអាចទាញយកបញ្ជាទិញនេះបានទេ៖ '+(error?.message||'')); return; }
   const {data: items} = await sb.from('purchase_order_items').select('*').eq('po_id', poId).order('sort_order');
   const rows = items||[];
+  poViewModalCurrent = po;
   document.getElementById('poViewModalContent').innerHTML = `
     <div style="font-size:13px;line-height:1.8;margin-bottom:10px;">
       <div><b>លេខបញ្ជាទិញ៖</b> ${escapeHtml(po.po_no)}</div>
       <div><b>អ្នកផ្គត់ផ្គង់៖</b> ${escapeHtml(po.supplier_name||'មិនកំណត់')}${po.supplier_phone?' — '+escapeHtml(po.supplier_phone):''}</div>
-      <div><b>កាលបរិច្ឆេទ៖</b> ${po.po_date}</div>
+      <div><b>កាលបរិច្ឆេទបញ្ជាទិញ៖</b> ${po.po_date}</div>
+      <div><b>ថ្ងៃទទួលទំនិញ៖</b> ${po.received_date?escapeHtml(po.received_date):'—'}</div>
       <div><b>ស្ថានភាព៖</b> ${po.status==='received'?'<span class="badge ok">ទទួលរួច</span>':'<span class="badge low">រង់ចាំទទួល</span>'}</div>
     </div>
     <div class="tbl-wrap">
@@ -4343,8 +4362,20 @@ async function viewPODetail(poId){
   `;
   document.getElementById('poViewModalOverlay').style.display = 'flex';
 }
+function printPODetail(){
+  if(!poViewModalCurrent) return;
+  const content = document.getElementById('poViewModalContent').innerHTML;
+  document.getElementById('printArea').innerHTML = `
+    <div style="padding:20px;font-family:'Noto Sans Khmer','Khmer OS','Khmer OS Siemreap',sans-serif;color:#000;">
+      <h2 style="text-align:center;margin:0 0 4px;">${escapeHtml(shopInfo.nameShort||'')}</h2>
+      <h3 style="text-align:center;margin:0 0 14px;">លម្អិតបញ្ជាទិញ</h3>
+      ${content}
+    </div>`;
+  setTimeout(()=>{ window.print(); }, 150);
+}
 function closePOViewModal(){
   document.getElementById('poViewModalOverlay').style.display = 'none';
+  poViewModalCurrent = null;
 }
 function setPOFilter(f){ poHistoryFilter = f; renderPurchase(document.getElementById('content')); }
 function applyPOHistoryDateFilter(){
@@ -4442,11 +4473,12 @@ async function renderHistory(c){
       <button class="${historyPaymentFilter==='unpaid'?'active':''}" style="${historyPaymentFilter==='unpaid'?'background:var(--danger);color:#fff;border-color:var(--danger);':''}" onclick="setHistoryPaymentFilter('unpaid')">🔴 ខ្វះ (${unpaidCount})</button>
       <button class="${historyPaymentFilter==='paid'?'active':''}" style="${historyPaymentFilter==='paid'?'background:var(--good);color:#fff;border-color:var(--good);':''}" onclick="setHistoryPaymentFilter('paid')">🟢 បង់រួច (${paidCount})</button>
     </div>
-    <div class="card" data-card-key="history_search">
-      <input class="inp" id="historySearchInput" placeholder="ស្វែងរក (លេខឯកសារ/ឈ្មោះអតិថិជន/ទូរស័ព្ទ)..." style="width:100%;max-width:440px;" value="${escapeHtml(historySearchQuery)}" oninput="onHistorySearchInput(this.value)">
-    </div>
-    <div class="card" data-card-key="history_datefilter">
-      <div class="row-inline" style="align-items:flex-end;">
+    <div class="card" data-card-key="history_filters">
+      <div class="row-inline" style="align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;max-width:440px;">
+          <label style="font-size:11px;color:var(--ink-muted);">ស្វែងរក</label>
+          <input class="inp" id="historySearchInput" placeholder="លេខឯកសារ/ឈ្មោះអតិថិជន/ទូរស័ព្ទ..." style="width:100%;margin-top:2px;" value="${escapeHtml(historySearchQuery)}" oninput="onHistorySearchInput(this.value)">
+        </div>
         <div>
           <label style="font-size:11px;color:var(--ink-muted);">ចាប់ពីថ្ងៃ (ខែ/ឆ្នាំមុនៗក៏បាន)</label>
           <input class="inp" type="date" id="historyDateFrom" value="${historyDateFrom}" max="${localYMD(new Date())}" style="width:160px;margin-top:2px;">
