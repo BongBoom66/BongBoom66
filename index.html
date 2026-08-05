@@ -3730,8 +3730,6 @@ function editPOCartItem(i){
 function cancelPOQuickEdit(){ resetPOQuickAdd(); renderPurchase(document.getElementById('content')); }
 let poNewProdFormOpen = false;
 function togglePONewProdForm(){ poNewProdFormOpen = !poNewProdFormOpen; renderPurchase(document.getElementById('content')); }
-let poExcelImportOpen = false;
-function togglePOExcelImport(){ poExcelImportOpen = !poExcelImportOpen; renderPurchase(document.getElementById('content')); }
 async function importPOExcelItems(){
   const fileInput = document.getElementById('poExcelFile');
   const statusEl = document.getElementById('poExcelImportStatus');
@@ -3910,7 +3908,13 @@ async function renderPurchase(c){
       </div>
     </div>
     <div class="card" data-card-key="purchase_cart">
-      <b>ទំនិញក្នុងបញ្ជាទិញនេះ (${poCart.length})</b>
+      <div class="row-inline" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <b>ទំនិញក្នុងបញ្ជាទិញនេះ (${poCart.length})</b>
+        <div class="row-inline" style="gap:8px;">
+          <label class="btn small" style="cursor:pointer;" title="File Excel ត្រូវមាន Column: ឈ្មោះ, ចំនួន, ឯកតា, តម្លៃដើម/ឯកតា">📥 Import Excel<input type="file" id="poExcelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPOExcelItems()"></label>
+          <span id="poExcelImportStatus" style="font-size:12px;color:var(--ink-muted);"></span>
+        </div>
+      </div>
       <div class="tbl-wrap" style="margin-top:8px;max-height:420px;overflow-y:auto;">
         <table>
           <thead><tr><th style="width:28px;">ល.រ</th><th style="text-align:left">ឈ្មោះ</th><th>ចំនួន</th><th>ឯកតា</th><th>តម្លៃចូល/ឯកតា</th><th>សរុប</th><th></th></tr></thead>
@@ -3931,18 +3935,6 @@ async function renderPurchase(c){
           </tbody>
         </table>
       </div>
-    </div>
-    <div class="card" data-card-key="purchase_excel">
-      <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="togglePOExcelImport()">
-        <b>📥 Upload ទំនិញតាម Excel (បន្ថែមច្រើនម្តងតែម្តង)</b>
-        <span>${poExcelImportOpen?'▲':'▼'}</span>
-      </div>
-      ${poExcelImportOpen?`
-      <div style="margin-top:10px;">
-        <p style="font-size:12px;color:var(--ink-muted);margin:0 0 8px;">File Excel ត្រូវមាន Column: ឈ្មោះ, ចំនួន, ឯកតា, តម្លៃដើម/ឯកតា (ជួរទី ១ ជា Header — គិតជារូបិយប័ណ្ណបញ្ជាទិញនេះ)</p>
-        <label class="btn accent small" style="cursor:pointer;">📥 Import Excel<input type="file" id="poExcelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPOExcelItems()"></label>
-        <p id="poExcelImportStatus" style="font-size:12px;color:var(--ink-muted);margin-top:8px;"></p>
-      </div>` : ''}
     </div>
     <div class="card" style="border-color:var(--spark);" data-card-key="purchase_newprod">
       <div class="row-inline" style="justify-content:space-between;cursor:pointer;" onclick="togglePONewProdForm()">
@@ -4260,7 +4252,7 @@ function updatePOWeightCalc(i, field, val){
   renderPurchase(document.getElementById('content'));
 }
 function removePOItem(i){ poCart.splice(i,1); renderPurchase(document.getElementById('content')); }
-function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; resetPOQuickAdd(); poNewProdFormOpen=false; poExcelImportOpen=false; renderPurchase(document.getElementById('content')); }
+function clearPOCart(){ poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poNewWeightCalcOpen=false; poStep=1; resetPOQuickAdd(); poNewProdFormOpen=false; renderPurchase(document.getElementById('content')); }
 function poSubtotal(){ return poCart.reduce((s,it)=>s+it.qty*(Math.round((it.baseCost+(it.shipAlloc||0))*100)/100),0); }
 
 function applyShippingAllocation(){
@@ -4354,7 +4346,7 @@ async function savePO(){
 
   alert('រក្សាទុកបញ្ជាទិញជោគជ័យ! លេខ: '+po.po_no);
   poCart=[]; selectedSupplier=null; poShippingTotal=0; poCurrency='usd'; poFxRate=1; poStep=1;
-  resetPOQuickAdd(); poNewProdFormOpen=false; poExcelImportOpen=false;
+  resetPOQuickAdd(); poNewProdFormOpen=false;
   renderPurchase(document.getElementById('content'));
 }
 
