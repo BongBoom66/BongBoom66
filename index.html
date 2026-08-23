@@ -571,13 +571,13 @@
 
 <div id="sharedRevNoteModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(20,30,40,0.55);z-index:210;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-    <b style="font-size:16px;display:block;margin-bottom:4px;">សម្គាល់ថាបានត្រួតពិនិត្យ</b>
-    <p style="font-size:12.5px;color:var(--ink-muted);margin:0 0 12px;">អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ</p>
+    <b id="sharedRevNoteModalTitle" style="font-size:16px;display:block;margin-bottom:4px;">សម្គាល់ថាបានត្រួតពិនិត្យ</b>
+    <p id="sharedRevNoteModalSub" style="font-size:12.5px;color:var(--ink-muted);margin:0 0 12px;">អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ</p>
     <label style="font-size:12.5px;color:var(--ink-muted);">កំណត់ចំណាំ</label>
     <textarea class="inp" id="sharedRevNoteInput" rows="3" placeholder="ឧ. បានពិនិត្យត្រឹមត្រូវ / ត្រូវសួរម្ចាស់ពី..." style="width:100%;margin:4px 0 12px;resize:vertical;"></textarea>
     <div style="display:flex;gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeSharedRevNoteModal()">✕ បិទ</button>
-      <button class="btn accent" style="flex:1;" onclick="confirmSharedRevNote()">សម្គាល់ថាបានត្រួតពិនិត្យ</button>
+      <button id="sharedRevNoteModalSaveBtn" class="btn accent" style="flex:1;" onclick="confirmSharedRevNote()">សម្គាល់ថាបានត្រួតពិនិត្យ</button>
     </div>
   </div>
 </div>
@@ -5716,11 +5716,11 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span><br><span style="font-size:11px;color:var(--ink-muted);" title="${m.doc.shared_revenue_reviewed_at?'កាលបរិច្ឆេទពិនិត្យពិតប្រាកដ':'ព្រោះមិនធ្លាប់កត់ត្រា ប្រព័ន្ធប៉ាន់ស្មានពីថ្ងៃលក់'}">${m.doc.shared_revenue_reviewed_at?'':'~'}${reviewedDateOf(m.doc)}</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);" title="${escapeHtml(m.doc.shared_revenue_note)}">📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
+              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span><br><span style="font-size:11px;color:var(--ink-muted);" title="${m.doc.shared_revenue_reviewed_at?'កាលបរិច្ឆេទពិនិត្យពិតប្រាកដ':'ព្រោះមិនធ្លាប់កត់ត្រា ប្រព័ន្ធប៉ាន់ស្មានពីថ្ងៃលក់'}">${m.doc.shared_revenue_reviewed_at?'':'~'}${reviewedDateOf(m.doc)}</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);${canAccess('shared_revenue_review')?'cursor:pointer;text-decoration:underline;':''}" title="${escapeHtml(m.doc.shared_revenue_note)}"${canAccess('shared_revenue_review')?` onclick="openSharedRevNoteModal('${m.doc.id}', true)"`:''}>📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
                 ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
-                  ? `<button class="btn small" onclick="setSharedRevReviewed('${m.doc.id}', false)">ដកសម្គាល់</button>`
+                  ? `<button class="btn small" onclick="openSharedRevNoteModal('${m.doc.id}', true)">📝 ចំណាំ</button><button class="btn small" onclick="setSharedRevReviewed('${m.doc.id}', false)">ដកសម្គាល់</button>`
                   : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="openSharedRevNoteModal('${m.doc.id}')">ត្រួតពិនិត្យ</button>`) : ''}
               </td>
             </tr>`).join('')}
@@ -5750,20 +5750,32 @@ async function setSharedRevReviewed(docId, val, note){
   renderSharedRevenue(document.getElementById('content'));
 }
 let pendingSharedRevNoteDocId = null;
-function openSharedRevNoteModal(docId){
+let sharedRevNoteEditMode = false;
+function openSharedRevNoteModal(docId, editMode){
   pendingSharedRevNoteDocId = docId;
+  sharedRevNoteEditMode = !!editMode;
   const doc = (window._sharedRevInvoices||[]).find(m=>m.doc.id===docId)?.doc;
   document.getElementById('sharedRevNoteInput').value = doc?.shared_revenue_note || '';
+  document.getElementById('sharedRevNoteModalTitle').textContent = sharedRevNoteEditMode ? 'កំណត់ចំណាំ' : 'សម្គាល់ថាបានត្រួតពិនិត្យ';
+  document.getElementById('sharedRevNoteModalSub').textContent = sharedRevNoteEditMode ? 'មើល ឬកែប្រែកំណត់ចំណាំសម្រាប់ Invoice នេះ' : 'អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ';
+  document.getElementById('sharedRevNoteModalSaveBtn').textContent = sharedRevNoteEditMode ? 'រក្សាទុកកំណត់ចំណាំ' : 'សម្គាល់ថាបានត្រួតពិនិត្យ';
   document.getElementById('sharedRevNoteModalOverlay').style.display = 'flex';
 }
 function closeSharedRevNoteModal(){
   document.getElementById('sharedRevNoteModalOverlay').style.display = 'none';
   pendingSharedRevNoteDocId = null;
+  sharedRevNoteEditMode = false;
 }
 async function confirmSharedRevNote(){
   if(!pendingSharedRevNoteDocId) return;
   const note = document.getElementById('sharedRevNoteInput').value.trim();
-  await setSharedRevReviewed(pendingSharedRevNoteDocId, true, note);
+  if(sharedRevNoteEditMode){
+    const {error} = await sb.from('documents').update({shared_revenue_note: note || null}).eq('id', pendingSharedRevNoteDocId);
+    if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
+    renderSharedRevenue(document.getElementById('content'));
+  } else {
+    await setSharedRevReviewed(pendingSharedRevNoteDocId, true, note);
+  }
   closeSharedRevNoteModal();
 }
 function setSharedRevRange(r){ sharedRevRange = r; sharedRevCustomStart = ''; sharedRevCustomEnd = ''; renderSharedRevenue(document.getElementById('content')); }
