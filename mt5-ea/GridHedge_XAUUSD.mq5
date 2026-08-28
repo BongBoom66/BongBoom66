@@ -38,7 +38,7 @@ input double InpStopLossUSD      = 10.0;        // Stop loss distance from entry
 input int    InpSlippagePoints   = 30;          // Max slippage for market orders (points)
 
 input group "=== Support / Resistance ==="
-input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M15; // Candle timeframe used for analysis
+input ENUM_TIMEFRAMES InpTimeframe = PERIOD_H1;  // Candle timeframe used for analysis
 input int    InpSRLookbackBars   = 150;         // How many bars back to scan for SR pivots
 input int    InpSRFractalWing    = 3;           // Bars required on each side to confirm a pivot
 input double InpSRToleranceUSD   = 1.0;         // Max distance from a SR level to count as "at" it ($)
@@ -48,6 +48,9 @@ input double InpWickRatio        = 2.0;         // Wick must be at least this ma
 
 input group "=== Volume strength ==="
 input int    InpVolumeAvgBars    = 20;          // Bars used to compute the average tick volume baseline
+
+input group "=== Diagnostics ==="
+input bool   InpVerboseLogging   = true;        // Print every closed bar's SR/Wick/Volume analysis to the Experts log
 
 input group "=== Identification ==="
 input ulong  InpMagicNumber      = 20260802;    // Magic number, keeps this EA's trades separate
@@ -131,6 +134,13 @@ void EvaluateSignal()
    double support = 0.0, resistance = 0.0;
    bool hasSupport    = FindNearestFractal(true, low1, support);
    bool hasResistance = FindNearestFractal(false, high1, resistance);
+
+   if(InpVerboseLogging)
+      PrintFormat("Bar %s: O=%.2f H=%.2f L=%.2f C=%.2f body=%.2f upperWick=%.2f lowerWick=%.2f vol=%d avgVol=%.1f strongVol=%s | support=%s(%.2f, dist=%.2f) resistance=%s(%.2f, dist=%.2f)",
+                  TimeToString(iTime(_Symbol, InpTimeframe, 1)), open1, high1, low1, close1, body, upperWick, lowerWick,
+                  signalVolume, avgVolume, strongVolume ? "yes" : "no",
+                  hasSupport ? "found" : "none", support, hasSupport ? MathAbs(low1 - support) : 0.0,
+                  hasResistance ? "found" : "none", resistance, hasResistance ? MathAbs(high1 - resistance) : 0.0);
 
    if(bullishRejection && hasSupport && MathAbs(low1 - support) <= InpSRToleranceUSD)
      {
