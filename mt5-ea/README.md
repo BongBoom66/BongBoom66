@@ -4,7 +4,7 @@ Expert Advisor សម្រាប់ MetaTrader 5 (MQL5) — Trade មាស (XA
 
 ## របៀបដំណើរការ
 
-វិភាគ **1 ដងក្នុងមួយ Candle ថ្មី** (Timeframe `InpTimeframe`, default M15) — លើ Candle ដែល**បិទរួច**ហើយប៉ុណ្ណោះ (មិនមែន Candle កំពុងបង្កើតទេ ដើម្បីជៀសវាង Repaint)៖
+វិភាគ **1 ដងក្នុងមួយ Candle ថ្មី** (Timeframe `InpTimeframe`, default **H1**) — លើ Candle ដែល**បិទរួច**ហើយប៉ុណ្ណោះ (មិនមែន Candle កំពុងបង្កើតទេ ដើម្បីជៀសវាង Repaint)៖
 
 1. **Support/Resistance**៖ ស្កេនរក Fractal Pivot (ចំណុចខ្ពស់/ទាបជាងជិតខាងទាំង `InpSRFractalWing` Bar ទាំងសងខាង) ក្នុង `InpSRLookbackBars` Candle ចុងក្រោយ រកយក Support/Resistance ដែលនៅជិត Candle សញ្ញាបំផុត
 2. **Wick Rejection**៖ Candle សញ្ញាត្រូវមាន Wick វែងជាង Body យ៉ាងតិច `InpWickRatio` ដង (Wick ក្រោមវែង = ការពារ Support = Bullish, Wick លើវែង = ច្រានចោល Resistance = Bearish)
@@ -31,12 +31,13 @@ Expert Advisor សម្រាប់ MetaTrader 5 (MQL5) — Trade មាស (XA
 | `InpTakeProfitUSD` | ចម្ងាយ Take Profit ពីតម្លៃចូល ($) | 12.0 |
 | `InpStopLossUSD` | ចម្ងាយ Stop Loss ពីតម្លៃចូល ($) | 10.0 |
 | `InpSlippagePoints` | Slippage អតិបរមាសម្រាប់ market order | 30 |
-| `InpTimeframe` | Timeframe សម្រាប់វិភាគ SR/Wick/Volume | M15 |
+| `InpTimeframe` | Timeframe សម្រាប់វិភាគ SR/Wick/Volume | H1 |
 | `InpSRLookbackBars` | ចំនួន Bar ត្រឡប់ក្រោយសម្រាប់ស្កេនរក SR Pivot | 150 |
 | `InpSRFractalWing` | ចំនួន Bar ទាំងសងខាងចាំបាច់ដើម្បីបញ្ជាក់ Pivot | 3 |
 | `InpSRToleranceUSD` | ចម្ងាយអតិបរមាពី SR level ដើម្បីរាប់ថា "នៅជិត" ($) | 1.0 |
 | `InpWickRatio` | Wick ត្រូវធំជាង Body យ៉ាងតិចប៉ុន្មានដង ទើបរាប់ជា Rejection | 2.0 |
 | `InpVolumeAvgBars` | ចំនួន Bar សម្រាប់គណនា Volume មធ្យម (Baseline) | 20 |
+| `InpVerboseLogging` | Print ការវិភាគ SR/Wick/Volume ពេញលេញរាល់ Candle ថ្មីទៅ Experts log (មិនមែនតែពេលមាន Signal ចូល Order ទេ) — ជួយ Debug ថាហេតុអ្វី Order មិនចូល | true |
 | `InpMagicNumber` | Magic number កំណត់អត្តសញ្ញាណ trade របស់ EA នេះ | 20260802 |
 
 ## ចំណុចសំខាន់ត្រូវយល់
