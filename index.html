@@ -5488,13 +5488,13 @@ let sharedRevReviewedDate = ''; // single day filter — "what did I review on t
 async function renderSharedRevenue(c){
   const today = new Date();
   let startStr, endStr = null;
-  if(sharedRevReviewFilter==='reviewed'){
-    // Review activity (when something was reviewed) is unrelated to the invoice's
-    // own transaction date — search across everything, not just whatever window
-    // sharedRevRange happens to be set to, so the day-by-day chart and the
-    // specific-day filter both see the full reviewed history.
-    startStr = '2020-01-01';
-  } else {
+  // The from/to transaction-date range (ពីថ្ងៃ/ដល់ថ្ងៃ) always applies, on every
+  // review-status tab — it used to be silently ignored (forced to "since 2020")
+  // whenever the "ពិនិត្យរួច" tab was active, which made the date filter look
+  // like it randomly stopped working depending which tab you were on. The
+  // separate "which day was this reviewed" picker (below) is an additional,
+  // narrower filter layered on top of this range, only for the reviewed tab.
+  {
     let startDate;
     if(sharedRevRange==='today'){ startDate = new Date(today.getFullYear(),today.getMonth(),today.getDate()); }
     else if(sharedRevRange==='week'){ startDate = new Date(today); startDate.setDate(today.getDate()-6); }
@@ -5651,7 +5651,19 @@ async function renderSharedRevenue(c){
         <input class="inp" id="sharedRevRangeTo" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${sharedRevCustomEnd}">
       </div>
       <button class="btn ${sharedRevRange==='custom'?'accent':''}" onclick="applySharedRevCustomRange()">អនុវត្ត</button>
-    </div>` : ''}
+    </div>` : `
+    <div class="row-inline" style="margin-top:8px;align-items:flex-end;">
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ពីថ្ងៃ (កាលបរិច្ឆេទ Invoice, ខែ/ឆ្នាំមុនៗក៏បាន)</label>
+        <input class="inp" id="sharedRevRangeFrom" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${sharedRevCustomStart}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--ink-muted);">ដល់ថ្ងៃ</label>
+        <input class="inp" id="sharedRevRangeTo" type="date" style="width:160px;margin-top:2px;" max="${localYMD(today)}" value="${sharedRevCustomEnd}">
+      </div>
+      <button class="btn ${sharedRevRange==='custom'?'accent':''}" onclick="applySharedRevCustomRange()">អនុវត្ត</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--ink-muted);margin:4px 0 0;">ចំណាំ៖ ខាងលើត្រងតាមកាលបរិច្ឆេទ Invoice ។ ដើម្បីត្រងតាមកាលបរិច្ឆេទដែលបានពិនិត្យ សូមមើលខាងក្រោម</p>` }
     <div class="card" data-card-key="sharedrev_filter">
       <label style="font-size:12.5px;color:var(--ink-muted);">ជ្រើសរើសម្ចាស់</label>
       <select class="inp" id="sharedRevOwnerSelect" style="width:100%;margin-top:4px;" onchange="setSharedRevOwnerFilter(this.value)">
