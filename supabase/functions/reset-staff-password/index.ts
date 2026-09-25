@@ -103,10 +103,16 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Step 2: use the admin/secret key to actually reset the target user's password
+    // Step 2: use the admin/secret key to actually reset the target user's password.
+    // Also force email_confirm:true — staff accounts use synthetic @kimsreang-app.com
+    // emails that never receive a real confirmation email, so if the project has
+    // "Confirm email" enabled, an unconfirmed account can silently fail to log in
+    // ("Invalid login credentials") even with the correct new password. Resetting
+    // the password is also our chance to guarantee the account is confirmed.
     const supabaseAdmin = createClient(supabaseUrl, secretKey)
     const { data: updateData, error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
-      password: newPassword
+      password: newPassword,
+      email_confirm: true
     })
     if (updateErr) {
       console.log('[reset-staff-password] updateUserById failed:', updateErr.message)
