@@ -5512,12 +5512,39 @@ async function renderSharedRevenue(c){
   const {data: invoices} = await invoicesQuery;
   const invIds = (invoices||[]).map(d=>d.id);
 
+  // Review status/note is tracked per (Invoice, owner) pair in shared_revenue_reviews —
+  // so an Invoice with items from several owners can be reviewed for one owner without
+  // showing as reviewed for the others. Invoices reviewed before this table existed had
+  // their status on documents.shared_revenue_reviewed instead (one status for the whole
+  // Invoice); getOwnerReview() falls back to that old value until a specific owner is
+  // explicitly (re)marked, at which point it gets its own independent row here.
+  let reviewsMap = {};
+  if(invIds.length>0){
+    const {data: reviews} = await sb.from('shared_revenue_reviews').select('*').in('document_id', invIds);
+    (reviews||[]).forEach(r=>{ reviewsMap[r.document_id+'::'+r.owner_name] = r; });
+  }
+  function getOwnerReview(doc, owner){
+    const rec = reviewsMap[doc.id+'::'+owner];
+    if(rec) return rec;
+    return { reviewed: !!doc.shared_revenue_reviewed, reviewed_at: doc.shared_revenue_reviewed_at, note: doc.shared_revenue_note, legacy: true };
+  }
+  window._sharedRevGetOwnerReview = getOwnerReview;
+
   const UNASSIGNED = 'មិនទាន់កំណត់ម្ចាស់';
+  // Picks the LONGEST matching keyword across every owner (most specific wins),
+  // not just the first owner in list order whose keyword happens to match — a
+  // short generic keyword for one owner (e.g. "ដែក") shouldn't shadow a longer,
+  // more specific keyword belonging to another owner (e.g. "ដែកសន្លឹក 304").
   function ownerForItem(name){
+    let best = null;
     for(const o of ownerKeywordMap){
-      if((o.keywords||[]).some(kw => kw && name.includes(kw))) return o.name;
+      for(const kw of (o.keywords||[])){
+        if(kw && name.includes(kw) && (!best || kw.length > best.len)){
+          best = { ownerName: o.name, len: kw.length };
+        }
+      }
     }
-    return UNASSIGNED;
+    return best ? best.ownerName : UNASSIGNED;
   }
 
   let invoiceRows = [];
@@ -5554,8 +5581,23 @@ async function renderSharedRevenue(c){
       .filter(m => m.items.length > 0);
   }
 
-  const unreviewedCount = displayRows.filter(m=>!m.doc.shared_revenue_reviewed).length;
-  const reviewedCount = displayRows.filter(m=>m.doc.shared_revenue_reviewed).length;
+  // Attach review status to each row. For a specific-owner view it's that owner's own
+  // status; for the combined "all" view a row can span several owners each with their
+  // own status, so it also carries a per-owner breakdown (perOwner) and its aggregate
+  // "review" is only reviewed once EVERY owner on it has been reviewed.
+  displayRows = displayRows.map(m=>{
+    if(sharedRevOwnerFilter !== 'all'){
+      return { ...m, review: getOwnerReview(m.doc, sharedRevOwnerFilter) };
+    }
+    const owners = [...new Set(m.items.map(it=>it.owner))];
+    const perOwner = owners.map(o=>({ owner:o, review: getOwnerReview(m.doc, o) }));
+    const allReviewed = perOwner.length>0 && perOwner.every(p=>p.review.reviewed);
+    const latestAt = perOwner.map(p=>p.review.reviewed_at).filter(Boolean).sort().slice(-1)[0] || null;
+    return { ...m, perOwner, review: { reviewed: allReviewed, reviewed_at: latestAt, note: null } };
+  });
+
+  const unreviewedCount = displayRows.filter(m=>!m.review.reviewed).length;
+  const reviewedCount = displayRows.filter(m=>m.review.reviewed).length;
 
   // Day-by-day reviewed count, built from the full reviewed set (before the
   // specific-day filter narrows the table) so the chart shows the whole trend.
@@ -5563,22 +5605,22 @@ async function renderSharedRevenue(c){
   // for those we fall back to the invoice's own doc_date as a best-effort estimate
   // (per owner's choice), flagged with reviewedDateIsEstimate so it isn't confused
   // with an actual recorded review date.
-  const reviewedDateOf = (doc) => doc.shared_revenue_reviewed_at ? doc.shared_revenue_reviewed_at.slice(0,10) : doc.doc_date;
+  const reviewedDateOf = (m) => m.review.reviewed_at ? m.review.reviewed_at.slice(0,10) : m.doc.doc_date;
   const reviewedByDay = {};
   if(sharedRevReviewFilter==='reviewed'){
-    displayRows.filter(m=>m.doc.shared_revenue_reviewed).forEach(m=>{
-      const day = reviewedDateOf(m.doc);
+    displayRows.filter(m=>m.review.reviewed).forEach(m=>{
+      const day = reviewedDateOf(m);
       reviewedByDay[day] = (reviewedByDay[day]||0) + 1;
     });
   }
   const reviewedDays = Object.keys(reviewedByDay).sort();
   const maxReviewedDay = Math.max(1, ...reviewedDays.map(d=>reviewedByDay[d]));
 
-  if(sharedRevReviewFilter==='unreviewed') displayRows = displayRows.filter(m=>!m.doc.shared_revenue_reviewed);
+  if(sharedRevReviewFilter==='unreviewed') displayRows = displayRows.filter(m=>!m.review.reviewed);
   else if(sharedRevReviewFilter==='reviewed'){
-    displayRows = displayRows.filter(m=>m.doc.shared_revenue_reviewed);
+    displayRows = displayRows.filter(m=>m.review.reviewed);
     if(sharedRevReviewedDate){
-      displayRows = displayRows.filter(m=>reviewedDateOf(m.doc)===sharedRevReviewedDate);
+      displayRows = displayRows.filter(m=>reviewedDateOf(m)===sharedRevReviewedDate);
     }
   }
 
@@ -5656,6 +5698,7 @@ async function renderSharedRevenue(c){
 
     <div class="card" data-card-key="sharedrev_info" style="border-color:var(--laser);">
       <p style="font-size:13px;">ℹ️ ម្ចាស់ដែលបានកំណត់៖ ${ownerKeywordMap.map(o=>`<b>${escapeHtml(o.name)}</b> (${o.keywords.map(k=>`"${escapeHtml(k)}"`).join(', ')})`).join(' • ')||'មិនទាន់មាន'}។ ទំនិញណាមិនត្រូវនឹងពាក្យគន្លឹះណាមួយ នឹងចាត់ចូល "${UNASSIGNED}"។ អាចកែក្នុង "ការកំណត់"</p>
+      ${sharedRevOwnerFilter==='all' ? `<p style="font-size:12px;color:var(--ink-muted);margin-top:6px;">ស្ថានភាពពិនិត្យខាងក្រោមបង្ហាញដាច់ដោយឡែកតាមម្ចាស់និមួយៗ។ ដើម្បីសម្គាល់ថាបានពិនិត្យ ឬដាក់កំណត់ចំណាំ សូមជ្រើសរើសម្ចាស់ជាក់លាក់ពីខាងលើសិន</p>` : ''}
     </div>
 
     ${sharedRevOwnerFilter==='all' ? `
@@ -5716,12 +5759,13 @@ async function renderSharedRevenue(c){
               <td>${m.doc.doc_date}</td>
               <td class="left" style="font-size:12px;">${m.items.map(it=>`${escapeHtml(it.name)}${sharedRevOwnerFilter==='all'?` <b>(${escapeHtml(it.owner)})</b>`:''} x${it.qty}`).join(', ')}</td>
               <td>$${m.items.reduce((s,it)=>s+it.total,0).toFixed(2)}</td>
-              <td>${m.doc.shared_revenue_reviewed ? `<span class="badge ok">ពិនិត្យរួច</span><br><span style="font-size:11px;color:var(--ink-muted);" title="${m.doc.shared_revenue_reviewed_at?'កាលបរិច្ឆេទពិនិត្យពិតប្រាកដ':'ព្រោះមិនធ្លាប់កត់ត្រា ប្រព័ន្ធប៉ាន់ស្មានពីថ្ងៃលក់'}">${m.doc.shared_revenue_reviewed_at?'':'~'}${reviewedDateOf(m.doc)}</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`}${m.doc.shared_revenue_note ? `<br><span style="font-size:11px;color:var(--ink-muted);${canAccess('shared_revenue_review')?'cursor:pointer;text-decoration:underline;':''}" title="${escapeHtml(m.doc.shared_revenue_note)}"${canAccess('shared_revenue_review')?` onclick="openSharedRevNoteModal('${m.doc.id}', true)"`:''}>📝 ${escapeHtml(m.doc.shared_revenue_note.length>30?m.doc.shared_revenue_note.slice(0,30)+'…':m.doc.shared_revenue_note)}</span>` : ''}</td>
+              <td>${sharedRevOwnerFilter==='all' ? m.perOwner.map(p=>`<div style="font-size:11px;white-space:nowrap;">${escapeHtml(p.owner)}: ${p.review.reviewed?'<span class="badge ok" style="padding:1px 6px;">✓</span>':'<span class="badge low" style="padding:1px 6px;">✗</span>'}</div>`).join('') :
+                (m.review.reviewed ? `<span class="badge ok">ពិនិត្យរួច</span><br><span style="font-size:11px;color:var(--ink-muted);" title="${m.review.reviewed_at?'កាលបរិច្ឆេទពិនិត្យពិតប្រាកដ':'ព្រោះមិនធ្លាប់កត់ត្រា ប្រព័ន្ធប៉ាន់ស្មានពីថ្ងៃលក់'}">${m.review.reviewed_at?'':'~'}${reviewedDateOf(m)}</span>` : `<span class="badge low">មិនទាន់ពិនិត្យ</span>`)}${sharedRevOwnerFilter!=='all' && m.review.note ? `<br><span style="font-size:11px;color:var(--ink-muted);${canAccess('shared_revenue_review')?'cursor:pointer;text-decoration:underline;':''}" title="${escapeHtml(m.review.note)}"${canAccess('shared_revenue_review')?` onclick="openSharedRevNoteModal('${m.doc.id}', true)"`:''}>📝 ${escapeHtml(m.review.note.length>30?m.review.note.slice(0,30)+'…':m.review.note)}</span>` : ''}</td>
               <td class="row-inline" style="justify-content:center;flex-wrap:nowrap;">
                 <button class="btn small" onclick="viewDocument('${m.doc.id}')">មើល</button>
-                ${canAccess('shared_revenue_review') ? (m.doc.shared_revenue_reviewed
+                ${sharedRevOwnerFilter==='all' ? '' : (canAccess('shared_revenue_review') ? (m.review.reviewed
                   ? `<button class="btn small" onclick="openSharedRevNoteModal('${m.doc.id}', true)">📝 ចំណាំ</button><button class="btn small" onclick="setSharedRevReviewed('${m.doc.id}', false)">ដកសម្គាល់</button>`
-                  : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="openSharedRevNoteModal('${m.doc.id}')">ត្រួតពិនិត្យ</button>`) : ''}
+                  : `<button class="btn small" style="border-color:var(--good);color:var(--good);" onclick="openSharedRevNoteModal('${m.doc.id}')">ត្រួតពិនិត្យ</button>`) : '')}
               </td>
             </tr>`).join('')}
         </tbody>
@@ -5742,10 +5786,12 @@ function setSharedRevReviewedToday(){
   renderSharedRevenue(document.getElementById('content'));
 }
 async function setSharedRevReviewed(docId, val, note){
-  const update = {shared_revenue_reviewed: val, shared_revenue_reviewed_at: val ? new Date().toISOString() : null};
-  if(!val) update.shared_revenue_note = null;
-  else if(note!==undefined) update.shared_revenue_note = note || null;
-  const {error} = await sb.from('documents').update(update).eq('id', docId);
+  const owner = sharedRevOwnerFilter;
+  const {error} = await sb.from('shared_revenue_reviews').upsert({
+    document_id: docId, owner_name: owner, reviewed: val,
+    reviewed_at: val ? new Date().toISOString() : null,
+    note: val ? (note || null) : null
+  }, {onConflict: 'document_id,owner_name'});
   if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
   renderSharedRevenue(document.getElementById('content'));
 }
@@ -5755,9 +5801,10 @@ function openSharedRevNoteModal(docId, editMode){
   pendingSharedRevNoteDocId = docId;
   sharedRevNoteEditMode = !!editMode;
   const doc = (window._sharedRevInvoices||[]).find(m=>m.doc.id===docId)?.doc;
-  document.getElementById('sharedRevNoteInput').value = doc?.shared_revenue_note || '';
+  const review = doc ? window._sharedRevGetOwnerReview(doc, sharedRevOwnerFilter) : null;
+  document.getElementById('sharedRevNoteInput').value = review?.note || '';
   document.getElementById('sharedRevNoteModalTitle').textContent = sharedRevNoteEditMode ? 'កំណត់ចំណាំ' : 'សម្គាល់ថាបានត្រួតពិនិត្យ';
-  document.getElementById('sharedRevNoteModalSub').textContent = sharedRevNoteEditMode ? 'មើល ឬកែប្រែកំណត់ចំណាំសម្រាប់ Invoice នេះ' : 'អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ';
+  document.getElementById('sharedRevNoteModalSub').textContent = sharedRevNoteEditMode ? `មើល ឬកែប្រែកំណត់ចំណាំសម្រាប់ Invoice នេះ (ម្ចាស់៖ ${escapeHtml(sharedRevOwnerFilter)})` : 'អាចដាក់កំណត់ចំណាំ (ស្រេចចិត្ត) សម្រាប់ចាំពេលក្រោយ';
   document.getElementById('sharedRevNoteModalSaveBtn').textContent = sharedRevNoteEditMode ? 'រក្សាទុកកំណត់ចំណាំ' : 'សម្គាល់ថាបានត្រួតពិនិត្យ';
   document.getElementById('sharedRevNoteModalOverlay').style.display = 'flex';
 }
@@ -5770,7 +5817,14 @@ async function confirmSharedRevNote(){
   if(!pendingSharedRevNoteDocId) return;
   const note = document.getElementById('sharedRevNoteInput').value.trim();
   if(sharedRevNoteEditMode){
-    const {error} = await sb.from('documents').update({shared_revenue_note: note || null}).eq('id', pendingSharedRevNoteDocId);
+    const owner = sharedRevOwnerFilter;
+    const doc = (window._sharedRevInvoices||[]).find(m=>m.doc.id===pendingSharedRevNoteDocId)?.doc;
+    const existing = doc ? window._sharedRevGetOwnerReview(doc, owner) : null;
+    const {error} = await sb.from('shared_revenue_reviews').upsert({
+      document_id: pendingSharedRevNoteDocId, owner_name: owner, reviewed: true,
+      reviewed_at: existing?.reviewed_at || new Date().toISOString(),
+      note: note || null
+    }, {onConflict: 'document_id,owner_name'});
     if(error){ alert('មានបញ្ហា៖ '+error.message); return; }
     renderSharedRevenue(document.getElementById('content'));
   } else {
@@ -5803,11 +5857,12 @@ function exportSharedRevenueExcel(){
         'ម្ចាស់': '',
         'ចំនួន': '',
         'តម្លៃសរុប ($)': 0,
-        'ស្ថានភាព': m.doc.shared_revenue_reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
-        'កំណត់ចំណាំ': m.doc.shared_revenue_note || ''
+        'ស្ថានភាព': m.review.reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
+        'កំណត់ចំណាំ': m.review.note || ''
       });
     } else {
       m.items.forEach(it=>{
+        const itReview = window._sharedRevGetOwnerReview(m.doc, it.owner);
         rows.push({
           'លេខ Invoice': m.doc.doc_no,
           'អតិថិជន': m.doc.customer_name||'',
@@ -5816,8 +5871,8 @@ function exportSharedRevenueExcel(){
           'ម្ចាស់': it.owner,
           'ចំនួន': it.qty,
           'តម្លៃសរុប ($)': it.total,
-          'ស្ថានភាព': m.doc.shared_revenue_reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
-          'កំណត់ចំណាំ': m.doc.shared_revenue_note || ''
+          'ស្ថានភាព': itReview.reviewed ? 'ពិនិត្យរួច' : 'មិនទាន់ពិនិត្យ',
+          'កំណត់ចំណាំ': itReview.note || ''
         });
       });
     }
